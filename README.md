@@ -1,53 +1,76 @@
 # Sill
 
-Windows 桌面上的玻璃侧边廊：热键唤出，组件可安装、可写，能吃下 Rainmeter 的皮肤。
+![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4?style=flat-square)
+![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
+![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
+[![Release](https://img.shields.io/badge/release-v0.1.1-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
 
-![M0 面板](docs/media/m0-panel.png)
+A glass side rail for the Windows desktop: summon it with a hotkey, docked to the edge of the screen,
+built to host installable widgets — and eventually to eat Rainmeter skins.
 
-*上图为 M0 实机截图（`pnpm smoke` 捕获，透明窗口不含桌面背景，实际观感更透）。*
+**English** · [中文](README_zh.md)
 
-![Customize 主题面板](docs/media/customize.png)
+<table>
+  <tr>
+    <td align="center"><img src="docs/media/panel-preview.webp" width="320" alt="Sill panel"><br>
+      <sub>The rail: live system, media and todo data on one piece of glass</sub></td>
+    <td align="center"><img src="docs/media/settings-preview.webp" width="320" alt="Sill settings"><br>
+      <sub>Settings: appearance / behavior / general</sub></td>
+  </tr>
+</table>
 
-*面板右上角主题按钮拉起的 Customize：8 套预设、背景色相/上色强度、强调色、8 种氛围、顶光与颗粒，实时生效并落盘。*
+## Where it is now
 
-## 现在到哪了
+- **M0 shell — done.** A real Electron transparent window, 384 px wide, docked to the screen edge,
+  summoned with `Alt+Q`, dismissed with `Esc`.
+- **Settings — in.** Three tabs (Appearance / Behavior / General), 8 theme presets, accent colours,
+  hotkey recorder, dock side, edge distance, zh/en switch.
+- **Live data — in.** CPU, memory, GPU, network, top processes, Windows SMTC now-playing, and an
+  editable todo list stored in `todo.json`. **Weather is still a placeholder.**
+- **M0.5 — installer done.** `pnpm dist` builds an NSIS per-user installer; the app has an
+  auto/manual release check. Auto-update installation is not wired yet.
+- **M1 widget engine — not started.** The cards are still hand-written placeholders in `App.tsx`.
 
-M0 工程骨架**已跑通**：面板能真的创建、显示、按几何停靠、截图，时钟是活的。
-面板内的**主题系统**也已跑通：玻璃的颜色与氛围是 7 个 token 推出来的，可以在面板里直接调。
-组件引擎（M1）还没开始，面板里的系统/天气/媒体/待办数据都是占位常量。
+## Install
 
-接下来的顺序：补完 M0 剩下的验收 → **M0.5 安装包与自动更新通道**（[DEVPLAN §11](DEVPLAN.md)）→ 才进 M1。
+Grab `Sill-Setup-0.1.1.exe` from [Releases](https://github.com/Enkrid-Rao/sill/releases).
+It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
+so SmartScreen warns once — choose “More info → Run anyway”.
 
-## 文档
+Requires Windows 10/11 x64.
 
-| 文档 | 内容 | 读者 |
-|---|---|---|
-| [DEVPLAN.md](DEVPLAN.md) | 产品与架构规划、里程碑、组件规范、rmskin 策略 | 想理解**要做成什么**的人 |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 环境、命令、目录职责、关键实现决策、排错 | 要**动手改代码**的人 |
-| [docs/HANDOFF.md](docs/HANDOFF.md) | 当前进度、已验证/未验证、阻塞、下一步 | 要**接手**的人或下一个会话 |
-| [docs/mockups/panel-forms.html](docs/mockups/panel-forms.html) | 四种面板形态的实尺对比（按 1/2/3/4 切换） | 想回看**为什么选侧边廊**的人 |
-
-## 快速开始
+## Development
 
 ```powershell
 pnpm install
-pnpm approve-builds --all          # 首次必须：pnpm 10+ 默认不跑依赖的安装脚本
-Remove-Item Env:ELECTRON_RUN_AS_NODE   # 首次必须：清掉 Electron 宿主注入的变量（置空无效，必须移除）
+pnpm approve-builds --all              # pnpm 10+ skips dependency build scripts by default
+Remove-Item Env:ELECTRON_RUN_AS_NODE   # injected by the Electron host; must be removed, not just cleared
 pnpm dev
 ```
 
-`Alt+Q` 唤出 / 收起，`Esc` 收起（开着 Customize 时先关那一层），托盘菜单里有换边、自启、置顶。
-主题入口在面板右上角的滑杆按钮。
+`Alt+Q` summons / hides the rail, `Esc` dismisses it (closing Settings first). The sliders icon in the
+top-right corner opens Settings.
 
-三条自检命令：
+Self-checks:
 
 ```powershell
-pnpm typecheck   # 主进程与渲染进程各查一遍
-pnpm build       # 产物在 apps/desktop/out
-pnpm smoke       # 无头起面板 → 截图到 apps/desktop/out/smoke.png → 退出
+pnpm typecheck   # main + renderer
+pnpm build       # output in apps/desktop/out
+pnpm smoke       # headless panel → screenshot to apps/desktop/out/smoke.png → exit
+pnpm dist        # NSIS installer → apps/desktop/dist
 ```
 
-## 命名
+## Docs
 
-品牌 **Sill**（窗台），命令行 `sill`，包格式 `.sill`，包 id `sill.*`，数据目录 `%APPDATA%\Sill\`。
-名字的理由见 [DEVPLAN.md §2](DEVPLAN.md)。
+| Doc | What it covers | For |
+|---|---|---|
+| [DEVPLAN.md](DEVPLAN.md) | product and architecture, milestones, widget spec, rmskin strategy | understanding **what it should become** |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | environment, commands, layout, implementation decisions, troubleshooting | **changing the code** |
+| [docs/HANDOFF.md](docs/HANDOFF.md) | current state, verified vs. unverified, blockers, next steps | **picking it up** |
+| [docs/mockups/panel-forms.html](docs/mockups/panel-forms.html) | four panel shapes at 1:1 scale | why the side rail |
+
+## Naming
+
+Brand **Sill** (the window ledge), CLI `sill`, package format `.sill`, package ids `sill.*`,
+data under `%APPDATA%\Sill\`. The reasoning is in [DEVPLAN §2](DEVPLAN.md).
