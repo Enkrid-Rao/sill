@@ -2,7 +2,7 @@
 
 面向**动手改代码**的人。产品目标与架构规划在 [../DEVPLAN.md](../DEVPLAN.md)，进度与交接在 [HANDOFF.md](HANDOFF.md)。
 
-最后更新：2026-11-13（M0 骨架完成当天）
+最后更新：2026-11-13（v0.4.8：自由尺寸 / 媒体控制 / 待办动效）
 
 ---
 
@@ -121,21 +121,22 @@ Sill/
 └─ apps/desktop/
   ├─ electron.vite.config.ts  三段构建配置（main / preload / renderer）
    ├─ electron-builder.yml     安装包配置（NSIS per-user、无签名、图标走 extraResources）
-   ├─ resources/               托盘图标（tray.ico 多尺寸 + tray.png）
+   ├─ resources/               collector.ps1 / media-control.ps1 + 托盘图标
    ├─ scripts/make-tray-icon.py 托盘图标生成器（Pillow，可重跑）
    └─ src/
       ├─ shared/
       │  ├─ theme.ts            主题类型、默认值、8 套预设、色珠表、normalizeTheme
       │  ├─ i18n.ts             中英文案、日期格式；主进程与渲染进程共用
-      │  ├─ data.ts             面板快照、待办的类型
-      │  ├─ layout.ts           面板形状（宽高 / 列数）
+      │  ├─ data.ts             面板快照、待办、媒体控制状态的类型
+      │  ├─ layout.ts           面板尺寸（连续宽高 / 预设 / 列数函数）与卡片布局
       │  └─ update.ts           更新检查的状态类型
       ├─ main/                  主进程
       │  ├─ paths.ts            app 名称与 userData 路径（必须最先导入）
-      │  ├─ settings.ts         设置类型、默认值、收敛、原子写（含 theme）
-      │  ├─ data/               真实数据：collector（PS 常驻）、system（os）、todo（todo.json）
+      │  ├─ settings.ts         设置类型、默认值、收敛、原子写（含主题与面板尺寸）
+      │  ├─ data/               真实数据：collector（PS 常驻）、system（os）、todo（todo.json）、
+      │  │                      media-control（SMTC + WASAPI 控制进程）
       │  ├─ updates.ts          查 GitHub Release 最新版本（只检查，不安装）
-      │  ├─ panel.ts            面板窗口：几何、滑入动画、显隐、Esc 分层、崩溃重载
+      │  ├─ panel.ts            面板窗口：几何、缩放、滑入动画、显隐、Esc 分层、崩溃重载
       │  ├─ hotkey.ts           全局热键 + Esc 临时接管
       │  ├─ tray.ts             托盘图标与菜单
       │  ├─ autostart.ts        开机自启
@@ -148,13 +149,17 @@ Sill/
          ├─ index.html          CSP、挂载点
          └─ src/
             ├─ main.tsx         createRoot + 两份样式
-            ├─ App.tsx          面板结构（单列流）+ 主题状态
+            ├─ App.tsx          面板结构（单列流 / grid board）+ 主题与尺寸状态
             ├─ lib/theme.ts     Theme → CSS 变量
             ├─ lib/hotkey.ts    accelerator → 显示用文案（Alt + Q）
             ├─ components/
-            │  └─ CustomizeSheet.tsx  Settings 表面（外观 / 行为 / 通用三页）
+            │  ├─ CustomizeSheet.tsx  Settings 表面（外观 / 行为 / 通用三页）
+            │  ├─ ResizeHandles.tsx   内侧边 / 底边 / 内下角缩放把手 + HUD
+            │  └─ widgets/
+            │     ├─ MediaWidget.tsx  媒体信息、进度、传输键、音量
+            │     └─ TodoWidget.tsx   待办列表、FLIP、收合删除
             ├─ styles/
-            │  ├─ panel.css     玻璃 token、8 套氛围配方、排版原子
+            │  ├─ panel.css     玻璃 token、8 套氛围配方、排版原子、卡片 / 缩放 / 动效
             │  └─ customize.css 主题表面的控件样式
             └─ assets/          Instrument Sans/Serif + atmosphere-grain.jpg
 ```
@@ -167,19 +172,21 @@ Sill/
 Electron 主进程
 ├─ paths.ts        先跑：app.setName('Sill')、userData → %APPDATA%\Sill
 ├─ settings.ts     loadSettings() / updateSettings(patch)  ← 原子写
-├─ panel.ts        createPanel()：384 × min(工作区高−200, 900)
-│                  停靠：右侧留 30、上下各留 100、垂直居中
+├─ panel.ts        createPanel()：panelWidth × panelHeight（0 = 撑满工作区 − 80）
+│                  停靠：右侧留 30、上下各留 40、默认垂直居中；拖边缘走 setContentBounds
 ├─ hotkey.ts       Alt+Q → togglePanel()；面板可见时临时接管 Esc
-├─ tray.ts         菜单：显示/隐藏 · 从左侧滑出 · 开机自启 · 置顶 · 打开设置文件 · 退出
-└─ ipc.ts          settings:get / settings:update / panel:hide / panel:toggle / panel:overlay / app:quit
+├─ tray.ts         菜单：显示/隐藏 · 从左侧滑出 · 开机自启 · 打开设置文件 · 退出
+└─ ipc.ts          settings:* / panel:hide|toggle|overlay|resize|resize-commit|limits /
+                   data:snapshot / media:command / todo:* / layout:* / update:*
         │ 结构化 IPC
         └─ renderer：React，只读 window.sill，无 Node、无 fs
            主题流程：settings.theme → lib/theme.ts → CSS 变量 → panel.css
 ```
 
 窗口参数：`frame:false, transparent:true, hasShadow:false, skipTaskbar:true,
-resizable:false, alwaysOnTop('screen-saver')`，创建一次、隐藏复用，**唤出用 `showInactive()`
-不抢焦点**。
+resizable:false, useContentSize:true, alwaysOnTop('screen-saver')`，创建一次、隐藏复用，
+**唤出用 `showInactive()` 不抢焦点**。尺寸不用原生 resizable：拖拽由渲染进程的把手发起，
+主进程用 `setContentBounds()` 落位。
 
 ---
 
@@ -196,7 +203,7 @@ resizable:false, alwaysOnTop('screen-saver')`，创建一次、隐藏复用，**
 ### 6.2 动的是窗口，不是内容
 
 面板窗口边界就是玻璃边界。如果只移动内部 DOM，玻璃会被窗口裁掉一块；所以滑入/滑出是在主进程里
-逐帧改窗口 x（`setBounds`，`TICK_MS = 10`，easeOutCubic，进入 240ms / 退出 160ms）。
+逐帧改窗口 x（`setContentBounds`，`TICK_MS = 10`，easeOutCubic，进入 240ms / 退出 160ms）。
 方向由 `settings.side` 决定：`right` 从屏幕右侧外滑入，`left` 对称。
 
 改动画时注意：
@@ -219,7 +226,8 @@ resizable:false, alwaysOnTop('screen-saver')`，创建一次、隐藏复用，**
 
 ### 6.4 设置：默认值 + 收敛 + 原子写
 
-`updateSettings(patch)` 先 `coerce()`：类型不对回落默认、宽度夹在 340–460、side 只认 right/left。
+`updateSettings(patch)` 先 `coerce()`：类型不对回落默认、宽度夹在 320–1180、高度 0 或 420–2200、
+side 只认 right/left、`panelOffsetY` 夹在 ±2200。旧文件里的 `panelShape` 会被读一次并迁移成宽高。
 写盘是「临时文件 + `renameSync`」，避免崩溃留下半个 json。读取失败（不存在/损坏）直接回落默认值，
 **绝不因为设置坏了起不来**。
 
@@ -300,15 +308,25 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 **不下载、不安装**；GitHub 仓库是私有的，未带 token 会返回 404，设置页显示「仓库未公开，无法检查」。
 真正的安装留给 M0.5 的 electron-updater。
 
-### 6.12 面板形状与响应式列
+### 6.12 自由尺寸与响应式列
 
-- 形状定义在 `src/shared/layout.ts`：Rail 384 / Compact 340×620 / Board 560×720（2 列）/ Wide 720×780（3 列）
-- 主进程 `targetBounds()` 只读 shape 的宽高；渲染进程用 `cols` 决定 `.sheet[data-cols]`
-- 列布局是 CSS grid：头图与页头 `grid-column: 1 / -1`，Wide 下待办也横跨三列
-- 换形状时 `applySideEffects` 里 `reanchor()` 直接改窗口 bounds，不播动画
-- **不要**再往 settings 里加连续宽度：形状是有限集合，才能保证每种宽度都有布局策略
-- 设置界面按形状分两套：1 列（Rail / Compact）用顶部 tab，≥2 列（Board / Wide）用左侧 152px 导航 +
-  右侧内容；`.cz-sheet` 用 CSS grid areas 切换，永远铺满面板，不做固定宽度浮层
+- 尺寸模型在 `src/shared/layout.ts`：`PANEL_PRESETS`（四个起点）、`PANEL_MIN/MAX_*`、
+  `columnsForWidth()`、`matchPreset()`。**没有 `panelShape` 了**，别把离散形状加回来。
+- 设置字段：`panelWidth`（320–1180）、`panelHeight`（0 = 撑满工作区）、`panelOffsetY`（拖底边后的落点）。
+- 主进程 `targetBounds()`：`resolveSize()` 按当前显示器的 workArea 夹住宽高，再按
+  `centeredY + panelOffsetY` 落 y；宽 1180 上限 / 高 = workArea − 80（上下各 40）。
+- **几何一律用 content bounds**：Windows 会把 1px 边框算进 `getBounds()`，用外框尺寸会导致每次
+  拖拽/重开 +1px。`createPanel` 带 `useContentSize: true`，其余全部 `getContentBounds()` /
+  `setContentBounds()`。
+- 拖拽：`panel:resize`（实时，不写盘）→ `resizePanel()` 固定停靠边改宽、固定顶边改高；
+  松手 `panel:resize-commit` 写 `panelWidth / panelHeight / panelOffsetY`。高度顶到上限时存 0。
+- 渲染层 `ResizeHandles.tsx`：pointer capture + **screenX/screenY**（窗口本身在移动，clientX 会漂移）；
+  IPC 串行化、只保留最后一帧；吸附到预设宽高与「撑满」；HUD 显示尺寸 / 列数；方向键可微调。
+- 列数由 `columnsForWidth(window.innerWidth)` 在 resize 事件里重算（约 470 起 2 列、700 起 3 列）。
+  `.sheet[data-cols]` 切换 CSS grid；`align-content: start` + `grid-auto-rows: min-content`，
+  避免 `min-height:100%` 把多出来的高度平分给每张卡（会把头图卡撑成一大块空玻璃）。
+- 三列时待办在 `cardAttrs` 里固定 span 3（独占整行）；其余跨列仍由 `layout.json` 决定。
+- 设置界面按**实际列数**分两套：1 列用顶部 tab，≥2 列用左侧 152px 导航 + 右侧内容。
 
 ### 6.13 布局编辑
 
@@ -316,8 +334,35 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 - 存储 `%APPDATA%\Sill\layout.json`，主进程 `src/main/layout.ts` 负责原子写与补全缺失卡片
 - 渲染层不重排 JSX：每张卡用 `style.order` 和 `gridColumn` 落位，`data-card` 供拖拽与测试选择
 - 编辑态（`editing`）下卡片 `draggable`，把 A 拖到 B 上 = 交换位置；箭头做相邻交换
-- 跨列在渲染时用 `clampSpan(span, columns)` 夹住，所以 Rail 下只会是 1 列
+- 跨列在渲染时用 `clampSpan(span, columns)` 夹住，所以一列时只会是 1
 - Esc 的分层顺序：编辑态 → 设置面板 → 收面板（`setOverlayOpen(customizing || editing)`）
+
+### 6.14 媒体控制：SMTC 传输 + WASAPI 音量
+
+- `resources/media-control.ps1` 是常驻的 **Windows PowerShell 5.1**（不是 pwsh 7，WinRT 投影不同）：
+  stdin 一行命令、stdout 一行 JSON。命令：`get` / `playpause` / `play` / `pause` / `next` / `prev` /
+  `mute` / `volume <0-100>` / `volup` / `voldown`。
+- 传输键走 SMTC（`TryTogglePlayPauseAsync` / `TrySkipNextAsync` / `TrySkipPreviousAsync`），
+  作用在**真正持有媒体会话的应用**上；音量走默认渲染设备的 `IAudioEndpointVolume`（系统主音量，
+  不是应用内音量 —— SMTC 没有音量接口）。
+- 主进程 `src/main/data/media-control.ts`：面板显示时 spawn，隐藏即 kill；stdin 命令排队、
+  按行回包匹配；每 4s 发一次 `get`；进程退出按 1.5s 重试；单条命令 8s 超时。
+- `data/index.ts` 的 `getSnapshot()` 会**覆盖式合并**控制进程的即时 `volume/muted`，
+  否则刚点完静音后 1.5s 内的快照还是旧值，UI 会闪回。
+- 播放/暂停后 SMTC 的 `PlaybackStatus` 常停在旧值几十到几百毫秒；UI 不拿命令返回值覆盖乐观状态，
+  而是让乐观状态最多保持 2.6s，等 collector 的快照追上。
+- 音量拖动是乐观 UI + 松手写一次；输入范围 0–100，`aria-valuetext` 带百分比。
+
+### 6.15 待办动效
+
+- `widgets/TodoWidget.tsx` 自己维护一份 `items` 镜像，点击先本地翻转再发 IPC；父级返回真值后同步。
+- 已完成项在**渲染层**排到末尾（`ordered`），`todo.json` 不改顺序。
+- FLIP：每次 `ordered` 变化前记住每行 `getBoundingClientRect().top`，提交后用 WAAPI
+  `translate3d(旧位置 − 新位置)` 补间回 0，320ms `cubic-bezier(.22,1,.36,1)`。
+- 删除：先加 `is-leaving`（`grid-template-rows: 1fr → 0fr` + margin 收合），230ms 后才真正 IPC 删除。
+- 勾选：圆点背景/阴影过渡，SVG 勾用 `stroke-dashoffset` 画出；删除线是 `.task__text::after` 的
+  `scaleX(0 → 1)`，不用 `text-decoration`（无法补间）。
+- `prefers-reduced-motion` 下所有动画/过渡关闭；FLIP 在 JS 里也会检查。
 
 ## 7. 视觉规范
 
@@ -326,7 +371,7 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 | 用途 | 类 | 规格 |
 |---|---|---|
 | 日期/分组标题 | `.cap` | 10px / letter-spacing .17em / 大写 / `--ink-faint` |
-| 时钟 | `.num` | Instrument Serif Italic 56px / line-height .92 |
+| 时钟 | `.num` | Instrument Serif Italic `clamp(56px, 9.5vw, 100px)` / line-height .92 |
 | 正文说明 | `.sub` | 12.5px / `--ink-dim` |
 | 行内标签 | `.lbl` | 11px / `--ink-dim` |
 | 数值 | `.val` | 12.5px / tabular-nums |
@@ -349,27 +394,37 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 | `Package subpath './internal' is not defined` | plugin-react 6 与 Vite 7 不兼容 | 锁 `@vitejs/plugin-react@^5.2.0` |
 | 面板出现但一片黑 | renderer 资源 404（`out/renderer` 未生成） | 先 `pnpm build`；dev 模式检查 Vite 端口 |
 | 热键没反应 | 被别的程序占用 | 看主进程日志 `热键 xxx 被其他程序占用`；托盘仍可唤出 |
-| 滑入动画一顿一顿 | 透明窗口 `setBounds` 的合成开销 | 调大 `TICK_MS` 到 16，或把 `SLIDE_IN_MS` 调到 200 |
+| 滑入动画一顿一顿 | 透明窗口 `setContentBounds` 的合成开销 | 调大 `TICK_MS` 到 16，或把 `SLIDE_IN_MS` 调到 200 |
 | 打包后的 exe 报 `bad option: --smoke` | 继承了 `ELECTRON_RUN_AS_NODE=1`，exe 以纯 Node 跑 | 启动前 `Remove-Item Env:ELECTRON_RUN_AS_NODE` |
 | `EPERM ... win-unpacked.tmp` | 上次构建残留被占用 | 删 `apps/desktop/dist/win-unpacked.tmp` 重跑 |
 | `The server aborted pending request` | Electron / NSIS 下载被代理掐断 | 确认 §3.5 的镜像变量都在，重跑一次 |
 | 面板数据一直是「—」 | `collector.ps1` 没起来 | 手工跑 `powershell.exe -File apps\desktop\resources\collector.ps1` 看是否有 JSON；再查进程里有没有 `collector.ps1` |
 | 中文歌名乱码 | PowerShell 输出编码不是 UTF-8 | 保留脚本开头的 `[Console]::OutputEncoding = UTF8` |
+| 面板宽度每次拖拽/重开都 +1px | 用了 `getBounds/setBounds`（Windows 把 1px 边框算进去） | 统一 `getContentBounds/setContentBounds` + `useContentSize: true`，见 §6.12 |
+| 媒体卡显示「未在播放」但系统里有歌 | SMTC 没有当前会话，或控制进程还没编译完 C# | 先看 `Get-Process powershell` 是否有两个；手工跑 `media-control.ps1` 输入 `get`；首次启动约 1–2s |
+| 音量滑杆一开始是 0 | 控制进程还没回第一帧，`volume = -1` | 等 1–2s；重开面板会先用上一帧缓存值 |
+| 点播放后按钮又弹回暂停 | SMTC 的 `PlaybackStatus` 更新滞后，UI 拿到了旧状态 | v0.4.8 已改成乐观状态保持 2.6s；别把 `next.status` 写回 override |
+| 拖边缘没反应 | 会话锁屏（`LockApp` 盖住全屏）或指针不在窗口内 | 解锁后手动拖；自动化时用合成 PointerEvent（窗口移动后 clientX 会漂移，必须用 screenX） |
 
 ---
 
 ## 9. 已知问题
 
-1. **渲染产物 637 kB 未压缩**。`electron-vite` 6 默认 `minify: false`（已在其 dist 源码中核实），
+1. **渲染产物约 737 kB 未压缩**。`electron-vite` 6 默认 `minify: false`（已在其 dist 源码中核实），
    产物里 dev/prod 两条 React 分支都在。M6 打包前给 renderer 开 `build.minify`。
 2. **不在 Alt+Tab 里隐藏**。`skipTaskbar` 只管任务栏；要从 Alt+Tab 消失需要 `WS_EX_TOOLWINDOW`，
    Electron 没有直接 API（要 `win.setSkipTaskbar` + 自定义样式或第三方模块），M0 没做。
 3. **自启的注册表键名**：`app.setLoginItemSettings()` 在 Windows 写的是
    `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\<app name>`，即 `Sill`。
    DEVPLAN 里写的 `com.sill.app` 是 AppUserModelId，两者不是一回事，**首次实跑后要核对并订正文档**。
-4. **没有设置界面**。托盘的「打开设置文件」直接打开 `settings.json`，改完重启生效（M2 再做 UI）。
-5. **多屏只按鼠标所在屏计算**，未做每块屏的独立记忆。
-6. **没有组件引擎**。面板内容是 `App.tsx` 里写死的占位数据，M1 才接 Provider。
+4. **托盘仍是「打开设置文件」**。面板内已有完整 Settings；托盘这一项保留给调试，M2 可换成直接打开设置页。
+5. **多屏只按鼠标所在屏计算**，未做每块屏的独立记忆；`panelOffsetY` 是全局值。
+6. **没有组件引擎**。media / todo 已抽成 `components/widgets/*`，但 hero / system / processes
+   仍是 `App.tsx` 里写死的 JSX；M1 才接 Provider 与 `WidgetShell`。
+7. **面板可见时有两个 PowerShell 进程**（collector + media-control），各占几十 MB；
+   隐藏面板后都会退出。若以后常驻组件变多，需要合并成一个采集/控制进程。
+8. **真实鼠标拖拽未在解锁桌面上验证**。自动化跑的时候机会话锁屏，只用合成 PointerEvent
+   验证了 `screenX` 逻辑；下次人肉拖内侧边 / 底边 / 内下角确认手感。
 
 ## 10. 发布与自动更新（M0.5 进行中）
 
@@ -377,6 +432,7 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 `%LOCALAPPDATA%\Programs\Sill`，开始菜单有 Sill，打包态 `--smoke` 通过，托盘图标走 asar 外的
 `extraResources`（`resources\resources\tray.ico`）。
 **还没做**：`publish` 段、`src/main/updater.ts`、页脚/托盘更新提示、v0.1.0→v0.1.1 干跑。
+当前源码版本 **0.2.0**，尚未出安装包；`media-control.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：
 

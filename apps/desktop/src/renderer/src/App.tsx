@@ -1,18 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { PanelSnapshot, TodoItem } from '../../shared/data'
+import type { MediaControlState, PanelSnapshot, TodoItem } from '../../shared/data'
 import { formatDate, t, type Language } from '../../shared/i18n'
 import {
   clampSpan,
+  columnsForWidth,
   DEFAULT_LAYOUT,
-  getPanelShape,
   normalizeLayout,
+  PANEL_MAX_WIDTH,
+  PANEL_MIN_HEIGHT,
+  PANEL_MIN_WIDTH,
+  PANEL_PRESETS,
   type CardId,
-  type PanelLayout,
-  type PanelShape
+  type PanelLayout
 } from '../../shared/layout'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../../shared/theme'
 import type { UpdateState } from '../../shared/update'
 import { CustomizeSheet } from './components/CustomizeSheet'
+import { ResizeHandles } from './components/ResizeHandles'
+import { MediaWidget } from './components/widgets/MediaWidget'
+import { TodoWidget } from './components/widgets/TodoWidget'
 import { formatHotkey } from './lib/hotkey'
 import { applyTheme } from './lib/theme'
 
@@ -30,13 +36,6 @@ function formatRate(bytes: number): string {
   if (bytes < 1024) return `${Math.round(bytes)} B/s`
   if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} KB/s`
   return `${(bytes / 1024 ** 2).toFixed(1)} MB/s`
-}
-
-function formatClock(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00'
-  const minutes = Math.floor(seconds / 60)
-  const rest = Math.floor(seconds % 60)
-  return `${minutes}:${String(rest).padStart(2, '0')}`
 }
 
 function Bar({
@@ -119,13 +118,26 @@ function SlidersIcon(): React.JSX.Element {
 
 const EMPTY_UPDATE: UpdateState = { status: 'idle' }
 
+/** 当前屏的尺寸上限（和主进程 panel.ts 的 sizeLimits 同一条公式） */
+function screenLimits(edgeGap: number): { maxWidth: number; maxHeight: number } {
+  return {
+    maxWidth: Math.max(
+      PANEL_MIN_WIDTH,
+      Math.min(PANEL_MAX_WIDTH, window.screen.availWidth - edgeGap * 2 - 16)
+    ),
+    maxHeight: Math.max(PANEL_MIN_HEIGHT, window.screen.availHeight - 80)
+  }
+}
+
 export default function App(): React.JSX.Element {
   const now = useClock()
   const [visible, setVisible] = useState(false)
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME)
   const [customizing, setCustomizing] = useState(false)
   const [hotkey, setHotkey] = useState('Alt+Q')
-  const [panelShape, setPanelShape] = useState<PanelShape>('rail')
+  const [panelWidth, setPanelWidth] = useState(384)
+  const [panelHeight, setPanelHeight] = useState(0)
+  const [columns, setColumns] = useState<1 | 2 | 3>(() => columnsForWidth(window.innerWidth))
   const [side, setSide] = useState<'left' | 'right'>('right')
   const [edgeGap, setEdgeGap] = useState(30)
   const [language, setLanguage] = useState<Language>('en')
@@ -134,7 +146,6 @@ export default function App(): React.JSX.Element {
   const [version, setVersion] = useState('')
   const [snapshot, setSnapshot] = useState<PanelSnapshot | null>(null)
   const [todos, setTodos] = useState<TodoItem[]>([])
-  const [draft, setDraft] = useState('')
   const [update, setUpdate] = useState<UpdateState>(EMPTY_UPDATE)
   const [tick, setTick] = useState(0)
   const [panelLayout, setPanelLayout] = useState<PanelLayout>(DEFAULT_LAYOUT)
@@ -149,6 +160,18 @@ export default function App(): React.JSX.Element {
     applyTheme(theme)
   }, [theme])
 
+  // 窗口尺寸变化（拖拽把手 / 设置滑杆 / 换屏）→ 只在跨过列数阈值时重排
+  useEffect(() => {
+    const onResize = (): void => {
+      setColumns((current) => {
+        const next = columnsForWidth(window.innerWidth)
+        return next === current ? current : next
+      })
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   // 启动时把 settings 读进来；读不到就用默认值（浏览器预览也走这条）
   useEffect(() => {
     let alive = true
@@ -158,7 +181,8 @@ export default function App(): React.JSX.Element {
         if (alive && settings) {
           setTheme(normalizeTheme(settings.theme))
           setHotkey(settings.hotkey)
-          setPanelShape(settings.panelShape)
+          setPanelWidth(settings.panelWidth)
+          setPanelHeight(settings.panelHeight)
           setSide(settings.side)
           setEdgeGap(settings.edgeGap)
           setLanguage(settings.language)
@@ -188,21 +212,18 @@ export default function App(): React.JSX.Element {
     return () => off?.()
   }, [])
 
+  const pullSnapshot = useCallback(async (): Promise<void> => {
+    const next = await window.sill?.getSnapshot()
+    if (next) setSnapshot(next)
+  }, [])
+
   // 面板可见时才拉快照；隐藏时主进程也停采样
   useEffect(() => {
     if (!visible) return
-    let alive = true
-    const pull = async (): Promise<void> => {
-      const next = await window.sill?.getSnapshot()
-      if (alive && next) setSnapshot(next)
-    }
-    void pull()
-    const id = window.setInterval(() => void pull(), 1500)
-    return () => {
-      alive = false
-      window.clearInterval(id)
-    }
-  }, [visible])
+    void pullSnapshot()
+    const id = window.setInterval(() => void pullSnapshot(), 1500)
+    return () => window.clearInterval(id)
+  }, [visible, pullSnapshot])
 
   // 播放中的进度每秒推进一次，避免 1.5s 一跳
   useEffect(() => {
@@ -242,10 +263,29 @@ export default function App(): React.JSX.Element {
     void window.sill?.updateSettings({ side: next })
   }, [])
 
-  /** 换形状：主进程 reanchor 会把窗口改到新宽高，内容列数由 shape 决定 */
-  const changePanelShape = useCallback((next: PanelShape) => {
-    setPanelShape(next)
-    void window.sill?.updateSettings({ panelShape: next })
+  const changePanelWidth = useCallback((value: number) => {
+    setPanelWidth(value)
+    void window.sill?.updateSettings({ panelWidth: value })
+  }, [])
+
+  const changePanelHeight = useCallback((value: number) => {
+    setPanelHeight(value)
+    // 高度滑杆 = 明确的「重新居中」，把拖底边留下的垂直偏移清掉
+    void window.sill?.updateSettings({ panelHeight: value, panelOffsetY: 0 })
+  }, [])
+
+  /** 预设：宽高一次写入，避免两次 reanchor 把窗口挪两遍 */
+  const changePanelSize = useCallback((width: number, height: number) => {
+    setPanelWidth(width)
+    setPanelHeight(height)
+    void window.sill?.updateSettings({ panelWidth: width, panelHeight: height, panelOffsetY: 0 })
+  }, [])
+
+  const resetPanelSize = useCallback(() => {
+    const width = PANEL_PRESETS[0].width
+    setPanelWidth(width)
+    setPanelHeight(0)
+    void window.sill?.updateSettings({ panelWidth: width, panelHeight: 0, panelOffsetY: 0 })
   }, [])
 
   const changeEdgeGap = useCallback((value: number) => {
@@ -275,14 +315,10 @@ export default function App(): React.JSX.Element {
     })
   }, [])
 
-  const addTodo = useCallback(
-    async (text: string) => {
-      const next = await window.sill?.addTodo(text)
-      if (next) setTodos(next)
-      setDraft('')
-    },
-    []
-  )
+  const addTodo = useCallback(async (text: string) => {
+    const next = await window.sill?.addTodo(text)
+    if (next) setTodos(next)
+  }, [])
 
   const toggleTodo = useCallback(async (id: string) => {
     const next = await window.sill?.toggleTodo(id)
@@ -293,6 +329,36 @@ export default function App(): React.JSX.Element {
     const next = await window.sill?.removeTodo(id)
     if (next) setTodos(next)
   }, [])
+
+  /** 媒体控制：命令返回的状态先写进本地快照，再补一次完整快照 */
+  const mediaCommand = useCallback(
+    async (
+      action: 'playpause' | 'next' | 'prev' | 'mute' | 'volume',
+      value?: number
+    ): Promise<MediaControlState | null> => {
+      const next = (await window.sill?.mediaCommand(action, value)) ?? null
+      if (next) {
+        setSnapshot((current) =>
+          current
+            ? {
+                ...current,
+                volume: next.volume >= 0 ? next.volume : current.volume,
+                muted: next.muted,
+                media:
+                  current.media && next.status
+                    ? { ...current.media, status: next.status }
+                    : current.media
+              }
+            : current
+        )
+      }
+      // 采集进程每 2s 才拿到新的播放状态；稍等再补一次完整快照，
+      // 不要立刻拉，否则会用旧状态覆盖掉上面的命令结果。
+      window.setTimeout(() => void pullSnapshot(), 900)
+      return next
+    },
+    [pullSnapshot]
+  )
 
   const moveCard = useCallback(
     (id: CardId, direction: -1 | 1) => {
@@ -339,11 +405,19 @@ export default function App(): React.JSX.Element {
   }, [])
 
   useEffect(() => {
+    let alive = true
+    // 面板可能在这个监听器挂上之前就已经唤出（比如 --smoke），主动问一次当前状态
+    void window.sill?.isPanelVisible().then((next) => {
+      if (alive && next) setVisible(true)
+    })
     const off = window.sill?.onPanelState((next) => {
       setVisible(next)
       if (!next) setCustomizing(false)
     })
-    return () => off?.()
+    return () => {
+      alive = false
+      off?.()
+    }
   }, [])
 
   // 面板不抢焦点，Esc 由主进程全局接管；设置面板或布局编辑开着时先关那一层
@@ -368,7 +442,7 @@ export default function App(): React.JSX.Element {
   const dateLabel = formatDate(now, language)
   const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   const openCount = todos.filter((item) => !item.done).length
-  const columns = getPanelShape(panelShape).cols
+  const limits = useMemo(() => screenLimits(edgeGap), [edgeGap])
 
   const media = snapshot?.media ?? null
   const mediaPosition = useMemo(() => {
@@ -386,6 +460,13 @@ export default function App(): React.JSX.Element {
       ? `${(snapshot.gpuMem / 1024).toFixed(1)} / ${((snapshot.gpuTotal ?? 0) / 1024).toFixed(1)} GB`
       : '—'
 
+  /** 卡片实际占几列；待办在三列时如果没有手动设过跨列，就默认独占整行 */
+  const effectiveSpan = (id: CardId): number => {
+    const configured = panelLayout.spans[id]
+    if (id === 'todo' && configured === undefined && columns === 3) return columns
+    return clampSpan(configured, columns)
+  }
+
   /** 每张卡片的网格属性 + 拖拽事件；order 同时作用于单列 flex 和多列 grid */
   const cardAttrs = (
     id: CardId,
@@ -395,7 +476,7 @@ export default function App(): React.JSX.Element {
     'data-card': id,
     style: {
       order: panelLayout.order.indexOf(id),
-      ...(columns > 1 ? { gridColumn: `span ${clampSpan(panelLayout.spans[id], columns)}` } : {})
+      ...(columns > 1 ? { gridColumn: `span ${effectiveSpan(id)}` } : {})
     },
     draggable: editing,
     onDragStart: (event) => {
@@ -445,7 +526,7 @@ export default function App(): React.JSX.Element {
           <button
             key={span}
             type="button"
-            aria-pressed={clampSpan(panelLayout.spans[id], columns) === span}
+            aria-pressed={effectiveSpan(id) === span}
             onClick={() => setCardSpan(id, span)}
           >
             {span}
@@ -574,41 +655,18 @@ export default function App(): React.JSX.Element {
 
           <section {...cardAttrs('media')}>
             {editing ? cardTools('media') : null}
-            <div className="cap" style={{ marginBottom: 11 }}>
-              {t(language, 'media.nowPlaying')}
+            <div className="row" style={{ marginBottom: 11 }}>
+              <span className="cap">{t(language, 'media.nowPlaying')}</span>
             </div>
-            {media ? (
-              <>
-                <div className="row">
-                  <div className="media__now">
-                    <span className="cover" />
-                    <div style={{ minWidth: 0 }}>
-                      <div className="media__title">{media.title}</div>
-                      <div className="sub media__artist">
-                        {[media.artist, media.album].filter(Boolean).join(' · ') || media.app}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="bar" style={{ marginTop: 13 }}>
-                  <i style={{ width: `${Math.max(0, Math.min(100, mediaProgress))}%` }} />
-                </div>
-                <div className="media__meta">
-                  <span className="cap">
-                    {media.status === 'Paused'
-                      ? t(language, 'media.paused')
-                      : media.status === 'Playing'
-                        ? ''
-                        : media.status}
-                  </span>
-                  <span className="cap">
-                    {formatClock(mediaPosition)} / {formatClock(media.duration)}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <div className="media__empty sub">{t(language, 'media.nothing')}</div>
-            )}
+            <MediaWidget
+              media={media}
+              position={mediaPosition}
+              progress={mediaProgress}
+              volume={snapshot?.volume ?? -1}
+              muted={snapshot?.muted ?? false}
+              language={language}
+              onCommand={mediaCommand}
+            />
           </section>
 
           <section {...cardAttrs('todo', 'card--grow')}>
@@ -619,47 +677,13 @@ export default function App(): React.JSX.Element {
                 {openCount} {t(language, 'todo.open')}
               </span>
             </div>
-            <div className="tasks">
-              {todos.map((item) => (
-                <div className={`task${item.done ? ' task--done' : ''}`} key={item.id}>
-                  <button
-                    className="task__toggle"
-                    type="button"
-                    aria-pressed={item.done}
-                    onClick={() => void toggleTodo(item.id)}
-                  >
-                    <span className={`dot${item.done ? ' dot--done' : ''}`} />
-                    <span className="task__text">{item.text}</span>
-                  </button>
-                  <button
-                    className="task__remove"
-                    type="button"
-                    aria-label="Remove"
-                    onClick={() => void removeTodo(item.id)}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              {!todos.length ? <div className="sub task__empty">{t(language, 'todo.empty')}</div> : null}
-            </div>
-            <form
-              className="addrow"
-              onSubmit={(event) => {
-                event.preventDefault()
-                void addTodo(draft)
-              }}
-            >
-              <span className="plus" />
-              <input
-                className="addrow__input"
-                value={draft}
-                onChange={(event) => setDraft(event.currentTarget.value)}
-                placeholder={t(language, 'todo.add')}
-                aria-label={t(language, 'todo.add')}
-                spellCheck={false}
-              />
-            </form>
+            <TodoWidget
+              items={todos}
+              language={language}
+              onAdd={addTodo}
+              onToggle={toggleTodo}
+              onRemove={removeTodo}
+            />
           </section>
         </div>
       </div>
@@ -668,7 +692,7 @@ export default function App(): React.JSX.Element {
         <span className="sub" style={{ fontSize: 11.5 }}>
           {t(language, 'footer.dismiss')}
         </span>
-        <span className="cap">{t(language, 'footer.version')}</span>
+        <span className="cap">sill{version ? ` · v${version}` : ''}</span>
       </div>
 
       {customizing ? (
@@ -679,8 +703,15 @@ export default function App(): React.JSX.Element {
           onReset={resetTheme}
           hotkey={hotkey}
           onHotkeyChange={changeHotkey}
-          panelShape={panelShape}
-          onPanelShapeChange={changePanelShape}
+          panelWidth={panelWidth}
+          panelHeight={panelHeight}
+          maxWidth={limits.maxWidth}
+          maxHeight={limits.maxHeight}
+          columns={columns}
+          onPanelWidthChange={changePanelWidth}
+          onPanelHeightChange={changePanelHeight}
+          onPanelSizeChange={changePanelSize}
+          onResetSize={resetPanelSize}
           side={side}
           onSideChange={changeSide}
           edgeGap={edgeGap}
@@ -698,9 +729,18 @@ export default function App(): React.JSX.Element {
             setEditing(true)
           }}
           version={version}
-          columns={columns}
         />
       ) : null}
+
+      <ResizeHandles
+        side={side}
+        language={language}
+        onCommitted={(width, height) => {
+          setPanelWidth(width)
+          setPanelHeight(height)
+          setColumns(columnsForWidth(width))
+        }}
+      />
     </div>
   )
 }

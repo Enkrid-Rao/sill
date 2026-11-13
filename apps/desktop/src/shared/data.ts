@@ -34,7 +34,20 @@ export interface PanelSnapshot {
   gpuTotal: number | null
   procs: ProcessSample[]
   media: MediaSample | null
+  /** 系统主音量 0–100；-1 = 还没读上来 */
+  volume: number
+  muted: boolean
   at: number
+}
+
+/** 媒体控制进程回报的一份状态（传输键 + 系统音量） */
+export interface MediaControlState {
+  ok: boolean
+  volume: number
+  muted: boolean
+  status: string
+  title: string
+  artist: string
 }
 
 export interface TodoItem {

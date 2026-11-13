@@ -1,8 +1,17 @@
 import { app, ipcMain } from 'electron'
 import { getSnapshot } from './data'
+import { mediaCommand } from './data/media-control'
 import { addTodo, listTodos, removeTodo, toggleTodo } from './data/todo'
 import { getLayout, resetLayout, setLayout } from './layout'
-import { hidePanel, setOverlayOpen, togglePanel } from './panel'
+import {
+  commitPanelSize,
+  getPanelSizeLimits,
+  hidePanel,
+  isPanelVisible,
+  resizePanel,
+  setOverlayOpen,
+  togglePanel
+} from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
 import { checkForUpdates, getUpdateState } from './updates'
 
@@ -35,9 +44,25 @@ export function registerIpc(deps: IpcDeps): void {
     togglePanel()
   })
 
+  // 渲染进程挂载时问一次：如果在它监听 panel:state 之前面板已经唤出，事件会丢
+  ipcMain.handle('panel:visible', () => isPanelVisible())
+
   ipcMain.handle('panel:overlay', (_event, open: unknown) => {
     setOverlayOpen(open === true)
   })
+
+  // 拖拽把手：实时改窗口尺寸（不写盘），松手后再 commit 一次
+  ipcMain.handle('panel:resize', (_event, width: unknown, height: unknown) =>
+    resizePanel(width, height)
+  )
+  ipcMain.handle('panel:resize-commit', (_event, width: unknown, height: unknown) =>
+    commitPanelSize(width, height)
+  )
+  ipcMain.handle('panel:limits', () => getPanelSizeLimits())
+
+  ipcMain.handle('media:command', (_event, action: unknown, value?: unknown) =>
+    mediaCommand(action, value)
+  )
 
   ipcMain.handle('app:version', () => app.getVersion())
 

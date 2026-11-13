@@ -2,7 +2,13 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { app } from 'electron'
 import type { Language } from '../shared/i18n'
-import { PANEL_SHAPES, type PanelShape } from '../shared/layout'
+import {
+  getPanelPreset,
+  PANEL_MAX_HEIGHT,
+  PANEL_MAX_WIDTH,
+  PANEL_MIN_HEIGHT,
+  PANEL_MIN_WIDTH
+} from '../shared/layout'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../shared/theme'
 import { SETTINGS_FILE } from './paths'
 
@@ -11,8 +17,12 @@ export type Side = 'right' | 'left'
 export interface Settings {
   /** 全局热键，Electron accelerator 语法 */
   hotkey: string
-  /** 面板形状（宽高与列数） */
-  panelShape: PanelShape
+  /** 面板宽度（逻辑像素），连续可调 */
+  panelWidth: number
+  /** 面板高度；0 = 撑满当前工作区可用高度 */
+  panelHeight: number
+  /** 相对垂直居中位置的偏移，拖底边改变高度后记住落点 */
+  panelOffsetY: number
   /** 停靠方向：right 从屏幕右侧滑入，left 从左侧 */
   side: Side
   /** 面板离屏幕左右边缘的距离（px） */
@@ -29,7 +39,9 @@ export interface Settings {
 
 export const DEFAULTS: Settings = {
   hotkey: 'Alt+Q',
-  panelShape: 'rail',
+  panelWidth: 384,
+  panelHeight: 0,
+  panelOffsetY: 0,
   side: 'right',
   edgeGap: 30,
   language: 'en',
@@ -45,6 +57,10 @@ function systemLanguage(): Language {
 
 let cache: Settings | null = null
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
 /** 把任意来源的对象收敛成一份合法设置：类型不对就回落默认值，越界就夹住 */
 function coerce(raw: unknown): Settings {
   const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
@@ -52,14 +68,30 @@ function coerce(raw: unknown): Settings {
   const side = src.side === 'left' ? 'left' : 'right'
   const language: Language =
     src.language === 'zh' || src.language === 'en' ? src.language : systemLanguage()
-  const panelShape =
-    PANEL_SHAPES.find((shape) => shape.id === src.panelShape)?.id ?? DEFAULTS.panelShape
+
+  // 旧版本存的是 panelShape；新版本优先读连续宽高，读不到再从旧形状迁移一次。
+  const legacy = getPanelPreset(typeof src.panelShape === 'string' ? src.panelShape : undefined)
+  const widthRaw = Number(src.panelWidth)
+  const heightRaw = Number(src.panelHeight)
+  const panelWidth = Number.isFinite(widthRaw)
+    ? clamp(Math.round(widthRaw), PANEL_MIN_WIDTH, PANEL_MAX_WIDTH)
+    : legacy.width
+  const panelHeight = Number.isFinite(heightRaw)
+    ? heightRaw === 0
+      ? 0
+      : clamp(Math.round(heightRaw), PANEL_MIN_HEIGHT, PANEL_MAX_HEIGHT)
+    : legacy.height
+  const offsetRaw = Number(src.panelOffsetY)
 
   return {
     hotkey: typeof src.hotkey === 'string' && src.hotkey.trim() ? src.hotkey.trim() : DEFAULTS.hotkey,
-    panelShape,
+    panelWidth,
+    panelHeight,
+    panelOffsetY: Number.isFinite(offsetRaw)
+      ? clamp(Math.round(offsetRaw), -PANEL_MAX_HEIGHT, PANEL_MAX_HEIGHT)
+      : 0,
     side,
-    edgeGap: Number.isFinite(gap) ? Math.min(80, Math.max(0, Math.round(gap))) : DEFAULTS.edgeGap,
+    edgeGap: Number.isFinite(gap) ? clamp(Math.round(gap), 0, 80) : DEFAULTS.edgeGap,
     language,
     startAtLogin: src.startAtLogin === true,
     autoUpdate: src.autoUpdate !== false,

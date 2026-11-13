@@ -2,11 +2,16 @@ import { join } from 'node:path'
 import { BrowserWindow, screen, shell } from 'electron'
 import { bindEscape, unbindEscape } from './hotkey'
 import { startData, stopData } from './data'
-import { loadSettings } from './settings'
-import { getPanelShape } from '../shared/layout'
+import { loadSettings, updateSettings, type Settings } from './settings'
+import {
+  PANEL_MAX_WIDTH,
+  PANEL_MIN_HEIGHT,
+  PANEL_MIN_WIDTH,
+  columnsForWidth
+} from '../shared/layout'
 
-const PANEL_VERTICAL_MARGIN = 100
-const MAX_HEIGHT = 900
+/** 上下留白：面板可以长到几乎整块工作区，同时仍能看见壁纸的呼吸 */
+const PANEL_MARGIN_Y = 40
 const SLIDE_IN_MS = 240
 const SLIDE_OUT_MS = 160
 const TICK_MS = 10
@@ -14,7 +19,7 @@ const TICK_MS = 10
 let panel: BrowserWindow | null = null
 let visible = false
 let ticker: NodeJS.Timeout | null = null
-/** 面板里是否盖着一层自绘表面（Customize）；此时 Esc 先交给它关自己 */
+/** 面板里是否盖着一层自绘表面（Customize / 布局编辑）；此时 Esc 先交给它关自己 */
 let overlayOpen = false
 
 interface Rect {
@@ -24,25 +29,62 @@ interface Rect {
   height: number
 }
 
-/** 停靠位：鼠标所在屏的边缘，尺寸由 panelShape 决定 */
-function targetBounds(): Rect {
-  const settings = loadSettings()
-  const shape = getPanelShape(settings.panelShape)
-  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
-  const area = display.workArea
-  const maxHeight = area.height - PANEL_VERTICAL_MARGIN * 2
-  const height = shape.height > 0 ? Math.min(shape.height, maxHeight) : Math.min(maxHeight, MAX_HEIGHT)
-  const y = area.y + Math.round((area.height - height) / 2)
-  const x = settings.side === 'left'
-    ? area.x + settings.edgeGap
-    : area.x + area.width - shape.width - settings.edgeGap
-
-  return { x, y, width: shape.width, height }
+export interface PanelSize {
+  width: number
+  height: number
+  maxWidth: number
+  maxHeight: number
 }
 
-/** 屏幕外一屏宽的位置：动画的起点/终点 */
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+/** 当前屏幕允许的最大面板尺寸：贴边 + 上下留白之后的部分就是全部可用空间 */
+function sizeLimits(area: Electron.Rectangle, edgeGap: number): { maxWidth: number; maxHeight: number } {
+  const maxWidth = Math.max(
+    PANEL_MIN_WIDTH,
+    Math.min(PANEL_MAX_WIDTH, area.width - edgeGap * 2 - 16)
+  )
+  const maxHeight = Math.max(PANEL_MIN_HEIGHT, area.height - PANEL_MARGIN_Y * 2)
+  return { maxWidth, maxHeight }
+}
+
+/** 设置里的宽高 → 当前屏幕上的实际宽高；height = 0 表示撑满 */
+function resolveSize(settings: Settings, area: Electron.Rectangle): { width: number; height: number; maxWidth: number; maxHeight: number } {
+  const limits = sizeLimits(area, settings.edgeGap)
+  const width = clamp(Math.round(settings.panelWidth), PANEL_MIN_WIDTH, limits.maxWidth)
+  const height =
+    settings.panelHeight > 0
+      ? clamp(Math.round(settings.panelHeight), PANEL_MIN_HEIGHT, limits.maxHeight)
+      : limits.maxHeight
+  return { width, height, ...limits }
+}
+
+/** 停靠位：鼠标所在屏的边缘，尺寸来自 settings.panelWidth / panelHeight */
+function targetBounds(): Rect {
+  const settings = loadSettings()
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const area = display.workArea
+  const { width, height } = resolveSize(settings, area)
+  const centeredY = area.y + Math.round((area.height - height) / 2)
+  const y = clamp(
+    centeredY + settings.panelOffsetY,
+    area.y + PANEL_MARGIN_Y,
+    area.y + area.height - height - PANEL_MARGIN_Y
+  )
+  const x =
+    settings.side === 'left'
+      ? area.x + settings.edgeGap
+      : area.x + area.width - width - settings.edgeGap
+
+  return { x, y, width, height }
+}
+
+/** 屏幕外一屏宽的位置：动画的起点/终点（多让出 edgeGap，避免停靠留白露一条边） */
 function offscreenX(target: Rect, side: 'left' | 'right'): number {
-  return side === 'left' ? target.x - target.width : target.x + target.width
+  const gap = loadSettings().edgeGap
+  return side === 'left' ? target.x - target.width - gap : target.x + target.width + gap
 }
 
 function stopTicker(): void {
@@ -64,7 +106,7 @@ function slideTo(fromX: number, to: Rect, duration: number, done?: () => void): 
     const t = Math.min(1, (performance.now() - start) / duration)
     const eased = 1 - Math.pow(1 - t, 3)
     const x = Math.round(fromX + (to.x - fromX) * eased)
-    panel.setBounds({ x, y: to.y, width: to.width, height: to.height }, false)
+    panel.setContentBounds({ x, y: to.y, width: to.width, height: to.height }, false)
     if (t < 1) {
       ticker = setTimeout(run, TICK_MS)
     } else {
@@ -87,7 +129,11 @@ export function createPanel(): BrowserWindow {
     transparent: true,
     backgroundColor: '#00000000',
     hasShadow: false,
+    // 尺寸由渲染进程的拖拽把手发起（panel:resize），原生 resizable 会让
+    // 透明无边框窗口露出系统边框，所以保持 false，只走 setContentBounds。
     resizable: false,
+    // 宽度/高度一律按「网页内容尺寸」理解，避免 Windows 把 1px 边框算进 bounds
+    useContentSize: true,
     movable: false,
     minimizable: false,
     maximizable: false,
@@ -145,7 +191,7 @@ function snapIfVisible(): void {
   if (!visible || !panel) return
   stopTicker()
   const target = targetBounds()
-  panel.setBounds(target, false)
+  panel.setContentBounds(target, false)
 }
 
 export function isPanelVisible(): boolean {
@@ -161,7 +207,7 @@ export function showPanel(): void {
   const from = offscreenX(target, side)
 
   stopTicker()
-  win.setBounds({ x: from, y: target.y, width: target.width, height: target.height }, false)
+  win.setContentBounds({ x: from, y: target.y, width: target.width, height: target.height }, false)
   if (!win.isVisible()) win.showInactive()
   visible = true
   overlayOpen = false
@@ -189,7 +235,7 @@ export function hidePanel(done?: () => void): void {
     return
   }
 
-  const current = win.getBounds()
+  const current = win.getContentBounds()
   const side = loadSettings().side
   const to = offscreenX(current, side)
   unbindEscape()
@@ -209,11 +255,88 @@ export function togglePanel(): void {
   else showPanel()
 }
 
-/** 停靠方向变了：面板开着就直接挪到新一侧（不播动画，避免设置面板被收起） */
+/** 停靠方向 / 尺寸来自设置时：面板开着就直接落到新位置（不播动画，避免设置面板被收起） */
 export function reanchor(): void {
   if (!visible || !panel || panel.isDestroyed()) return
   stopTicker()
-  panel.setBounds(targetBounds(), false)
+  panel.setContentBounds(targetBounds(), false)
+}
+
+/**
+ * 拖拽把手发起的实时改尺寸。
+ * 宽度：贴着停靠边改（右侧停靠时右边缘不动，向左长）；
+ * 高度：顶边不动（底边跟着指针走），并夹在上下留白之间。
+ */
+export function resizePanel(width: unknown, height: unknown): PanelSize | null {
+  const win = panel
+  if (!win || win.isDestroyed() || !visible) return null
+  const settings = loadSettings()
+  const current = win.getContentBounds()
+  const display = screen.getDisplayMatching(current)
+  const area = display.workArea
+  const limits = sizeLimits(area, settings.edgeGap)
+  const nextWidth = clamp(
+    Math.round(Number.isFinite(Number(width)) ? Number(width) : current.width),
+    PANEL_MIN_WIDTH,
+    limits.maxWidth
+  )
+  const nextHeight = clamp(
+    Math.round(Number.isFinite(Number(height)) ? Number(height) : current.height),
+    PANEL_MIN_HEIGHT,
+    limits.maxHeight
+  )
+  const x =
+    settings.side === 'left'
+      ? area.x + settings.edgeGap
+      : area.x + area.width - nextWidth - settings.edgeGap
+  const y = clamp(
+    current.y,
+    area.y + PANEL_MARGIN_Y,
+    area.y + area.height - nextHeight - PANEL_MARGIN_Y
+  )
+
+  stopTicker()
+  win.setContentBounds({ x, y, width: nextWidth, height: nextHeight }, false)
+  return { width: nextWidth, height: nextHeight, maxWidth: limits.maxWidth, maxHeight: limits.maxHeight }
+}
+
+/**
+ * 拖拽结束：把当前尺寸与垂直偏移写进 settings。
+ * 高度已经顶到工作区上限时存 0（= 以后都撑满），换到更大的屏幕也还是撑满。
+ * 可选地先落一次尺寸，避免最后一次 move 的 IPC 还没到就直接 commit。
+ */
+export function commitPanelSize(width?: unknown, height?: unknown): Settings {
+  const win = panel
+  if (!win || win.isDestroyed()) return loadSettings()
+  if (Number.isFinite(Number(width)) && Number.isFinite(Number(height))) {
+    resizePanel(width, height)
+  }
+  const current = win.getContentBounds()
+  const area = screen.getDisplayMatching(current).workArea
+  const settings = loadSettings()
+  const limits = sizeLimits(area, settings.edgeGap)
+  const centeredY = area.y + Math.round((area.height - current.height) / 2)
+  const minY = area.y + PANEL_MARGIN_Y - centeredY
+  const maxY = area.y + area.height - current.height - PANEL_MARGIN_Y - centeredY
+  const offsetY = clamp(current.y - centeredY, Math.min(minY, maxY), Math.max(minY, maxY))
+  const storedHeight = current.height >= limits.maxHeight ? 0 : current.height
+
+  return updateSettings({
+    panelWidth: current.width,
+    panelHeight: storedHeight,
+    panelOffsetY: offsetY
+  })
+}
+
+/** 设置面板用它给尺寸滑杆取上限 */
+export function getPanelSizeLimits(): { maxWidth: number; maxHeight: number; columns: number } {
+  const settings = loadSettings()
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const limits = sizeLimits(display.workArea, settings.edgeGap)
+  return {
+    ...limits,
+    columns: columnsForWidth(Math.min(settings.panelWidth, limits.maxWidth))
+  }
 }
 
 export function getPanelWindow(): BrowserWindow | null {

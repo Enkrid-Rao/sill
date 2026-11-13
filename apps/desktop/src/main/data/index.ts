@@ -1,5 +1,6 @@
 import type { PanelSnapshot } from '../../shared/data'
 import { getCollected, startCollector, stopCollector } from './collector'
+import { getMediaControlState, startMediaControl, stopMediaControl } from './media-control'
 import { resetCpu, sampleSystem } from './system'
 
 const TICK_MS = 1500
@@ -19,12 +20,15 @@ let snapshot: PanelSnapshot = {
   gpuTotal: null,
   procs: [],
   media: null,
+  volume: -1,
+  muted: false,
   at: 0
 }
 
 function tick(): void {
   const system = sampleSystem()
   const extra = getCollected()
+  const control = getMediaControlState()
   snapshot = {
     ...system,
     down: extra?.down ?? 0,
@@ -34,6 +38,8 @@ function tick(): void {
     gpuTotal: extra?.gpuTotal ?? null,
     procs: extra?.procs ?? [],
     media: extra?.media ?? null,
+    volume: control.volume,
+    muted: control.muted,
     at: Date.now()
   }
 }
@@ -43,6 +49,7 @@ export function startData(): void {
   if (timer) return
   resetCpu()
   startCollector()
+  startMediaControl()
   tick()
   timer = setInterval(tick, TICK_MS)
 }
@@ -53,8 +60,12 @@ export function stopData(): void {
     timer = null
   }
   stopCollector()
+  stopMediaControl()
 }
 
 export function getSnapshot(): PanelSnapshot {
-  return snapshot
+  // 音量 / 静音由媒体控制进程即时回报，不必等下一个 1.5s tick；
+  // 否则刚点完静音立刻拉快照会把旧值又盖回去。
+  const control = getMediaControlState()
+  return { ...snapshot, volume: control.volume, muted: control.muted }
 }

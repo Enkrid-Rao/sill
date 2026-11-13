@@ -157,7 +157,6 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
   animation: cz-panel-in 0.22s var(--ease-out) both;
 }
 
@@ -178,6 +177,10 @@
 
 .cz-body::-webkit-scrollbar-thumb {
   border-radius: 99px;
+  background: transparent;
+}
+
+.cz-body:hover::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.16);
 }
 
@@ -796,6 +799,103 @@
   color: hsl(8 82% 74%);
   font-size: 9px;
   line-height: 1.5;
+}
+
+/* ---------- 尺寸预设（连续可调，预设只是起点） ---------- */
+
+.cz-sizepresets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.cz-sizepreset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--ink-dim);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.18s var(--ease-out);
+}
+
+.cz-sizepreset span {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.cz-sizepreset em {
+  color: var(--ink-faint);
+  font-size: 8.5px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.cz-sizepreset:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.065);
+  color: var(--ink-soft);
+}
+
+.cz-sizepreset:active {
+  transform: scale(0.98);
+}
+
+.cz-sizepreset[aria-pressed='true'] {
+  border-color: hsl(var(--accent-h) 82% 82% / 0.38);
+  background: var(--accent-soft);
+  color: #fff;
+}
+
+.cz-sizepreset[aria-pressed='true'] em {
+  color: hsl(var(--accent-h) 80% 82% / 0.7);
+}
+
+.cz-sizepreset:focus-visible {
+  outline: 2px solid hsl(var(--accent-h) 85% 80% / 0.7);
+  outline-offset: 1px;
+}
+
+.cz-size-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ink-faint);
+  font-size: 8.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cz-mini {
+  height: 20px;
+  padding: 0 7px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 8.5px;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.cz-mini:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 /* ---------- 二选一（停靠边） ---------- */

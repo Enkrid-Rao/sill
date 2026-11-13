@@ -10,6 +10,7 @@ const api = {
   setHotkey: (accel: string) => ipcRenderer.invoke('hotkey:set', accel),
   getVersion: () => ipcRenderer.invoke('app:version'),
   getSnapshot: () => ipcRenderer.invoke('data:snapshot'),
+  mediaCommand: (action: string, value?: number) => ipcRenderer.invoke('media:command', action, value),
   listTodos: () => ipcRenderer.invoke('todo:list'),
   addTodo: (text: string) => ipcRenderer.invoke('todo:add', text),
   toggleTodo: (id: string) => ipcRenderer.invoke('todo:toggle', id),
@@ -26,7 +27,13 @@ const api = {
   },
   hidePanel: () => ipcRenderer.invoke('panel:hide'),
   togglePanel: () => ipcRenderer.invoke('panel:toggle'),
+  isPanelVisible: () => ipcRenderer.invoke('panel:visible'),
   setOverlayOpen: (open: boolean) => ipcRenderer.invoke('panel:overlay', Boolean(open)),
+  resizePanel: (width: number, height: number) =>
+    ipcRenderer.invoke('panel:resize', width, height),
+  commitPanelSize: (width?: number, height?: number) =>
+    ipcRenderer.invoke('panel:resize-commit', width, height),
+  getPanelSizeLimits: () => ipcRenderer.invoke('panel:limits'),
   quit: () => ipcRenderer.invoke('app:quit'),
   onPanelState: (callback: (visible: boolean) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, visible: boolean): void => callback(visible)

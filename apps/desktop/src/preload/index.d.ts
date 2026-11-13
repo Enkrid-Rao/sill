@@ -1,12 +1,15 @@
-import type { PanelSnapshot, TodoItem } from '../shared/data'
+import type { MediaControlState, PanelSnapshot, TodoItem } from '../shared/data'
 import type { Language } from '../shared/i18n'
-import type { PanelLayout, PanelShape } from '../shared/layout'
+import type { PanelLayout } from '../shared/layout'
 import type { Theme } from '../shared/theme'
 import type { UpdateState } from '../shared/update'
 
 export interface SillSettings {
   hotkey: string
-  panelShape: PanelShape
+  panelWidth: number
+  /** 0 = 撑满可用高度 */
+  panelHeight: number
+  panelOffsetY: number
   side: 'right' | 'left'
   edgeGap: number
   language: Language
@@ -15,12 +18,20 @@ export interface SillSettings {
   theme: Theme
 }
 
+export interface PanelSizeInfo {
+  width: number
+  height: number
+  maxWidth: number
+  maxHeight: number
+}
+
 export interface SillApi {
   getSettings: () => Promise<SillSettings>
   updateSettings: (patch: Partial<SillSettings>) => Promise<SillSettings>
   setHotkey: (accel: string) => Promise<{ ok: boolean; hotkey: string }>
   getVersion: () => Promise<string>
   getSnapshot: () => Promise<PanelSnapshot>
+  mediaCommand: (action: string, value?: number) => Promise<MediaControlState | null>
   listTodos: () => Promise<TodoItem[]>
   addTodo: (text: string) => Promise<TodoItem[]>
   toggleTodo: (id: string) => Promise<TodoItem[]>
@@ -33,7 +44,11 @@ export interface SillApi {
   resetLayout: () => Promise<PanelLayout>
   hidePanel: () => Promise<void>
   togglePanel: () => Promise<void>
+  isPanelVisible: () => Promise<boolean>
   setOverlayOpen: (open: boolean) => Promise<void>
+  resizePanel: (width: number, height: number) => Promise<PanelSizeInfo | null>
+  commitPanelSize: (width?: number, height?: number) => Promise<SillSettings>
+  getPanelSizeLimits: () => Promise<{ maxWidth: number; maxHeight: number; columns: number }>
   quit: () => Promise<void>
   onPanelState: (callback: (visible: boolean) => void) => () => void
   onEscape: (callback: () => void) => () => void

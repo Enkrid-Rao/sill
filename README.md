@@ -23,22 +23,28 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
 ## Where it is now
 
 - **M0 shell — done.** A real Electron transparent window, docked to the screen edge, summoned with
-  `Alt+Q`, dismissed with `Esc`. Four shapes: rail / compact / board / wide.
+  `Alt+Q`, dismissed with `Esc`. **Resize it like an iPad panel**: drag the inner edge, the bottom edge
+  or the bottom corner; four presets (rail / compact / board / wide) are just starting points.
+  The content reflows from one to three columns as it widens.
 - **Settings — in.** Three tabs (Appearance / Behavior / General), 8 theme presets, accent colours,
-  hotkey recorder, panel shapes, dock side, edge distance, zh/en switch.
+  hotkey recorder, free panel size (drag, sliders, presets, fill-height), dock side, edge distance,
+  zh/en switch.
 - **Layout — editable.** Drag a card onto another to swap, or use the arrows, and set how many columns
   each card spans. The arrangement lives in `layout.json`.
-- **Live data — in.** CPU, memory, GPU, network, top processes, Windows SMTC now-playing, and an
-  editable todo list stored in `todo.json`. **Weather is still a placeholder.**
+- **Live data — in.** CPU, memory, GPU, network, top processes, Windows SMTC now-playing with
+  play/pause, previous/next and system volume, and an editable todo list stored in `todo.json`
+  (silky FLIP reordering, height-collapsing deletes). **Weather is still a placeholder.**
 - **M0.5 — installer done.** `pnpm dist` builds an NSIS per-user installer; the app has an
   auto/manual release check. Auto-update installation is not wired yet.
-- **M1 widget engine — not started.** The cards are still hand-written placeholders in `App.tsx`.
+- **M1 widget engine — not started.** The cards are still hand-written in `App.tsx`.
 
 ## Install
 
 Grab `Sill-Setup-0.1.3.exe` from [Releases](https://github.com/Enkrid-Rao/sill/releases).
 It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
 so SmartScreen warns once — choose “More info → Run anyway”.
+The source is currently at **v0.2.0** (free resize, media controls, todo animation); that release is
+not published yet.
 
 Requires Windows 10/11 x64.
 
@@ -52,7 +58,8 @@ pnpm dev
 ```
 
 `Alt+Q` summons / hides the rail, `Esc` dismisses it (closing Settings first). The sliders icon in the
-top-right corner opens Settings.
+top-right corner opens Settings. **Drag the left/inner edge or the bottom edge to resize** — the panel
+snaps to the four presets and remembers its size.
 
 Self-checks:
 

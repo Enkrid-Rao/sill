@@ -1,12 +1,12 @@
 # Sill 开发文档
 
-v0.4.7 · 2026-11-13
+v0.4.8 · 2026-11-13
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
 ---
 
-## 0. 变更记录（v0.3 → v0.4.7）
+## 0. 变更记录（v0.3 → v0.4.8）
 
 | 变更 | 原因 |
 |---|---|
@@ -42,6 +42,10 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.4.6** 响应式 1 / 2 / 3 列 | CSS grid 落格：头图横跨整行，Board 两列、Wide 三列且待办横跨；这是将来 widget 自己声明跨列的基础 |
 | **v0.4.7** 布局可编辑 | 编辑态下卡片可拖动 / 上下移动、可按当前列数设跨列；顺序与跨列存 `layout.json`，Esc 先退出编辑 |
 | **v0.4.7** 布局模型先于引擎 | 卡片 id 与 `order + spans` 的结构就是将来 widget 的落位模型；引擎落地时把写死的卡片换成 `WidgetShell` 即可复用 |
+| **v0.4.8** 面板形状 → **连续尺寸** | 用户反馈「四种形状太死板」。`panelShape` 换成 `panelWidth` / `panelHeight` / `panelOffsetY`；内侧边 / 底边 / 内下角可直接拖拽，预设降级为起点；列数由实际宽度推导（1 / 2 / 3 列） |
+| **v0.4.8** 窗口几何改用 **content bounds** | Windows 会把 1px 边框算进 `getBounds()`，直接用外框尺寸会每次提交长 1px；统一走 `getContentBounds()` / `setContentBounds()`，尺寸不再漂移 |
+| **v0.4.8** 媒体卡接传输键与系统音量 | SMTC 负责播放 / 暂停 / 上一首 / 下一首，WASAPI 默认渲染设备负责系统主音量与静音；控制进程只在面板可见时存在 |
+| **v0.4.8** 待办卡补动效 | 勾选后 FLIP 落位到已完成区、删除先收合高度、勾选框与删除线连续过渡；排序只发生在渲染层，不写进 `todo.json` |
 
 ---
 
@@ -183,19 +187,23 @@ interface Provider<T> {
 | `weather.current` | 20min | Open-Meteo + Nominatim |
 | `todo.items` | 事件 | `fs.watch` `todo.json` |
 | `media.nowPlaying` | 1000 | Windows SMTC |
+| `media.transport` | 事件 | SMTC TryTogglePlayPause / SkipNext / SkipPrevious |
+| `system.volume` | 4000 | WASAPI 默认渲染设备（`IAudioEndpointVolume`） |
 
 面板隐藏时 `Scheduler` 停止所有 `visibleOnly` provider。
 
 > **v0.4.5 已落地最小实现**：`time`（渲染进程时钟）、`system.cpu` / `system.mem`（主进程 `os`）、
 > `system.gpu`（`nvidia-smi`）、`system.net` / `system.processes` / `media.nowPlaying`
 > （常驻 `resources/collector.ps1`，2s 一行 JSON）、`todo.items`（`todo.json` + IPC）。
+> **v0.4.8** 追加 `media.transport` 与 `system.volume`：独立的 `resources/media-control.ps1`
+> 常驻进程（stdin 一行命令 / stdout 一行 JSON），只在面板显示期间存在。
 > 天气仍是占位常量，等 M1 的 Provider 接口统一收纳。
 
 ### 4.5 存储
 
 | 路径 | 内容 |
 |---|---|
-| `%APPDATA%/Sill/settings.json` | 主题、热键、面板形状、语言、停靠边与边缘距离、开机自启、自动检查更新 |
+| `%APPDATA%/Sill/settings.json` | 主题、热键、面板宽高与垂直偏移、语言、停靠边与边缘距离、开机自启、自动检查更新 |
 | `%APPDATA%/Sill/todo.json` | 待办（`{id,text,done}`，原子写） |
 | `%APPDATA%/Sill/layout.json` | 卡片顺序与跨列（`{version,order,spans}`，原子写） |
 | `%APPDATA%/Sill/widgets/<id>/` | 组件私有数据（配额 5MB） |
@@ -211,22 +219,26 @@ interface Provider<T> {
 
 | 项 | 值 |
 |---|---|
-| 形状 | Rail（默认，384 宽）/ Compact（340×620）/ Board（560×720，2 列）/ Wide（720×780，3 列） |
-| 上 / 下边距 | 100（锚定工作区） |
+| 宽度 | 连续 320–1180；预设只是起点：Rail 384 / Compact 420×640 / Board 660×780 / Wide 920×900 |
+| 高度 | 0 = 撑满工作区（工作区高 − 80）；否则 420 起，最高同样夹在工作区内 |
+| 上 / 下边距 | 40（锚定工作区） |
 | 右边距 | 30（设置 0–80 可调） |
-| 高度 | Rail = 工作区高 − 200，上限 900；其余形状用固定高度，超出工作区时夹住 |
+| 列数 | 由**实际内容宽度**推导：< ~470 一列、≤ ~700 两列、再宽三列；拖动过程中即时重排 |
+| 垂直落点 | 默认居中；拖底边改变高度后按 `panelOffsetY` 记住落点，换屏时夹住 |
 | 圆角 | 34 |
 | 边框 | 1px `rgba(255,255,255,.135)` |
 | 阴影 | `0 26px 64px -26px rgba(0,0,0,.9)`、`0 8px 24px -12px rgba(0,0,0,.55)` |
 
 出现屏：鼠标所在屏。监听 `display-metrics-changed`、`display-added/removed`。
+拖拽入口：内侧边（改宽）、底边（改高）、内下角（同时改）；松手才写 `settings.json`。
+**几何一律用 content bounds**（`getContentBounds/setContentBounds`）：Windows 的 1px 边框会让外框尺寸每次多 1px。
 
 ### 5.2 结构：一条竖向流
 
 ```
 [品牌行]   mark + sill 字标 ··········· 热键 chip · 主题按钮
 [时钟区]   Thursday 12 November
-           22:03                       （Instrument Serif Italic 56px）
+           22:03                       （Instrument Serif Italic 56–100px，随宽度）
 [天气区]   14°  月亮云  ··············  Shanghai / H 17° L 9°
 ──────────────────────────────────────────
 [系统区]   SYSTEM ······················ 8 cores
@@ -240,8 +252,10 @@ interface Provider<T> {
            TOP GPU            chrome.exe · 26%
 ──────────────────────────────────────────
 [媒体区]   NOW PLAYING
-           [封面] Nightcall / Kavinsky · OutRun ··· 2:48
+           [封面] Nightcall / Kavinsky · OutRun
            ▓▓▓▓▓░░░░░░░░░░░░░░░░
+           0:42 / 3:21
+           ◀  ▶  ▶        🔊 ─────── 42%
 ──────────────────────────────────────────
 [待办区]   TODAY ························ 3 open
            ○ Reply to Mira about the studio keys
@@ -254,6 +268,7 @@ interface Provider<T> {
 - 分区之间 1px hairline，左右渐隐（`linear-gradient(90deg, transparent, rgba(255,255,255,.17), transparent)`）
 - 分区内上下 padding 11–13，组内行距 4–9
 - 内容超出时面板内滚动（`overflow-y:auto`，滚动条只在 hover 时出现），不裁切、不撑高窗口
+- 宽过 ~470 后切成 2 列、再宽切 3 列：仍是同一份卡片顺序与跨列，只是 grid 自动落格
 
 ### 5.3 唤出与收起
 
@@ -305,7 +320,8 @@ interface Provider<T> {
 `layout.json` 保存两样东西：
 
 - **顺序**：全局共享；单列靠 flex `order`，多列靠 grid `order`
-- **跨列**：`spans[id]`，渲染时按当前形状的列数夹住（Rail / Compact 永远只有 1 列）
+- **跨列**：`spans[id]`，渲染时按当前实际列数夹住（一列时恒为 1）；三列时待办默认独占整行
+- **列数**：不再是形状属性，而是宽度的函数；拖动改宽时自动 1 → 2 → 3 列重排
 
 入口是 Settings → 行为 →「编辑布局」。编辑态下：
 
@@ -322,10 +338,11 @@ interface Provider<T> {
 
 | 形状 | 排布 |
 |---|---|
-| Rail / Compact（1 列） | 顶部三段 tab + 单列内容 |
-| Board / Wide（≥2 列） | 左侧 152px 竖向导航 + 右侧内容区 |
+| 1 列（窄于 ~470） | 顶部三段 tab + 单列内容 |
+| ≥ 2 列 | 左侧 152px 竖向导航 + 右侧内容区 |
 
-不做固定宽度浮层：面板形状只有四种，直接按形状切换 grid areas，比「居中的小卡片」更贴合空间。
+不做固定宽度浮层：面板尺寸连续可变，直接按实际列数切换 grid areas，比「居中的小卡片」更贴合空间。
+「行为 → 面板尺寸」里同时提供四个预设、宽高滑杆与「撑满高度」开关；拖动边缘是主路径，滑杆是精确落点。
 
 ---
 

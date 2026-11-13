@@ -58,10 +58,18 @@ function changeHotkey(accel: string): { ok: boolean; hotkey: string } {
   return { ok: true, hotkey: next }
 }
 
-/** 设置变更后贴到系统上的副作用（自启、置顶、停靠边、托盘菜单） */
+/** 设置变更后贴到系统上的副作用（自启、尺寸、停靠边、托盘菜单） */
 function applySideEffects(settings: Settings, patch: Partial<Settings>): void {
   if ('startAtLogin' in patch) applyAutostart(settings.startAtLogin)
-  if ('side' in patch || 'panelShape' in patch || 'edgeGap' in patch) reanchor()
+  if (
+    'side' in patch ||
+    'panelWidth' in patch ||
+    'panelHeight' in patch ||
+    'panelOffsetY' in patch ||
+    'edgeGap' in patch
+  ) {
+    reanchor()
+  }
   if ('autoUpdate' in patch && settings.autoUpdate) {
     void checkForUpdates().then(publishUpdate)
   }
@@ -119,7 +127,8 @@ async function boot(): Promise<void> {
 /** 自检：唤起面板 → 截图 → 退出，验证 M0 的窗口与渲染 */
 async function runSmoke(): Promise<void> {
   showPanel()
-  await new Promise((resolve) => setTimeout(resolve, 1000))
+  // collector / 媒体控制各自启动一个 PowerShell，等第一帧真实数据再截图
+  await new Promise((resolve) => setTimeout(resolve, 4000))
   const win = getPanelWindow()
   if (!win) throw new Error('面板窗口没有创建')
   const image = await win.webContents.capturePage()

@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { LANGUAGES, t, type Language } from '../../../shared/i18n'
-import { PANEL_SHAPES, type PanelShape } from '../../../shared/layout'
+import {
+  matchPreset,
+  PANEL_MIN_HEIGHT,
+  PANEL_MIN_WIDTH,
+  PANEL_PRESETS
+} from '../../../shared/layout'
 import type { UpdateState } from '../../../shared/update'
 import {
   ACCENT_SWATCHES,
   ATMO_STYLES,
   PRESETS,
-  matchPreset,
+  matchPreset as matchThemePreset,
   presetPatch,
   type Theme
 } from '../../../shared/theme'
@@ -21,8 +26,14 @@ interface Props {
   onReset: () => void
   hotkey: string
   onHotkeyChange: (accel: string) => Promise<boolean>
-  panelShape: PanelShape
-  onPanelShapeChange: (shape: PanelShape) => void
+  panelWidth: number
+  panelHeight: number
+  maxWidth: number
+  maxHeight: number
+  onPanelWidthChange: (width: number) => void
+  onPanelHeightChange: (height: number) => void
+  onPanelSizeChange: (width: number, height: number) => void
+  onResetSize: () => void
   side: 'left' | 'right'
   onSideChange: (side: 'left' | 'right') => void
   edgeGap: number
@@ -267,8 +278,14 @@ export function CustomizeSheet({
   onReset,
   hotkey,
   onHotkeyChange,
-  panelShape,
-  onPanelShapeChange,
+  panelWidth,
+  panelHeight,
+  maxWidth,
+  maxHeight,
+  onPanelWidthChange,
+  onPanelHeightChange,
+  onPanelSizeChange,
+  onResetSize,
   side,
   onSideChange,
   edgeGap,
@@ -287,7 +304,8 @@ export function CustomizeSheet({
 }: Props): React.JSX.Element {
   const closeRef = useRef<HTMLButtonElement>(null)
   const [tab, setTab] = useState<Tab>('appearance')
-  const activePreset = matchPreset(theme)
+  const activePreset = matchThemePreset(theme)
+  const activeSize = matchPreset(panelWidth, panelHeight)
 
   const updateText = ((): string => {
     switch (update.status) {
@@ -510,19 +528,69 @@ export function CustomizeSheet({
                 <span className="cz-setrow__name">{t(language, 'behavior.shape')}</span>
                 <span className="cz-setrow__note">{t(language, 'behavior.shapeNote')}</span>
               </div>
-              <div className="cz-seg cz-seg--four" role="group" aria-label={t(language, 'behavior.shape')}>
-                {PANEL_SHAPES.map((shape) => (
+              <div className="cz-sizepresets" role="group" aria-label={t(language, 'behavior.shape')}>
+                {PANEL_PRESETS.map((preset) => (
                   <button
-                    key={shape.id}
+                    key={preset.id}
                     type="button"
-                    aria-pressed={panelShape === shape.id}
-                    onClick={() => onPanelShapeChange(shape.id)}
+                    className="cz-sizepreset"
+                    aria-pressed={activeSize?.id === preset.id}
+                    onClick={() => onPanelSizeChange(preset.width, preset.height)}
                   >
-                    {t(language, `shape.${shape.id}`)}
+                    <span>{t(language, `shape.${preset.id}`)}</span>
+                    <em>
+                      {preset.height === 0
+                        ? `${preset.width} × ${t(language, 'size.fill')}`
+                        : `${preset.width} × ${preset.height}`}
+                    </em>
                   </button>
                 ))}
               </div>
+              <div className="cz-size-meta">
+                <span>
+                  {panelWidth} × {panelHeight === 0 ? maxHeight : panelHeight}px · {columns}{' '}
+                  {t(language, 'size.columns')}
+                </span>
+                <button className="cz-mini" type="button" onClick={onResetSize}>
+                  {t(language, 'size.reset')}
+                </button>
+              </div>
             </div>
+
+            <Slider
+              id="cz-panel-width"
+              label={t(language, 'size.width')}
+              value={panelWidth}
+              min={PANEL_MIN_WIDTH}
+              max={maxWidth}
+              suffix="px"
+              onChange={onPanelWidthChange}
+            />
+
+            <Slider
+              id="cz-panel-height"
+              label={t(language, 'size.height')}
+              value={panelHeight === 0 ? maxHeight : panelHeight}
+              min={PANEL_MIN_HEIGHT}
+              max={maxHeight}
+              suffix="px"
+              disabled={panelHeight === 0}
+              onChange={onPanelHeightChange}
+            />
+
+            <Switch
+              id="cz-panel-auto"
+              label={t(language, 'size.auto')}
+              note={t(language, 'size.autoNote')}
+              checked={panelHeight === 0}
+              onChange={(value) =>
+                onPanelHeightChange(
+                  value ? 0 : Math.max(PANEL_MIN_HEIGHT, Math.round(window.innerHeight))
+                )
+              }
+            />
+
+            <p className="cz-note">{t(language, 'size.hint')}</p>
 
             <div className="cz-setrow">
               <div className="cz-setrow__copy">
