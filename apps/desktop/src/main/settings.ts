@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { app } from 'electron'
 import type { Language } from '../shared/i18n'
+import { PANEL_SHAPES, type PanelShape } from '../shared/layout'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../shared/theme'
 import { SETTINGS_FILE } from './paths'
 
@@ -10,8 +11,8 @@ export type Side = 'right' | 'left'
 export interface Settings {
   /** 全局热键，Electron accelerator 语法 */
   hotkey: string
-  /** 面板宽度（px） */
-  panelWidth: number
+  /** 面板形状（宽高与列数） */
+  panelShape: PanelShape
   /** 停靠方向：right 从屏幕右侧滑入，left 从左侧 */
   side: Side
   /** 面板离屏幕左右边缘的距离（px） */
@@ -28,7 +29,7 @@ export interface Settings {
 
 export const DEFAULTS: Settings = {
   hotkey: 'Alt+Q',
-  panelWidth: 384,
+  panelShape: 'rail',
   side: 'right',
   edgeGap: 30,
   language: 'en',
@@ -47,15 +48,16 @@ let cache: Settings | null = null
 /** 把任意来源的对象收敛成一份合法设置：类型不对就回落默认值，越界就夹住 */
 function coerce(raw: unknown): Settings {
   const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
-  const width = Number(src.panelWidth)
   const gap = Number(src.edgeGap)
   const side = src.side === 'left' ? 'left' : 'right'
   const language: Language =
     src.language === 'zh' || src.language === 'en' ? src.language : systemLanguage()
+  const panelShape =
+    PANEL_SHAPES.find((shape) => shape.id === src.panelShape)?.id ?? DEFAULTS.panelShape
 
   return {
     hotkey: typeof src.hotkey === 'string' && src.hotkey.trim() ? src.hotkey.trim() : DEFAULTS.hotkey,
-    panelWidth: Number.isFinite(width) ? Math.min(460, Math.max(340, Math.round(width))) : DEFAULTS.panelWidth,
+    panelShape,
     side,
     edgeGap: Number.isFinite(gap) ? Math.min(80, Math.max(0, Math.round(gap))) : DEFAULTS.edgeGap,
     language,

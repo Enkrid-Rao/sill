@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PanelSnapshot, TodoItem } from '../../shared/data'
 import { formatDate, t, type Language } from '../../shared/i18n'
+import { getPanelShape, type PanelShape } from '../../shared/layout'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../../shared/theme'
 import type { UpdateState } from '../../shared/update'
 import { CustomizeSheet } from './components/CustomizeSheet'
@@ -116,6 +117,7 @@ export default function App(): React.JSX.Element {
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME)
   const [customizing, setCustomizing] = useState(false)
   const [hotkey, setHotkey] = useState('Alt+Q')
+  const [panelShape, setPanelShape] = useState<PanelShape>('rail')
   const [side, setSide] = useState<'left' | 'right'>('right')
   const [edgeGap, setEdgeGap] = useState(30)
   const [language, setLanguage] = useState<Language>('en')
@@ -145,6 +147,7 @@ export default function App(): React.JSX.Element {
         if (alive && settings) {
           setTheme(normalizeTheme(settings.theme))
           setHotkey(settings.hotkey)
+          setPanelShape(settings.panelShape)
           setSide(settings.side)
           setEdgeGap(settings.edgeGap)
           setLanguage(settings.language)
@@ -226,6 +229,12 @@ export default function App(): React.JSX.Element {
     void window.sill?.updateSettings({ side: next })
   }, [])
 
+  /** 换形状：主进程 reanchor 会把窗口改到新宽高，内容列数由 shape 决定 */
+  const changePanelShape = useCallback((next: PanelShape) => {
+    setPanelShape(next)
+    void window.sill?.updateSettings({ panelShape: next })
+  }, [])
+
   const changeEdgeGap = useCallback((value: number) => {
     setEdgeGap(value)
     void window.sill?.updateSettings({ edgeGap: value })
@@ -299,6 +308,7 @@ export default function App(): React.JSX.Element {
   const dateLabel = formatDate(now, language)
   const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
   const openCount = todos.filter((item) => !item.done).length
+  const columns = getPanelShape(panelShape).cols
 
   const media = snapshot?.media ?? null
   const mediaPosition = useMemo(() => {
@@ -325,7 +335,7 @@ export default function App(): React.JSX.Element {
       <span className="rail__rim" aria-hidden="true" />
 
       <div className="rail__scroll" inert={customizing}>
-        <div className="sheet">
+        <div className="sheet" data-cols={columns}>
           <header className="row sheet__head">
             <div className="brand">
               <BrandMark />
@@ -522,6 +532,8 @@ export default function App(): React.JSX.Element {
           onReset={resetTheme}
           hotkey={hotkey}
           onHotkeyChange={changeHotkey}
+          panelShape={panelShape}
+          onPanelShapeChange={changePanelShape}
           side={side}
           onSideChange={changeSide}
           edgeGap={edgeGap}

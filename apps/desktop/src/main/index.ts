@@ -61,7 +61,7 @@ function changeHotkey(accel: string): { ok: boolean; hotkey: string } {
 /** 设置变更后贴到系统上的副作用（自启、置顶、停靠边、托盘菜单） */
 function applySideEffects(settings: Settings, patch: Partial<Settings>): void {
   if ('startAtLogin' in patch) applyAutostart(settings.startAtLogin)
-  if ('side' in patch) reanchor()
+  if ('side' in patch || 'panelShape' in patch || 'edgeGap' in patch) reanchor()
   if ('autoUpdate' in patch && settings.autoUpdate) {
     void checkForUpdates().then(publishUpdate)
   }

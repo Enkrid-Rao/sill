@@ -1,11 +1,12 @@
 import type { PanelSnapshot, TodoItem } from '../shared/data'
 import type { Language } from '../shared/i18n'
+import type { PanelShape } from '../shared/layout'
 import type { Theme } from '../shared/theme'
 import type { UpdateState } from '../shared/update'
 
 export interface SillSettings {
   hotkey: string
-  panelWidth: number
+  panelShape: PanelShape
   side: 'right' | 'left'
   edgeGap: number
   language: Language

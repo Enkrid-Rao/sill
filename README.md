@@ -4,7 +4,7 @@
 ![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
 ![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
-[![Release](https://img.shields.io/badge/release-v0.1.1-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+[![Release](https://img.shields.io/badge/release-v0.1.2-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
 
 A glass side rail for the Windows desktop: summon it with a hotkey, docked to the edge of the screen,
 built to host installable widgets — and eventually to eat Rainmeter skins.
@@ -25,7 +25,7 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
 - **M0 shell — done.** A real Electron transparent window, 384 px wide, docked to the screen edge,
   summoned with `Alt+Q`, dismissed with `Esc`.
 - **Settings — in.** Three tabs (Appearance / Behavior / General), 8 theme presets, accent colours,
-  hotkey recorder, dock side, edge distance, zh/en switch.
+  hotkey recorder, panel shapes (rail / compact / board / wide), dock side, edge distance, zh/en switch.
 - **Live data — in.** CPU, memory, GPU, network, top processes, Windows SMTC now-playing, and an
   editable todo list stored in `todo.json`. **Weather is still a placeholder.**
 - **M0.5 — installer done.** `pnpm dist` builds an NSIS per-user installer; the app has an
@@ -34,7 +34,7 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
 
 ## Install
 
-Grab `Sill-Setup-0.1.1.exe` from [Releases](https://github.com/Enkrid-Rao/sill/releases).
+Grab `Sill-Setup-0.1.2.exe` from [Releases](https://github.com/Enkrid-Rao/sill/releases).
 It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
 so SmartScreen warns once — choose “More info → Run anyway”.
 

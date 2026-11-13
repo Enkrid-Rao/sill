@@ -437,6 +437,44 @@ body {
   padding: 1px 2px 3px;
 }
 
+/* 双列 / 三列：头图与页头横跨整行，其余卡片按顺序落格 */
+.sheet[data-cols='2'],
+.sheet[data-cols='3'] {
+  display: grid;
+  align-items: stretch;
+}
+
+.sheet[data-cols='2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sheet[data-cols='3'] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sheet[data-cols='2'] .sheet__head,
+.sheet[data-cols='2'] .card--hero,
+.sheet[data-cols='3'] .sheet__head,
+.sheet[data-cols='3'] .card--hero {
+  grid-column: 1 / -1;
+}
+
+.sheet[data-cols='3'] .card--grow {
+  grid-column: 1 / -1;
+}
+
+.sheet[data-cols='2'] .card,
+.sheet[data-cols='3'] .card {
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet[data-cols='2'] .card--grow,
+.sheet[data-cols='3'] .card--grow {
+  display: flex;
+  flex-direction: column;
+}
+
 .card__weather {
   margin-top: 14px;
 }

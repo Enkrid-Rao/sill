@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { LANGUAGES, t, type Language } from '../../../shared/i18n'
+import { PANEL_SHAPES, type PanelShape } from '../../../shared/layout'
 import type { UpdateState } from '../../../shared/update'
 import {
   ACCENT_SWATCHES,
@@ -20,6 +21,8 @@ interface Props {
   onReset: () => void
   hotkey: string
   onHotkeyChange: (accel: string) => Promise<boolean>
+  panelShape: PanelShape
+  onPanelShapeChange: (shape: PanelShape) => void
   side: 'left' | 'right'
   onSideChange: (side: 'left' | 'right') => void
   edgeGap: number
@@ -262,6 +265,8 @@ export function CustomizeSheet({
   onReset,
   hotkey,
   onHotkeyChange,
+  panelShape,
+  onPanelShapeChange,
   side,
   onSideChange,
   edgeGap,
@@ -489,6 +494,25 @@ export function CustomizeSheet({
           <>
             <p className="cz-group">{t(language, 'behavior.panel')}</p>
             <HotkeyRow hotkey={hotkey} language={language} onChange={onHotkeyChange} />
+
+            <div className="cz-setrow cz-setrow--stack">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'behavior.shape')}</span>
+                <span className="cz-setrow__note">{t(language, 'behavior.shapeNote')}</span>
+              </div>
+              <div className="cz-seg cz-seg--four" role="group" aria-label={t(language, 'behavior.shape')}>
+                {PANEL_SHAPES.map((shape) => (
+                  <button
+                    key={shape.id}
+                    type="button"
+                    aria-pressed={panelShape === shape.id}
+                    onClick={() => onPanelShapeChange(shape.id)}
+                  >
+                    {t(language, `shape.${shape.id}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div className="cz-setrow">
               <div className="cz-setrow__copy">

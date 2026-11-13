@@ -3,6 +3,7 @@ import { BrowserWindow, screen, shell } from 'electron'
 import { bindEscape, unbindEscape } from './hotkey'
 import { startData, stopData } from './data'
 import { loadSettings } from './settings'
+import { getPanelShape } from '../shared/layout'
 
 const PANEL_VERTICAL_MARGIN = 100
 const MAX_HEIGHT = 900
@@ -23,19 +24,20 @@ interface Rect {
   height: number
 }
 
-/** 停靠位：鼠标所在屏的右侧（或左侧），上下各留 PANEL_VERTICAL_MARGIN */
+/** 停靠位：鼠标所在屏的边缘，尺寸由 panelShape 决定 */
 function targetBounds(): Rect {
   const settings = loadSettings()
+  const shape = getPanelShape(settings.panelShape)
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
   const area = display.workArea
-  const width = settings.panelWidth
-  const height = Math.min(area.height - PANEL_VERTICAL_MARGIN * 2, MAX_HEIGHT)
+  const maxHeight = area.height - PANEL_VERTICAL_MARGIN * 2
+  const height = shape.height > 0 ? Math.min(shape.height, maxHeight) : Math.min(maxHeight, MAX_HEIGHT)
   const y = area.y + Math.round((area.height - height) / 2)
   const x = settings.side === 'left'
     ? area.x + settings.edgeGap
-    : area.x + area.width - width - settings.edgeGap
+    : area.x + area.width - shape.width - settings.edgeGap
 
-  return { x, y, width, height }
+  return { x, y, width: shape.width, height }
 }
 
 /** 屏幕外一屏宽的位置：动画的起点/终点 */
@@ -157,22 +159,21 @@ export function showPanel(): void {
   const target = targetBounds()
   const side = loadSettings().side
   const from = offscreenX(target, side)
-  const height = Math.min(target.height, Math.max(200, target.height))
 
   stopTicker()
-  win.setBounds({ x: from, y: target.y, width: target.width, height }, false)
+  win.setBounds({ x: from, y: target.y, width: target.width, height: target.height }, false)
   if (!win.isVisible()) win.showInactive()
   visible = true
   overlayOpen = false
   startData()
   win.webContents.send('panel:state', true)
   // 面板不抢焦点，Esc 只能靠全局临时接管；收起时立刻解绑。
-  // 面板里盖着 Customize 时，Esc 先关那一层，再按一次才收面板。
+  // 面板里盖着设置面板时，Esc 先关那一层，再按一次才收面板。
   bindEscape(() => {
     if (overlayOpen) panel?.webContents.send('panel:escape')
     else hidePanel()
   })
-  slideTo(from, { ...target, height }, SLIDE_IN_MS)
+  slideTo(from, target, SLIDE_IN_MS)
 }
 
 /** 渲染进程告知「有覆盖层开着」，Esc 的优先级据此切换 */

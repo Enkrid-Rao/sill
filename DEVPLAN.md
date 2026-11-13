@@ -1,12 +1,12 @@
 # Sill 开发文档
 
-v0.4.5 · 2026-11-13
+v0.4.6 · 2026-11-13
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
 ---
 
-## 0. 变更记录（v0.3 → v0.4.5）
+## 0. 变更记录（v0.3 → v0.4.6）
 
 | 变更 | 原因 |
 |---|---|
@@ -38,6 +38,8 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.4.5** 面板接真实数据 | system（CPU / 内存 / GPU / 网络 / 进程）、media（Windows SMTC）、todo（可增删改、落 `todo.json`）走主进程采集 + IPC；天气仍是占位 |
 | **v0.4.5** 更新开关只做「检查」 | Settings 里可以开关自动检查、手动检查 GitHub Release；不自动安装，安装仍走 M0.5 的 electron-updater |
 | **v0.4.5** Details 卡片化 | 折叠区从一条淡分割线改成带边框的整行，解决「看不出来能点」 |
+| **v0.4.6** 面板宽度改成**形状预设** | 连续宽度滑块换成 Rail / Compact / Board / Wide 四种形状，宽高与列数一起定；`settings.panelShape` 取代 `panelWidth` |
+| **v0.4.6** 响应式 1 / 2 / 3 列 | CSS grid 落格：头图横跨整行，Board 两列、Wide 三列且待办横跨；这是将来 widget 自己声明跨列的基础 |
 
 ---
 
@@ -191,7 +193,7 @@ interface Provider<T> {
 
 | 路径 | 内容 |
 |---|---|
-| `%APPDATA%/Sill/settings.json` | 主题、热键、语言、停靠边与边缘距离、开机自启、自动检查更新 |
+| `%APPDATA%/Sill/settings.json` | 主题、热键、面板形状、语言、停靠边与边缘距离、开机自启、自动检查更新 |
 | `%APPDATA%/Sill/todo.json` | 待办（`{id,text,done}`，原子写） |
 | `%APPDATA%/Sill/widgets/<id>/` | 组件私有数据（配额 5MB） |
 | `%APPDATA%/Sill/packages/<id>@<ver>/` | 已安装组件 |
@@ -206,10 +208,10 @@ interface Provider<T> {
 
 | 项 | 值 |
 |---|---|
-| 宽度 | 384（设置可调 340–460） |
+| 形状 | Rail（默认，384 宽）/ Compact（340×620）/ Board（560×720，2 列）/ Wide（720×780，3 列） |
 | 上 / 下边距 | 100（锚定工作区） |
 | 右边距 | 30（设置 0–80 可调） |
-| 高度 | 工作区高 − 200，上限 900 |
+| 高度 | Rail = 工作区高 − 200，上限 900；其余形状用固定高度，超出工作区时夹住 |
 | 圆角 | 34 |
 | 边框 | 1px `rgba(255,255,255,.135)` |
 | 阴影 | `0 26px 64px -26px rgba(0,0,0,.9)`、`0 8px 24px -12px rgba(0,0,0,.55)` |

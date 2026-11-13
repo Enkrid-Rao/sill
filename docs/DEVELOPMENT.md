@@ -128,6 +128,7 @@ Sill/
       │  ├─ theme.ts            主题类型、默认值、8 套预设、色珠表、normalizeTheme
       │  ├─ i18n.ts             中英文案、日期格式；主进程与渲染进程共用
       │  ├─ data.ts             面板快照、待办的类型
+      │  ├─ layout.ts           面板形状（宽高 / 列数）
       │  └─ update.ts           更新检查的状态类型
       ├─ main/                  主进程
       │  ├─ paths.ts            app 名称与 userData 路径（必须最先导入）
@@ -298,6 +299,14 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 `updates.ts` 请求 `api.github.com/repos/Enkrid-Rao/sill/releases/latest`，与 `app.getVersion()` 比较。
 **不下载、不安装**；GitHub 仓库是私有的，未带 token 会返回 404，设置页显示「仓库未公开，无法检查」。
 真正的安装留给 M0.5 的 electron-updater。
+
+### 6.12 面板形状与响应式列
+
+- 形状定义在 `src/shared/layout.ts`：Rail 384 / Compact 340×620 / Board 560×720（2 列）/ Wide 720×780（3 列）
+- 主进程 `targetBounds()` 只读 shape 的宽高；渲染进程用 `cols` 决定 `.sheet[data-cols]`
+- 列布局是 CSS grid：头图与页头 `grid-column: 1 / -1`，Wide 下待办也横跨三列
+- 换形状时 `applySideEffects` 里 `reanchor()` 直接改窗口 bounds，不播动画
+- **不要**再往 settings 里加连续宽度：形状是有限集合，才能保证每种宽度都有布局策略
 
 ## 7. 视觉规范
 

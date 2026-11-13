@@ -803,6 +803,15 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
+.cz-seg--four {
+  width: 100%;
+}
+
+.cz-seg--four button {
+  flex: 1;
+  min-width: 0;
+}
+
 .cz-action {
   height: 26px;
   padding: 0 11px;
