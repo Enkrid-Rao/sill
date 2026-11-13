@@ -20,16 +20,19 @@
 
 ---
 
-## 2. 三条命令
+## 2. 常用命令
 
 ```powershell
 pnpm typecheck   # tsc 跑两套 tsconfig：main+preload / renderer
 pnpm build       # electron-vite build → apps/desktop/out/{main,preload,renderer}
 pnpm smoke       # electron . --smoke：起面板 → capturePage → 写 out/smoke.png → 退出
+pnpm dist        # 出 NSIS 安装包 → apps/desktop/dist/Sill-Setup-<version>.exe（约 2 分钟）
+pnpm dist:dir    # 只解包到 dist/win-unpacked，不压安装器（查打包问题用这个，快）
 ```
 
 `pnpm dev` 会同时起 Vite dev server 与 Electron，renderer 有 HMR，主进程改动会自动重启。
 **`pnpm dev` / `pnpm smoke` 都要求先清掉 `ELECTRON_RUN_AS_NODE`**，原因见 §8 排错表第一条。
+`pnpm dist` 要下 Electron 与 NSIS 工具链，镜像与代理见 §3.5。
 
 ---
 
@@ -83,6 +86,24 @@ Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './internal' is not defin
 本项目锁的是 `@vitejs/plugin-react@^5.2.0`（peer 支持 Vite 4–8）。
 **不要顺手把它升到 6.x**，除非同时把 Vite 升到 8。
 
+### 3.5 打包（`pnpm dist`）的镜像与代理
+
+electron-builder 会从 GitHub 拉 Electron 和 NSIS / 7zip 工具链，直连必被 reset。这台机器上按这个跑：
+
+```powershell
+$env:HTTPS_PROXY='http://127.0.0.1:7898'
+$env:HTTP_PROXY=$env:HTTPS_PROXY
+$env:NO_PROXY='localhost,127.0.0.1,::1,npmmirror.com'
+$env:ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/'
+$env:ELECTRON_BUILDER_BINARIES_MIRROR='https://npmmirror.com/mirrors/electron-builder-binaries/'
+$env:CSC_IDENTITY_AUTO_DISCOVERY='false'   # 没有证书，别让 builder 去找
+pnpm dist
+```
+
+下载缓存在 `%LOCALAPPDATA%\electron-builder\Cache` 与 `%LOCALAPPDATA%\electron\Cache`，
+第二次起基本不用再下。偶发 `The server aborted pending request` 或
+`EPERM ... win-unpacked.tmp`：删掉 `apps/desktop/dist/win-unpacked.tmp` 再跑一次。
+
 ---
 
 ## 4. 目录与文件职责
@@ -97,7 +118,8 @@ Sill/
 │  ├─ media/customize.png     Customize 主题面板截图
 │  └─ mockups/                四种面板形态对比页 + 素材
 └─ apps/desktop/
-   ├─ electron.vite.config.ts  三段构建配置（main / preload / renderer）
+  ├─ electron.vite.config.ts  三段构建配置（main / preload / renderer）
+   ├─ electron-builder.yml     安装包配置（NSIS per-user、无签名、图标走 extraResources）
    ├─ resources/               托盘图标（tray.ico 多尺寸 + tray.png）
    ├─ scripts/make-tray-icon.py 托盘图标生成器（Pillow，可重跑）
    └─ src/
@@ -224,7 +246,7 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 ### 6.8 `--smoke` 是自检入口，不是测试
 
 `electron . --smoke` 会跳过热键与托盘，直接创建面板 → `showPanel()` → 等 1 秒 →
-`capturePage()` → 写 `out/smoke.png` → 退出。用途：
+`capturePage()` → 写 `out/smoke.png` → 退出。打包态写到 `%APPDATA%\Sill\smoke.png`（asar 里写不进去）。用途：
 在没有 Playwright 的情况下验证「窗口建得起来 + 页面渲染正常 + 玻璃没坏」。
 
 局限：`capturePage` 只截页面，**不含桌面背景**，所以截图会比真实观感偏暗、偏绿。
@@ -283,6 +305,9 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 | 面板出现但一片黑 | renderer 资源 404（`out/renderer` 未生成） | 先 `pnpm build`；dev 模式检查 Vite 端口 |
 | 热键没反应 | 被别的程序占用 | 看主进程日志 `热键 xxx 被其他程序占用`；托盘仍可唤出 |
 | 滑入动画一顿一顿 | 透明窗口 `setBounds` 的合成开销 | 调大 `TICK_MS` 到 16，或把 `SLIDE_IN_MS` 调到 200 |
+| 打包后的 exe 报 `bad option: --smoke` | 继承了 `ELECTRON_RUN_AS_NODE=1`，exe 以纯 Node 跑 | 启动前 `Remove-Item Env:ELECTRON_RUN_AS_NODE` |
+| `EPERM ... win-unpacked.tmp` | 上次构建残留被占用 | 删 `apps/desktop/dist/win-unpacked.tmp` 重跑 |
+| `The server aborted pending request` | Electron / NSIS 下载被代理掐断 | 确认 §3.5 的镜像变量都在，重跑一次 |
 
 ---
 
@@ -299,9 +324,14 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 5. **多屏只按鼠标所在屏计算**，未做每块屏的独立记忆。
 6. **没有组件引擎**。面板内容是 `App.tsx` 里写死的占位数据，M1 才接 Provider。
 
-## 10. 发布与自动更新（M0.5，尚未实现）
+## 10. 发布与自动更新（M0.5 进行中）
 
-规格与验收在 DEVPLAN §11，这里只记实现约束：
+**已跑通（2026-11-13）**：`pnpm dist` 出 `Sill-Setup-0.1.0.exe`（约 116 MB），静默装到
+`%LOCALAPPDATA%\Programs\Sill`，开始菜单有 Sill，打包态 `--smoke` 通过，托盘图标走 asar 外的
+`extraResources`（`resources\resources\tray.ico`）。
+**还没做**：`publish` 段、`src/main/updater.ts`、页脚/托盘更新提示、v0.1.0→v0.1.1 干跑。
+
+模型与验收在 DEVPLAN §11，这里只记实现约束：
 
 - 更新器**只在打包态生效**：`app.isPackaged` 为假（`pnpm dev` / `--smoke`）时模块直接返回。
   别在 dev 里调 electron-updater——它读不到 `latest.yml`，只会抛错
