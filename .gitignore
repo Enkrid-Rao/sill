@@ -4,3 +4,6 @@ dist/
 *.log
 .DS_Store
 .vite/
+
+# 只在本机存在的 agent 约定，永远不要进仓库（raoxi 的要求）
+/AGENTS.md
