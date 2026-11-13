@@ -1,12 +1,12 @@
 # Sill 开发文档
 
-v0.4.4 · 2026-11-13
+v0.4.5 · 2026-11-13
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
 ---
 
-## 0. 变更记录（v0.3 → v0.4.4）
+## 0. 变更记录（v0.3 → v0.4.5）
 
 | 变更 | 原因 |
 |---|---|
@@ -34,6 +34,10 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.4.4** 新增语言与边缘距离 | 中英即时切换（面板 / 设置 / 托盘 / 日期）；面板离屏幕左右边缘 0–80px 可调 |
 | **v0.4.4** 每个分区一张玻璃卡片 | 1px 内侧高光 + 极淡填充，不做第二层模糊；卡片就是将来每个 widget 的容器 |
 | **v0.4.4** 位置定为「锚定侧边」 | 删掉只写不读的 `settings.panel{x,y}`；左侧停靠仍从左侧滑入；自由位置留给 M5 |
+| **v0.4.5** 置顶不可关 | 不置顶时热键唤出也会被其他窗口压住，开关没有意义；面板恒为 `screen-saver` 层 |
+| **v0.4.5** 面板接真实数据 | system（CPU / 内存 / GPU / 网络 / 进程）、media（Windows SMTC）、todo（可增删改、落 `todo.json`）走主进程采集 + IPC；天气仍是占位 |
+| **v0.4.5** 更新开关只做「检查」 | Settings 里可以开关自动检查、手动检查 GitHub Release；不自动安装，安装仍走 M0.5 的 electron-updater |
+| **v0.4.5** Details 卡片化 | 折叠区从一条淡分割线改成带边框的整行，解决「看不出来能点」 |
 
 ---
 
@@ -96,7 +100,7 @@ M0 不算完成，直到下面每一条都成立：
 1. `pnpm dev` 一条命令起主进程 + 面板，改 host 代码热更新
 2. `Alt+Q` 唤出 / 再按收起，动效 220ms 不卡帧
 3. 面板按 §5.1 的几何出现在**鼠标所在屏**；换屏、改分辨率、任务栏变化后自动重算
-4. 托盘菜单：显示 / 隐藏 / 从左侧滑出 / 开机自启 / 置顶 / 打开设置文件 / 退出，图标随面板显隐切换
+4. 托盘菜单：显示 / 隐藏 / 从左侧滑出 / 开机自启 / 打开设置文件 / 退出，图标随面板显隐切换
 5. 单实例：第二次启动唤出已运行的实例，不新开进程
 6. 开机自启可开关，注册表键为 `HKCU\...\Run\Sill`，路径变化后能自愈
 7. 设置写入 `%APPDATA%\Sill\settings.json`，原子写（临时文件 + rename），损坏时回落默认值
@@ -178,11 +182,17 @@ interface Provider<T> {
 
 面板隐藏时 `Scheduler` 停止所有 `visibleOnly` provider。
 
+> **v0.4.5 已落地最小实现**：`time`（渲染进程时钟）、`system.cpu` / `system.mem`（主进程 `os`）、
+> `system.gpu`（`nvidia-smi`）、`system.net` / `system.processes` / `media.nowPlaying`
+> （常驻 `resources/collector.ps1`，2s 一行 JSON）、`todo.items`（`todo.json` + IPC）。
+> 天气仍是占位常量，等 M1 的 Provider 接口统一收纳。
+
 ### 4.5 存储
 
 | 路径 | 内容 |
 |---|---|
-| `%APPDATA%/Sill/settings.json` | 主题、热键、语言、停靠边与边缘距离、置顶、开机自启 |
+| `%APPDATA%/Sill/settings.json` | 主题、热键、语言、停靠边与边缘距离、开机自启、自动检查更新 |
+| `%APPDATA%/Sill/todo.json` | 待办（`{id,text,done}`，原子写） |
 | `%APPDATA%/Sill/widgets/<id>/` | 组件私有数据（配额 5MB） |
 | `%APPDATA%/Sill/packages/<id>@<ver>/` | 已安装组件 |
 
@@ -527,6 +537,11 @@ Electron + TypeScript + Vite + React + Zustand；测试 Vitest + Playwright；�
 更新器不是一个依赖：它决定安装器形态（NSIS per-user / per-machine）、安装目录、`app.isPackaged`
 分支、托盘与页脚的提示位、失败回滚路径。这些一旦被 M1–M5 的代码假定，改起来就是全线返工。
 趁现在只有一个窗口、两千多行代码，把「装 v0.1.0 → 发 v0.1.1 → 自己更新上来」跑通，成本最低。
+
+> **现状（v0.4.5）**：Settings 里的「自动检查更新」只是查 GitHub Release
+> （`api.github.com/repos/Enkrid-Rao/sill/releases/latest`），发现新版本只显示版本号，不下载、不安装。
+> 仓库目前是**私有**的，未带 token 的请求会拿到 404 —— 要么把仓库改为公开，要么在 M0.5 换成 generic feed。
+> 真正的下载安装仍由 electron-updater 在 M0.5 负责。
 
 ### 11.2 选型
 

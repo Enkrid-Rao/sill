@@ -114,8 +114,9 @@ Sill/
 ├─ docs/
 │  ├─ DEVELOPMENT.md          本文
 │  ├─ HANDOFF.md              交接
-│  ├─ media/m0-panel.png      M0 面板实机截图
-│  ├─ media/customize.png     Customize 主题面板截图
+│  ├─ media/panel-preview.webp    当前面板截图（README 用）
+│  ├─ media/settings-preview.webp 当前设置截图（README 用）
+│  ├─ media/m0-panel.png          M0 时期的实机截图（历史证据）
 │  └─ mockups/                四种面板形态对比页 + 素材
 └─ apps/desktop/
   ├─ electron.vite.config.ts  三段构建配置（main / preload / renderer）
@@ -125,10 +126,14 @@ Sill/
    └─ src/
       ├─ shared/
       │  ├─ theme.ts            主题类型、默认值、8 套预设、色珠表、normalizeTheme
-      │  └─ i18n.ts             中英文案、日期格式；主进程与渲染进程共用
+      │  ├─ i18n.ts             中英文案、日期格式；主进程与渲染进程共用
+      │  ├─ data.ts             面板快照、待办的类型
+      │  └─ update.ts           更新检查的状态类型
       ├─ main/                  主进程
       │  ├─ paths.ts            app 名称与 userData 路径（必须最先导入）
       │  ├─ settings.ts         设置类型、默认值、收敛、原子写（含 theme）
+      │  ├─ data/               真实数据：collector（PS 常驻）、system（os）、todo（todo.json）
+      │  ├─ updates.ts          查 GitHub Release 最新版本（只检查，不安装）
       │  ├─ panel.ts            面板窗口：几何、滑入动画、显隐、Esc 分层、崩溃重载
       │  ├─ hotkey.ts           全局热键 + Esc 临时接管
       │  ├─ tray.ts             托盘图标与菜单
@@ -276,6 +281,24 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 
 ---
 
+### 6.10 真实数据：Node + 一个常驻 PowerShell
+
+- **CPU / 内存**：主进程 `os.cpus()` 差分、`os.totalmem/freemem`，不依赖外部进程
+- **网络 / GPU / 进程 / 媒体**：`resources/collector.ps1` 常驻，每 2s 输出一行 JSON
+  - 媒体走 Windows SMTC（WinRT），必须用 **Windows PowerShell 5.1**（`powershell.exe`）跑，
+    pwsh 7 的 WinRT 投影不可靠
+  - 脚本开头设 `[Console]::OutputEncoding = UTF8`，否则中文歌名到 Node 会变乱码
+  - GPU 读 `nvidia-smi`；没有 N 卡时字段为 null，UI 显示「—」
+- **只在面板显示时采样**：`showPanel()` → `startData()`，`hidePanel()` 动画结束 → `stopData()`
+- 采集结果缓存；再次唤出先用上一帧，避免先闪一段「—」
+- **待办**：`%APPDATA%\Sill\todo.json`，原子写；第一次运行用当前语言的示例任务初始化
+
+### 6.11 更新检查（只查，不装）
+
+`updates.ts` 请求 `api.github.com/repos/Enkrid-Rao/sill/releases/latest`，与 `app.getVersion()` 比较。
+**不下载、不安装**；GitHub 仓库是私有的，未带 token 会返回 404，设置页显示「仓库未公开，无法检查」。
+真正的安装留给 M0.5 的 electron-updater。
+
 ## 7. 视觉规范
 
 字号与间距直接沿用 `docs/mockups/panel-forms.html` 的 C 场景（384 宽），改样式时以那份为准。
@@ -310,6 +333,8 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 | 打包后的 exe 报 `bad option: --smoke` | 继承了 `ELECTRON_RUN_AS_NODE=1`，exe 以纯 Node 跑 | 启动前 `Remove-Item Env:ELECTRON_RUN_AS_NODE` |
 | `EPERM ... win-unpacked.tmp` | 上次构建残留被占用 | 删 `apps/desktop/dist/win-unpacked.tmp` 重跑 |
 | `The server aborted pending request` | Electron / NSIS 下载被代理掐断 | 确认 §3.5 的镜像变量都在，重跑一次 |
+| 面板数据一直是「—」 | `collector.ps1` 没起来 | 手工跑 `powershell.exe -File apps\desktop\resources\collector.ps1` 看是否有 JSON；再查进程里有没有 `collector.ps1` |
+| 中文歌名乱码 | PowerShell 输出编码不是 UTF-8 | 保留脚本开头的 `[Console]::OutputEncoding = UTF8` |
 
 ---
 

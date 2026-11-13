@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { BrowserWindow, screen, shell } from 'electron'
 import { bindEscape, unbindEscape } from './hotkey'
+import { startData, stopData } from './data'
 import { loadSettings } from './settings'
 
 const PANEL_VERTICAL_MARGIN = 100
@@ -90,7 +91,9 @@ export function createPanel(): BrowserWindow {
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: true,
-    alwaysOnTop: loadSettings().pinned,
+    // 面板必须浮在最上层：不开置顶的话，热键唤出也会被其他窗口压住。
+    // 所以这个行为不可配置，托盘和设置里都不再提供开关。
+    alwaysOnTop: true,
     roundedCorners: false,
     title: 'Sill',
     webPreferences: {
@@ -103,7 +106,7 @@ export function createPanel(): BrowserWindow {
     }
   })
 
-  panel.setAlwaysOnTop(loadSettings().pinned, 'screen-saver')
+  panel.setAlwaysOnTop(true, 'screen-saver')
 
   // 外链一律交给系统浏览器，面板本身不导航
   panel.webContents.setWindowOpenHandler(({ url }) => {
@@ -161,6 +164,7 @@ export function showPanel(): void {
   if (!win.isVisible()) win.showInactive()
   visible = true
   overlayOpen = false
+  startData()
   win.webContents.send('panel:state', true)
   // 面板不抢焦点，Esc 只能靠全局临时接管；收起时立刻解绑。
   // 面板里盖着 Customize 时，Esc 先关那一层，再按一次才收面板。
@@ -179,6 +183,7 @@ export function setOverlayOpen(open: boolean): void {
 export function hidePanel(done?: () => void): void {
   const win = panel
   if (!win || !visible) {
+    stopData()
     done?.()
     return
   }
@@ -193,6 +198,7 @@ export function hidePanel(done?: () => void): void {
   slideTo(current.x, { ...current, x: to }, SLIDE_OUT_MS, () => {
     if (win.isDestroyed()) return
     win.hide()
+    stopData()
     done?.()
   })
 }
@@ -200,11 +206,6 @@ export function hidePanel(done?: () => void): void {
 export function togglePanel(): void {
   if (visible) hidePanel()
   else showPanel()
-}
-
-/** 面板置顶开关（托盘菜单用） */
-export function applyPinned(pinned: boolean): void {
-  panel?.setAlwaysOnTop(pinned, 'screen-saver')
 }
 
 /** 停靠方向变了：面板开着就直接挪到新一侧（不播动画，避免设置面板被收起） */

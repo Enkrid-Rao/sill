@@ -20,8 +20,8 @@ export interface Settings {
   language: Language
   /** 是否开机自启 */
   startAtLogin: boolean
-  /** 面板是否置顶 */
-  pinned: boolean
+  /** 是否自动检查更新 */
+  autoUpdate: boolean
   /** 玻璃主题：颜色、氛围、光晕、颗粒 */
   theme: Theme
 }
@@ -33,7 +33,7 @@ export const DEFAULTS: Settings = {
   edgeGap: 30,
   language: 'en',
   startAtLogin: false,
-  pinned: true,
+  autoUpdate: true,
   theme: DEFAULT_THEME
 }
 
@@ -60,7 +60,7 @@ function coerce(raw: unknown): Settings {
     edgeGap: Number.isFinite(gap) ? Math.min(80, Math.max(0, Math.round(gap))) : DEFAULTS.edgeGap,
     language,
     startAtLogin: src.startAtLogin === true,
-    pinned: src.pinned !== false,
+    autoUpdate: src.autoUpdate !== false,
     theme: normalizeTheme(src.theme)
   }
 }

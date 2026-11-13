@@ -9,6 +9,18 @@ const api = {
   updateSettings: (patch: unknown) => ipcRenderer.invoke('settings:update', patch),
   setHotkey: (accel: string) => ipcRenderer.invoke('hotkey:set', accel),
   getVersion: () => ipcRenderer.invoke('app:version'),
+  getSnapshot: () => ipcRenderer.invoke('data:snapshot'),
+  listTodos: () => ipcRenderer.invoke('todo:list'),
+  addTodo: (text: string) => ipcRenderer.invoke('todo:add', text),
+  toggleTodo: (id: string) => ipcRenderer.invoke('todo:toggle', id),
+  removeTodo: (id: string) => ipcRenderer.invoke('todo:remove', id),
+  getUpdateState: () => ipcRenderer.invoke('update:get'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  onUpdateState: (callback: (state: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, state: unknown): void => callback(state)
+    ipcRenderer.on('update:state', listener)
+    return () => ipcRenderer.removeListener('update:state', listener)
+  },
   hidePanel: () => ipcRenderer.invoke('panel:hide'),
   togglePanel: () => ipcRenderer.invoke('panel:toggle'),
   setOverlayOpen: (open: boolean) => ipcRenderer.invoke('panel:overlay', Boolean(open)),

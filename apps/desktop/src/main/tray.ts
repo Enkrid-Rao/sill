@@ -11,7 +11,6 @@ interface TrayActions {
   toggle: () => void
   setSide: (side: 'left' | 'right') => void
   setAutostart: (enabled: boolean) => void
-  setPinned: (pinned: boolean) => void
 }
 
 function icon(): Electron.NativeImage {
@@ -42,12 +41,6 @@ export function createTray(actions: TrayActions): Tray {
         type: 'checkbox',
         checked: current.startAtLogin,
         click: (item) => actions.setAutostart(item.checked)
-      },
-      {
-        label: tr('tray.pinned'),
-        type: 'checkbox',
-        checked: current.pinned,
-        click: (item) => actions.setPinned(item.checked)
       },
       { type: 'separator' },
       { label: tr('tray.settings'), click: () => void shell.openPath(SETTINGS_FILE) },

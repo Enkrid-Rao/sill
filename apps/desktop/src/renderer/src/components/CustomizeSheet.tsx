@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { LANGUAGES, t, type Language } from '../../../shared/i18n'
+import type { UpdateState } from '../../../shared/update'
 import {
   ACCENT_SWATCHES,
   ATMO_STYLES,
@@ -27,8 +28,10 @@ interface Props {
   onLanguageChange: (language: Language) => void
   startAtLogin: boolean
   onStartAtLoginChange: (value: boolean) => void
-  pinned: boolean
-  onPinnedChange: (value: boolean) => void
+  autoUpdate: boolean
+  onAutoUpdateChange: (value: boolean) => void
+  update: UpdateState
+  onCheckUpdate: () => void
   version: string
 }
 
@@ -267,13 +270,32 @@ export function CustomizeSheet({
   onLanguageChange,
   startAtLogin,
   onStartAtLoginChange,
-  pinned,
-  onPinnedChange,
+  autoUpdate,
+  onAutoUpdateChange,
+  update,
+  onCheckUpdate,
   version
 }: Props): React.JSX.Element {
   const closeRef = useRef<HTMLButtonElement>(null)
   const [tab, setTab] = useState<Tab>('appearance')
   const activePreset = matchPreset(theme)
+
+  const updateText = ((): string => {
+    switch (update.status) {
+      case 'checking':
+        return t(language, 'general.checking')
+      case 'latest':
+        return t(language, 'general.upToDate')
+      case 'available':
+        return `${t(language, 'general.updateAvailable')} v${update.version ?? ''}`
+      case 'error':
+        return update.reason === 'private'
+          ? t(language, 'general.updatePrivate')
+          : t(language, 'general.updateFailed')
+      default:
+        return ''
+    }
+  })()
 
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true })
@@ -509,13 +531,6 @@ export function CustomizeSheet({
               checked={startAtLogin}
               onChange={onStartAtLoginChange}
             />
-            <Switch
-              id="cz-pinned"
-              label={t(language, 'behavior.onTop')}
-              note={t(language, 'behavior.onTopNote')}
-              checked={pinned}
-              onChange={onPinnedChange}
-            />
           </>
         ) : null}
 
@@ -539,6 +554,31 @@ export function CustomizeSheet({
                   </button>
                 ))}
               </div>
+            </div>
+
+            <p className="cz-group">{t(language, 'general.updates')}</p>
+            <Switch
+              id="cz-auto-update"
+              label={t(language, 'general.autoUpdate')}
+              note={t(language, 'general.autoUpdateNote')}
+              checked={autoUpdate}
+              onChange={onAutoUpdateChange}
+            />
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'general.updateStatus')}</span>
+                <span className="cz-setrow__note">{updateText || '—'}</span>
+              </div>
+              <button
+                className="cz-action"
+                type="button"
+                onClick={onCheckUpdate}
+                disabled={update.status === 'checking'}
+              >
+                {update.status === 'checking'
+                  ? t(language, 'general.checking')
+                  : t(language, 'general.checkNow')}
+              </button>
             </div>
 
             <p className="cz-group">{t(language, 'general.about')}</p>

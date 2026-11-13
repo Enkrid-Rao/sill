@@ -6,7 +6,6 @@ import { applyAutostart } from './autostart'
 import { bindHotkey, disposeHotkeys } from './hotkey'
 import { registerIpc } from './ipc'
 import {
-  applyPinned,
   createPanel,
   getPanelWindow,
   hidePanel,
@@ -16,6 +15,8 @@ import {
 } from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
 import { createTray, destroyTray, refreshTray } from './tray'
+import { checkForUpdates } from './updates'
+import type { UpdateState } from '../shared/update'
 
 const SMOKE = process.argv.includes('--smoke')
 
@@ -60,9 +61,25 @@ function changeHotkey(accel: string): { ok: boolean; hotkey: string } {
 /** 设置变更后贴到系统上的副作用（自启、置顶、停靠边、托盘菜单） */
 function applySideEffects(settings: Settings, patch: Partial<Settings>): void {
   if ('startAtLogin' in patch) applyAutostart(settings.startAtLogin)
-  if ('pinned' in patch) applyPinned(settings.pinned)
   if ('side' in patch) reanchor()
+  if ('autoUpdate' in patch && settings.autoUpdate) {
+    void checkForUpdates().then(publishUpdate)
+  }
   refreshTray()
+}
+
+function publishUpdate(state: UpdateState): void {
+  getPanelWindow()?.webContents.send('update:state', state)
+}
+
+/** 启动 15 秒后查一次，之后每 6 小时一次；关掉自动检查就跳过 */
+function scheduleUpdateChecks(): void {
+  const run = async (): Promise<void> => {
+    if (!loadSettings().autoUpdate) return
+    publishUpdate(await checkForUpdates())
+  }
+  setTimeout(() => void run(), 15000)
+  setInterval(() => void run(), 6 * 60 * 60 * 1000)
 }
 
 async function boot(): Promise<void> {
@@ -87,16 +104,13 @@ async function boot(): Promise<void> {
         const next = updateSettings({ startAtLogin: enabled })
         applyAutostart(next.startAtLogin)
         refreshTray()
-      },
-      setPinned: (pinned) => {
-        const next = updateSettings({ pinned })
-        applyPinned(next.pinned)
-        refreshTray()
       }
     })
 
     // 只在开启时重贴一次，顺手修复「项目被移动导致自启路径失效」
     if (settings.startAtLogin) applyAutostart(true)
+
+    scheduleUpdateChecks()
   }
 
   if (SMOKE) await runSmoke()

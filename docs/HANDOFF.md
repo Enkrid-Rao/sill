@@ -3,9 +3,9 @@
 写给**接手这个项目的人或下一个会话**。目标：读完这页，你知道现在到底有什么、什么是真的验证过的、
 下一条命令该敲什么。
 
-- 交接时间：2026-11-13（v0.4.4：设置分类 / 语言 / 边缘距离 / 卡片化后更新）
+- 交接时间：2026-11-13（v0.4.5：真实数据、置顶不可关、更新开关后更新）
 - 代码位置：`D:\Projects\Sill`（从旧的 `D:\Projects\Tide` 改名而来，旧路径已不存在）
-- 对应规划：[../DEVPLAN.md](../DEVPLAN.md) v0.4.4
+- 对应规划：[../DEVPLAN.md](../DEVPLAN.md) v0.4.5
 - 对应开发文档：[DEVELOPMENT.md](DEVELOPMENT.md)
 
 ---
@@ -18,7 +18,8 @@
 `Esc` 收起；托盘有换边 / 自启 / 置顶菜单；设置写到 `%APPDATA%\Sill\settings.json`。
 面板右上角的主题按钮会拉起一块半透明的 Customize 表面：8 套预设、背景色相/上色强度、强调色、
 8 种氛围配方、顶光与颗粒，全部实时生效并落盘。
-面板里的系统、天气、媒体、待办**仍然是 `App.tsx` 里的占位常量**，不是真数据。
+面板里的系统信息、媒体、待办**已经接真实数据**（CPU / 内存 / GPU / 网络 / 进程、Windows SMTC 媒体、
+可增删改的 todo.json）；**天气仍是占位常量**。
 面板形态已经是「一个分区一张玻璃卡片」；Settings 分外观 / 行为 / 通用三页，支持中英即时切换、
 热键录制、停靠边与边缘距离。
 另外 M0.5 的第一步已经跑通：`pnpm dist` 能出 NSIS 安装包并装进本机（**更新器还没写**）。
@@ -34,7 +35,7 @@
 | 1 | `pnpm dev` 起主进程 + 面板，renderer 热更新 | ⚠️ 部分验证 | v0.4.2 跑过：main/preload/renderer 均构建成功，Vite 起在 5173，Electron 启动；`src/shared/theme.ts` 在 dev 下被 Vite 正确加载（HTTP 200）。**HMR 与「面板真能唤出」没验证**——本次 `Alt+Q` 被其他程序占用，只能托盘唤出 |
 | 2 | `Alt+Q` 唤出 / 再按收起，220ms 不卡帧 | ⚠️ 代码在，未验证 | smoke 模式**跳过**热键注册；动画流畅度没人看过 |
 | 3 | 按 §5.1 几何出现在鼠标所在屏，换屏/改分辨率自动重算 | ⚠️ 几何已验证，重算未验证 | `settings.json` 里 `panel: {x:1293,y:126}` 与 384 宽、右留 30、上留 100 完全吻合；`display-metrics-changed` 分支没跑过 |
-| 4 | 托盘菜单：显示/隐藏、设置、退出 | ⚠️ 代码在，未验证 | smoke 跳过托盘；菜单实际是「显示/隐藏 · 从左侧滑出 · 开机自启 · 置顶 · 打开设置文件 · 退出」，**没有「设置」项** |
+| 4 | 托盘菜单：显示/隐藏、设置、退出 | ⚠️ 代码在，未验证 | smoke 跳过托盘；菜单实际是「显示/隐藏 · 从左侧滑出 · 开机自启 · 打开设置文件 · 退出」，**没有「设置」项**，也没有置顶（置顶已改为不可关） |
 | 5 | 单实例：第二次启动唤出已有实例 | ❌ 未验证 | `requestSingleInstanceLock` 写了，没启动过两次 |
 | 6 | 开机自启可开关，写注册表 | ❌ 未验证 | 代码在；`HKCU\...\Run` 下当前**没有** sill 相关键（从未开启过）。键名预期是 `Sill` 而非 DEVPLAN 写的 `com.sill.app`，见 §6 |
 | 7 | 设置原子写，损坏回落默认 | ✅ 已验证（写）/ ❌ 未验证（损坏回落） | 文件真的生成了且内容正确；「损坏回落」只做了代码审查 |
@@ -54,13 +55,16 @@
 | 依赖能装、能构建 | `pnpm install` → `pnpm build` 成功，产物 `out/{main,preload,renderer}` |
 | 类型全过 | `pnpm typecheck`（两套 tsconfig）零报错 |
 | Electron 45.3.1 运行时可用 | `dist/electron.exe` 存在，`--smoke` 能起窗口并截图 |
-| 面板渲染正确 | `docs/media/m0-panel.png`：玻璃、时钟（活的）、环形进度、三条 bar、TOP RAM/GPU、媒体、待办、页脚齐活 |
+| 面板渲染正确 | `docs/media/panel-preview.webp`：卡片、真实系统 / 媒体 / 待办、条形指标、页脚；M0 时期的旧截图是 `docs/media/m0-panel.png` |
 | 主题系统可用 | Customize → 点预设 / 拖滑杆立即改 `--hue` `--accent-h` `--atmo-k`；220ms 防抖后写入 `settings.theme`；重启面板主题仍在 |
 | userData 路径正确 | `%APPDATA%\Sill\settings.json` 生成，内容 `hotkey: "Alt+Q" / panelWidth: 384 / side: "right"` |
 | 原子写与 coerce 生效 | 同上，落盘的是收敛后的合法值 |
 | 屏幕环境 | 工作区约 **1707 × 1067 逻辑像素**（2560×1600 @150%），面板尺寸 384 × 842，DPR 1.5 |
 | 安装包能出能装 | `pnpm dist` → `Sill-Setup-0.1.0.exe`（116 MB）；`/S` 静默装到 `%LOCALAPPDATA%\Programs\Sill`，开始菜单有 Sill，卸载器在安装目录 |
 | 打包态能跑 | 装完的 `Sill.exe --smoke` exit 0，截图写 `%APPDATA%\Sill\smoke.png`，画面与 dev 一致；托盘图标从 asar 外的 `resources\resources\` 加载（stderr 无「图标为空」） |
+| 真实数据能跑 | `collector.ps1` 独立运行每 2s 输出一行 JSON；应用内快照含 CPU/内存、GPU 30%、网络速率、TOP 进程、SMTC 媒体（张惠妹《忘记》），截图已核 |
+| 待办可写 | 临时 profile 下 `todo.json` 自动生成；通过 IPC add / toggle 后落盘为 `done: true` |
+| 更新检查 | 手动检查走 GitHub Release API；仓库私有（未带 token）返回 404，界面显示「仓库未公开，无法检查」 |
 
 ---
 
@@ -163,6 +167,9 @@ M1 的验收标准在 DEVPLAN §3.2，最关键那条是：**用一个没为它�
    更新源用 generic provider，**下载完成只提示、不自动重启**（DEVPLAN §11）
 10. 默认玻璃**无色相**（Clear）；Settings 三页分类；停靠位置**锚定侧边**、不存坐标；
     每个分区一张玻璃卡片（将来就是 widget 容器）
+11. **置顶不可关**：面板必须恒在 `screen-saver` 层，否则热键唤出会被其他窗口压住
+12. 真实数据的最小实现：system / media / todo 走主进程采集 + IPC；天气仍占位
+13. 更新只做「检查」：查 GitHub Release 并在设置里显示状态，不下载、不安装（安装留给 M0.5）
 
 **还开着（等用户拍板）：**
 

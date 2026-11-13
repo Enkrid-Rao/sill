@@ -27,6 +27,7 @@ extraResources:
     filter:
       - "*.ico"
       - "*.png"
+      - "*.ps1"
 
 asar: true
 

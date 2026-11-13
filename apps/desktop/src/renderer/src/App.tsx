@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { PanelSnapshot, TodoItem } from '../../shared/data'
 import { formatDate, t, type Language } from '../../shared/i18n'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../../shared/theme'
+import type { UpdateState } from '../../shared/update'
 import { CustomizeSheet } from './components/CustomizeSheet'
 import { formatHotkey } from './lib/hotkey'
 import { applyTheme } from './lib/theme'
@@ -12,6 +14,20 @@ function useClock(): Date {
     return () => window.clearInterval(id)
   }, [])
   return now
+}
+
+function formatRate(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B/s'
+  if (bytes < 1024) return `${Math.round(bytes)} B/s`
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} KB/s`
+  return `${(bytes / 1024 ** 2).toFixed(1)} MB/s`
+}
+
+function formatClock(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00'
+  const minutes = Math.floor(seconds / 60)
+  const rest = Math.floor(seconds % 60)
+  return `${minutes}:${String(rest).padStart(2, '0')}`
 }
 
 function Bar({
@@ -32,7 +48,7 @@ function Bar({
         <span className="val">{value}</span>
       </div>
       <div className={`bar${warm ? ' bar--warm' : ''}`} style={{ marginTop: 6 }}>
-        <i style={{ width: `${pct}%` }} />
+        <i style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
       </div>
     </div>
   )
@@ -92,7 +108,7 @@ function SlidersIcon(): React.JSX.Element {
   )
 }
 
-const TASK_KEYS = ['todo.one', 'todo.two', 'todo.three'] as const
+const EMPTY_UPDATE: UpdateState = { status: 'idle' }
 
 export default function App(): React.JSX.Element {
   const now = useClock()
@@ -104,8 +120,13 @@ export default function App(): React.JSX.Element {
   const [edgeGap, setEdgeGap] = useState(30)
   const [language, setLanguage] = useState<Language>('en')
   const [startAtLogin, setStartAtLogin] = useState(false)
-  const [pinned, setPinned] = useState(true)
+  const [autoUpdate, setAutoUpdate] = useState(true)
   const [version, setVersion] = useState('')
+  const [snapshot, setSnapshot] = useState<PanelSnapshot | null>(null)
+  const [todos, setTodos] = useState<TodoItem[]>([])
+  const [draft, setDraft] = useState('')
+  const [update, setUpdate] = useState<UpdateState>(EMPTY_UPDATE)
+  const [tick, setTick] = useState(0)
   const themeRef = useRef<Theme>(DEFAULT_THEME)
   const saveTimer = useRef<number | null>(null)
 
@@ -128,10 +149,14 @@ export default function App(): React.JSX.Element {
           setEdgeGap(settings.edgeGap)
           setLanguage(settings.language)
           setStartAtLogin(settings.startAtLogin)
-          setPinned(settings.pinned)
+          setAutoUpdate(settings.autoUpdate)
         }
         const appVersion = await window.sill?.getVersion()
         if (alive && appVersion) setVersion(appVersion)
+        const todosNow = await window.sill?.listTodos()
+        if (alive && todosNow) setTodos(todosNow)
+        const updateState = await window.sill?.getUpdateState()
+        if (alive && updateState) setUpdate(updateState)
       } catch {
         // 保持默认值
       }
@@ -140,6 +165,35 @@ export default function App(): React.JSX.Element {
       alive = false
     }
   }, [])
+
+  // 主进程查到新版本时推过来
+  useEffect(() => {
+    const off = window.sill?.onUpdateState((next) => setUpdate(next))
+    return () => off?.()
+  }, [])
+
+  // 面板可见时才拉快照；隐藏时主进程也停采样
+  useEffect(() => {
+    if (!visible) return
+    let alive = true
+    const pull = async (): Promise<void> => {
+      const next = await window.sill?.getSnapshot()
+      if (alive && next) setSnapshot(next)
+    }
+    void pull()
+    const id = window.setInterval(() => void pull(), 1500)
+    return () => {
+      alive = false
+      window.clearInterval(id)
+    }
+  }, [visible])
+
+  // 播放中的进度每秒推进一次，避免 1.5s 一跳
+  useEffect(() => {
+    if (snapshot?.media?.status !== 'Playing') return
+    const id = window.setInterval(() => setTick((value) => value + 1), 1000)
+    return () => window.clearInterval(id)
+  }, [snapshot?.media?.status])
 
   // 拖动滑杆时不必每次落盘：停下 220ms 再写 settings.json
   const updateTheme = useCallback((patch: Partial<Theme>) => {
@@ -182,20 +236,41 @@ export default function App(): React.JSX.Element {
     void window.sill?.updateSettings({ language: next })
   }, [])
 
-  const changeFlags = useCallback(
-    async (patch: { startAtLogin?: boolean; pinned?: boolean }) => {
-      const next = await window.sill?.updateSettings(patch)
-      if (!next) return
-      setStartAtLogin(next.startAtLogin)
-      setPinned(next.pinned)
+  const changeAutoUpdate = useCallback((value: boolean) => {
+    setAutoUpdate(value)
+    void window.sill?.updateSettings({ autoUpdate: value })
+  }, [])
+
+  const changeStartAtLogin = useCallback((value: boolean) => {
+    setStartAtLogin(value)
+    void window.sill?.updateSettings({ startAtLogin: value })
+  }, [])
+
+  const checkUpdate = useCallback(() => {
+    setUpdate({ status: 'checking' })
+    void window.sill?.checkForUpdates().then((next) => {
+      if (next) setUpdate(next)
+    })
+  }, [])
+
+  const addTodo = useCallback(
+    async (text: string) => {
+      const next = await window.sill?.addTodo(text)
+      if (next) setTodos(next)
+      setDraft('')
     },
     []
   )
 
-  // 语言：同步 <html lang>，让中文标题不走合成斜体
-  useEffect(() => {
-    document.documentElement.lang = language
-  }, [language])
+  const toggleTodo = useCallback(async (id: string) => {
+    const next = await window.sill?.toggleTodo(id)
+    if (next) setTodos(next)
+  }, [])
+
+  const removeTodo = useCallback(async (id: string) => {
+    const next = await window.sill?.removeTodo(id)
+    if (next) setTodos(next)
+  }, [])
 
   useEffect(() => {
     const off = window.sill?.onPanelState((next) => {
@@ -216,8 +291,30 @@ export default function App(): React.JSX.Element {
     void window.sill?.setOverlayOpen(customizing)
   }, [customizing])
 
+  // 语言：同步 <html lang>，让中文标题不走合成斜体
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
+
   const dateLabel = formatDate(now, language)
   const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const openCount = todos.filter((item) => !item.done).length
+
+  const media = snapshot?.media ?? null
+  const mediaPosition = useMemo(() => {
+    if (!media) return 0
+    if (media.status !== 'Playing' || !snapshot) return media.position
+    const elapsed = (Date.now() - snapshot.at) / 1000
+    return Math.min(media.duration || Number.MAX_SAFE_INTEGER, media.position + elapsed)
+    // tick 只用来按秒重算
+  }, [media, snapshot, tick])
+  const mediaProgress = media && media.duration > 0 ? (mediaPosition / media.duration) * 100 : 0
+
+  const gpuValue = snapshot?.gpu != null ? `${snapshot.gpu}%` : '—'
+  const vramValue =
+    snapshot?.gpuMem != null
+      ? `${(snapshot.gpuMem / 1024).toFixed(1)} / ${((snapshot.gpuTotal ?? 0) / 1024).toFixed(1)} GB`
+      : '—'
 
   return (
     <div className="rail" data-visible={visible} data-customizing={customizing}>
@@ -274,13 +371,31 @@ export default function App(): React.JSX.Element {
           <section className="card">
             <div className="row" style={{ marginBottom: 13 }}>
               <span className="cap">{t(language, 'system.title')}</span>
-              <span className="cap">{t(language, 'system.cores')}</span>
+              <span className="cap">
+                {snapshot ? `${snapshot.cores} ${t(language, 'system.coresUnit')}` : '—'}
+              </span>
             </div>
             <div className="system__bars">
-              <Bar label={t(language, 'metric.cpu')} value="42%" pct={42} />
-              <Bar label={t(language, 'metric.memory')} value="61% · 19.5 GB" pct={61} />
-              <Bar label={t(language, 'metric.gpu')} value="8%" pct={8} warm />
-              <Bar label={t(language, 'metric.network')} value="↓ 1.2 MB/s" pct={22} />
+              <Bar
+                label={t(language, 'metric.cpu')}
+                value={snapshot ? `${snapshot.cpu}%` : '—'}
+                pct={snapshot?.cpu ?? 0}
+              />
+              <Bar
+                label={t(language, 'metric.memory')}
+                value={
+                  snapshot
+                    ? `${snapshot.memPct}% · ${snapshot.memUsed.toFixed(1)} GB`
+                    : '—'
+                }
+                pct={snapshot?.memPct ?? 0}
+              />
+              <Bar label={t(language, 'metric.gpu')} value={gpuValue} pct={snapshot?.gpu ?? 0} warm />
+              <Bar
+                label={t(language, 'metric.network')}
+                value={snapshot ? `↓ ${formatRate(snapshot.down)}` : '—'}
+                pct={snapshot ? Math.min(100, (snapshot.down / (1024 ** 2)) * 20) : 0}
+              />
             </div>
           </section>
 
@@ -289,17 +404,16 @@ export default function App(): React.JSX.Element {
               <span className="cap">{t(language, 'system.topRam')}</span>
               <span className="cap">{t(language, 'system.memory')}</span>
             </div>
-            <div className="proc">
-              <b>chrome.exe</b>
-              <span>2.4 GB</span>
-            </div>
-            <div className="proc">
-              <b>Code.exe</b>
-              <span>1.1 GB</span>
-            </div>
+            {(snapshot?.procs ?? []).slice(0, 2).map((proc) => (
+              <div className="proc" key={proc.name}>
+                <b>{proc.name}</b>
+                <span>{(proc.mb / 1024).toFixed(1)} GB</span>
+              </div>
+            ))}
+            {!snapshot?.procs?.length ? <div className="proc proc--empty">—</div> : null}
             <div className="row" style={{ marginTop: 11 }}>
               <span className="cap">{t(language, 'system.topGpu')}</span>
-              <span className="cap">chrome.exe · 26%</span>
+              <span className="cap">{vramValue}</span>
             </div>
           </section>
 
@@ -307,40 +421,88 @@ export default function App(): React.JSX.Element {
             <div className="cap" style={{ marginBottom: 11 }}>
               {t(language, 'media.nowPlaying')}
             </div>
-            <div className="row">
-              <div className="media__now">
-                <span className="cover" />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5 }}>Nightcall</div>
-                  <div className="sub" style={{ fontSize: 11.5 }}>
-                    Kavinsky · OutRun
+            {media ? (
+              <>
+                <div className="row">
+                  <div className="media__now">
+                    <span className="cover" />
+                    <div style={{ minWidth: 0 }}>
+                      <div className="media__title">{media.title}</div>
+                      <div className="sub media__artist">
+                        {[media.artist, media.album].filter(Boolean).join(' · ') || media.app}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <span className="cap">2:48</span>
-            </div>
-            <div className="bar" style={{ marginTop: 13 }}>
-              <i style={{ width: '38%' }} />
-            </div>
+                <div className="bar" style={{ marginTop: 13 }}>
+                  <i style={{ width: `${Math.max(0, Math.min(100, mediaProgress))}%` }} />
+                </div>
+                <div className="media__meta">
+                  <span className="cap">
+                    {media.status === 'Paused'
+                      ? t(language, 'media.paused')
+                      : media.status === 'Playing'
+                        ? ''
+                        : media.status}
+                  </span>
+                  <span className="cap">
+                    {formatClock(mediaPosition)} / {formatClock(media.duration)}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="media__empty sub">{t(language, 'media.nothing')}</div>
+            )}
           </section>
 
           <section className="card card--grow">
             <div className="row" style={{ marginBottom: 12 }}>
               <span className="cap">{t(language, 'todo.today')}</span>
-              <span className="cap">{t(language, 'todo.open')}</span>
+              <span className="cap">
+                {openCount} {t(language, 'todo.open')}
+              </span>
             </div>
             <div className="tasks">
-              {TASK_KEYS.map((key) => (
-                <div className="task" key={key}>
-                  <span className="dot" />
-                  {t(language, key)}
+              {todos.map((item) => (
+                <div className={`task${item.done ? ' task--done' : ''}`} key={item.id}>
+                  <button
+                    className="task__toggle"
+                    type="button"
+                    aria-pressed={item.done}
+                    onClick={() => void toggleTodo(item.id)}
+                  >
+                    <span className={`dot${item.done ? ' dot--done' : ''}`} />
+                    <span className="task__text">{item.text}</span>
+                  </button>
+                  <button
+                    className="task__remove"
+                    type="button"
+                    aria-label="Remove"
+                    onClick={() => void removeTodo(item.id)}
+                  >
+                    ×
+                  </button>
                 </div>
               ))}
+              {!todos.length ? <div className="sub task__empty">{t(language, 'todo.empty')}</div> : null}
             </div>
-            <div className="addrow">
+            <form
+              className="addrow"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void addTodo(draft)
+              }}
+            >
               <span className="plus" />
-              {t(language, 'todo.add')}
-            </div>
+              <input
+                className="addrow__input"
+                value={draft}
+                onChange={(event) => setDraft(event.currentTarget.value)}
+                placeholder={t(language, 'todo.add')}
+                aria-label={t(language, 'todo.add')}
+                spellCheck={false}
+              />
+            </form>
           </section>
         </div>
       </div>
@@ -367,9 +529,11 @@ export default function App(): React.JSX.Element {
           language={language}
           onLanguageChange={changeLanguage}
           startAtLogin={startAtLogin}
-          onStartAtLoginChange={(value) => void changeFlags({ startAtLogin: value })}
-          pinned={pinned}
-          onPinnedChange={(value) => void changeFlags({ pinned: value })}
+          onStartAtLoginChange={changeStartAtLogin}
+          autoUpdate={autoUpdate}
+          onAutoUpdateChange={changeAutoUpdate}
+          update={update}
+          onCheckUpdate={checkUpdate}
           version={version}
         />
       ) : null}
