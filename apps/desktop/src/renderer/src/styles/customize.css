@@ -8,9 +8,14 @@
   position: absolute;
   z-index: 12;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'head'
+    'tabs'
+    'body'
+    'foot';
   padding: 16px 18px 10px;
   border-radius: var(--radius);
   /* 半透明：底下的真实玻璃（氛围、顶光、颗粒）透上来，所以改主题即时可见；
@@ -36,6 +41,34 @@
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+.cz-head {
+  grid-area: head;
+}
+
+.cz-tabs {
+  grid-area: tabs;
+}
+
+.cz-body {
+  grid-area: body;
+}
+
+.cz-foot {
+  grid-area: foot;
+}
+
+/* 板式 / 宽屏：竖向导航 + 内容区，铺满整个面板 */
+.cz-sheet[data-wide='true'] {
+  grid-template-columns: 152px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'tabs head'
+    'tabs body'
+    'tabs foot';
+  column-gap: 16px;
+  padding: 18px 20px 12px;
 }
 
 .cz-head {
@@ -842,12 +875,33 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .cz-sheet {
-    animation: none;
-    transition: none;
-  }
+.cz-sheet[data-wide='true'] .cz-body {
+  margin: 0;
+  padding: 2px 2px 8px;
+}
 
+/* 宽面板：顶部横排 tab 变成左侧竖向导航 */
+.cz-sheet[data-wide='true'] .cz-tabs {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+}
+
+.cz-sheet[data-wide='true'] .cz-tab {
+  height: 36px;
+  padding: 0 12px;
+  text-align: left;
+  font-size: 11px;
+}
+
+.cz-sheet[data-wide='true'] .cz-head {
+  padding-top: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cz-sheet,
   .cz-body,
   .cz-details__body,
   .cz-keycap {

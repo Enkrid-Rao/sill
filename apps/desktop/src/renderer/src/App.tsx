@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { PanelSnapshot, TodoItem } from '../../shared/data'
 import { formatDate, t, type Language } from '../../shared/i18n'
-import { getPanelShape, type PanelShape } from '../../shared/layout'
+import {
+  clampSpan,
+  DEFAULT_LAYOUT,
+  getPanelShape,
+  normalizeLayout,
+  type CardId,
+  type PanelLayout,
+  type PanelShape
+} from '../../shared/layout'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../../shared/theme'
 import type { UpdateState } from '../../shared/update'
 import { CustomizeSheet } from './components/CustomizeSheet'
@@ -129,6 +137,9 @@ export default function App(): React.JSX.Element {
   const [draft, setDraft] = useState('')
   const [update, setUpdate] = useState<UpdateState>(EMPTY_UPDATE)
   const [tick, setTick] = useState(0)
+  const [panelLayout, setPanelLayout] = useState<PanelLayout>(DEFAULT_LAYOUT)
+  const [editing, setEditing] = useState(false)
+  const [dragId, setDragId] = useState<CardId | null>(null)
   const themeRef = useRef<Theme>(DEFAULT_THEME)
   const saveTimer = useRef<number | null>(null)
 
@@ -160,6 +171,8 @@ export default function App(): React.JSX.Element {
         if (alive && todosNow) setTodos(todosNow)
         const updateState = await window.sill?.getUpdateState()
         if (alive && updateState) setUpdate(updateState)
+        const layoutNow = await window.sill?.getLayout()
+        if (alive && layoutNow) setPanelLayout(normalizeLayout(layoutNow))
       } catch {
         // 保持默认值
       }
@@ -281,6 +294,50 @@ export default function App(): React.JSX.Element {
     if (next) setTodos(next)
   }, [])
 
+  const moveCard = useCallback(
+    (id: CardId, direction: -1 | 1) => {
+      const order = [...panelLayout.order]
+      const index = order.indexOf(id)
+      const target = index + direction
+      if (index < 0 || target < 0 || target >= order.length) return
+      ;[order[index], order[target]] = [order[target], order[index]]
+      const next = { ...panelLayout, order }
+      setPanelLayout(next)
+      void window.sill?.setLayout(next)
+    },
+    [panelLayout]
+  )
+
+  const dropCard = useCallback(
+    (from: CardId, to: CardId) => {
+      if (from === to) return
+      const order = [...panelLayout.order]
+      const a = order.indexOf(from)
+      const b = order.indexOf(to)
+      if (a < 0 || b < 0) return
+      ;[order[a], order[b]] = [order[b], order[a]]
+      const next = { ...panelLayout, order }
+      setPanelLayout(next)
+      void window.sill?.setLayout(next)
+    },
+    [panelLayout]
+  )
+
+  const setCardSpan = useCallback(
+    (id: CardId, span: number) => {
+      const next = { ...panelLayout, spans: { ...panelLayout.spans, [id]: span } }
+      setPanelLayout(next)
+      void window.sill?.setLayout(next)
+    },
+    [panelLayout]
+  )
+
+  const resetLayout = useCallback(() => {
+    void window.sill?.resetLayout().then((saved) => {
+      if (saved) setPanelLayout(saved)
+    })
+  }, [])
+
   useEffect(() => {
     const off = window.sill?.onPanelState((next) => {
       setVisible(next)
@@ -289,16 +346,19 @@ export default function App(): React.JSX.Element {
     return () => off?.()
   }, [])
 
-  // 面板不抢焦点，Esc 由主进程全局接管；盖着设置面板时先关这一层
+  // 面板不抢焦点，Esc 由主进程全局接管；设置面板或布局编辑开着时先关那一层
   useEffect(() => {
-    const off = window.sill?.onEscape(() => setCustomizing(false))
+    const off = window.sill?.onEscape(() => {
+      if (editing) setEditing(false)
+      else setCustomizing(false)
+    })
     return () => off?.()
-  }, [])
+  }, [editing])
 
   // 告诉主进程「有覆盖层」，Esc 的优先级据此切换
   useEffect(() => {
-    void window.sill?.setOverlayOpen(customizing)
-  }, [customizing])
+    void window.sill?.setOverlayOpen(customizing || editing)
+  }, [customizing, editing])
 
   // 语言：同步 <html lang>，让中文标题不走合成斜体
   useEffect(() => {
@@ -326,13 +386,95 @@ export default function App(): React.JSX.Element {
       ? `${(snapshot.gpuMem / 1024).toFixed(1)} / ${((snapshot.gpuTotal ?? 0) / 1024).toFixed(1)} GB`
       : '—'
 
+  /** 每张卡片的网格属性 + 拖拽事件；order 同时作用于单列 flex 和多列 grid */
+  const cardAttrs = (
+    id: CardId,
+    extra = ''
+  ): React.ComponentProps<'section'> & { 'data-card': CardId } => ({
+    className: `card ${extra}`.trim(),
+    'data-card': id,
+    style: {
+      order: panelLayout.order.indexOf(id),
+      ...(columns > 1 ? { gridColumn: `span ${clampSpan(panelLayout.spans[id], columns)}` } : {})
+    },
+    draggable: editing,
+    onDragStart: (event) => {
+      if (!editing) return
+      event.dataTransfer.setData('text/plain', id)
+      event.dataTransfer.effectAllowed = 'move'
+      setDragId(id)
+    },
+    onDragOver: (event) => {
+      if (!editing || !dragId) return
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'move'
+    },
+    onDrop: (event) => {
+      if (!editing) return
+      event.preventDefault()
+      const from = (event.dataTransfer.getData('text/plain') || dragId) as CardId
+      if (from) dropCard(from, id)
+      setDragId(null)
+    },
+    onDragEnd: () => setDragId(null)
+  })
+
+  const cardTools = (id: CardId): React.JSX.Element => (
+    <div className="card-tools" draggable={false} onDragStart={(event) => event.preventDefault()}>
+      <span className="card-tools__grip" aria-hidden="true">
+        ⠿
+      </span>
+      <button
+        type="button"
+        aria-label={t(language, 'layout.up')}
+        title={t(language, 'layout.up')}
+        onClick={() => moveCard(id, -1)}
+      >
+        ↑
+      </button>
+      <button
+        type="button"
+        aria-label={t(language, 'layout.down')}
+        title={t(language, 'layout.down')}
+        onClick={() => moveCard(id, 1)}
+      >
+        ↓
+      </button>
+      <span className="card-tools__spans" title={t(language, 'layout.columns')}>
+        {Array.from({ length: columns }, (_, index) => index + 1).map((span) => (
+          <button
+            key={span}
+            type="button"
+            aria-pressed={clampSpan(panelLayout.spans[id], columns) === span}
+            onClick={() => setCardSpan(id, span)}
+          >
+            {span}
+          </button>
+        ))}
+      </span>
+    </div>
+  )
+
   return (
-    <div className="rail" data-visible={visible} data-customizing={customizing}>
+    <div className="rail" data-visible={visible} data-customizing={customizing} data-editing={editing}>
       <span className="rail__atmo" aria-hidden="true" />
       <span className="rail__grain" aria-hidden="true" />
       <span className="rail__halo" aria-hidden="true" />
       <span className="rail__sheen" aria-hidden="true" />
       <span className="rail__rim" aria-hidden="true" />
+
+      {editing ? (
+        <div className="layout-bar">
+          <span className="layout-bar__label">{t(language, 'layout.title')}</span>
+          <span className="layout-bar__hint">{t(language, 'layout.hint')}</span>
+          <button type="button" onClick={resetLayout}>
+            {t(language, 'layout.reset')}
+          </button>
+          <button type="button" className="layout-bar__done" onClick={() => setEditing(false)}>
+            {t(language, 'layout.done')}
+          </button>
+        </div>
+      ) : null}
 
       <div className="rail__scroll" inert={customizing}>
         <div className="sheet" data-cols={columns}>
@@ -357,7 +499,8 @@ export default function App(): React.JSX.Element {
             </div>
           </header>
 
-          <section className="card card--hero">
+          <section {...cardAttrs('hero', 'card--hero')}>
+            {editing ? cardTools('hero') : null}
             <div className="cap">{dateLabel}</div>
             <div className="num">{timeLabel}</div>
             <div className="row card__weather">
@@ -378,7 +521,8 @@ export default function App(): React.JSX.Element {
             </div>
           </section>
 
-          <section className="card">
+          <section {...cardAttrs('system')}>
+            {editing ? cardTools('system') : null}
             <div className="row" style={{ marginBottom: 13 }}>
               <span className="cap">{t(language, 'system.title')}</span>
               <span className="cap">
@@ -409,7 +553,8 @@ export default function App(): React.JSX.Element {
             </div>
           </section>
 
-          <section className="card">
+          <section {...cardAttrs('processes')}>
+            {editing ? cardTools('processes') : null}
             <div className="row" style={{ marginBottom: 9 }}>
               <span className="cap">{t(language, 'system.topRam')}</span>
               <span className="cap">{t(language, 'system.memory')}</span>
@@ -427,7 +572,8 @@ export default function App(): React.JSX.Element {
             </div>
           </section>
 
-          <section className="card">
+          <section {...cardAttrs('media')}>
+            {editing ? cardTools('media') : null}
             <div className="cap" style={{ marginBottom: 11 }}>
               {t(language, 'media.nowPlaying')}
             </div>
@@ -465,7 +611,8 @@ export default function App(): React.JSX.Element {
             )}
           </section>
 
-          <section className="card card--grow">
+          <section {...cardAttrs('todo', 'card--grow')}>
+            {editing ? cardTools('todo') : null}
             <div className="row" style={{ marginBottom: 12 }}>
               <span className="cap">{t(language, 'todo.today')}</span>
               <span className="cap">
@@ -546,7 +693,12 @@ export default function App(): React.JSX.Element {
           onAutoUpdateChange={changeAutoUpdate}
           update={update}
           onCheckUpdate={checkUpdate}
+          onEditLayout={() => {
+            setCustomizing(false)
+            setEditing(true)
+          }}
           version={version}
+          columns={columns}
         />
       ) : null}
     </div>

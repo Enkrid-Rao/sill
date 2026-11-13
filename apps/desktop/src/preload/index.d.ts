@@ -1,6 +1,6 @@
 import type { PanelSnapshot, TodoItem } from '../shared/data'
 import type { Language } from '../shared/i18n'
-import type { PanelShape } from '../shared/layout'
+import type { PanelLayout, PanelShape } from '../shared/layout'
 import type { Theme } from '../shared/theme'
 import type { UpdateState } from '../shared/update'
 
@@ -28,6 +28,9 @@ export interface SillApi {
   getUpdateState: () => Promise<UpdateState>
   checkForUpdates: () => Promise<UpdateState>
   onUpdateState: (callback: (state: UpdateState) => void) => () => void
+  getLayout: () => Promise<PanelLayout>
+  setLayout: (layout: PanelLayout) => Promise<PanelLayout>
+  resetLayout: () => Promise<PanelLayout>
   hidePanel: () => Promise<void>
   togglePanel: () => Promise<void>
   setOverlayOpen: (open: boolean) => Promise<void>

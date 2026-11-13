@@ -307,6 +307,17 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 - 列布局是 CSS grid：头图与页头 `grid-column: 1 / -1`，Wide 下待办也横跨三列
 - 换形状时 `applySideEffects` 里 `reanchor()` 直接改窗口 bounds，不播动画
 - **不要**再往 settings 里加连续宽度：形状是有限集合，才能保证每种宽度都有布局策略
+- 设置界面按形状分两套：1 列（Rail / Compact）用顶部 tab，≥2 列（Board / Wide）用左侧 152px 导航 +
+  右侧内容；`.cz-sheet` 用 CSS grid areas 切换，永远铺满面板，不做固定宽度浮层
+
+### 6.13 布局编辑
+
+- 模型在 `src/shared/layout.ts`：`CARD_IDS`、`PanelLayout { order, spans }`、`normalizeLayout`
+- 存储 `%APPDATA%\Sill\layout.json`，主进程 `src/main/layout.ts` 负责原子写与补全缺失卡片
+- 渲染层不重排 JSX：每张卡用 `style.order` 和 `gridColumn` 落位，`data-card` 供拖拽与测试选择
+- 编辑态（`editing`）下卡片 `draggable`，把 A 拖到 B 上 = 交换位置；箭头做相邻交换
+- 跨列在渲染时用 `clampSpan(span, columns)` 夹住，所以 Rail 下只会是 1 列
+- Esc 的分层顺序：编辑态 → 设置面板 → 收面板（`setOverlayOpen(customizing || editing)`）
 
 ## 7. 视觉规范
 

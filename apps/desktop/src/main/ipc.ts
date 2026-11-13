@@ -1,6 +1,7 @@
 import { app, ipcMain } from 'electron'
 import { getSnapshot } from './data'
 import { addTodo, listTodos, removeTodo, toggleTodo } from './data/todo'
+import { getLayout, resetLayout, setLayout } from './layout'
 import { hidePanel, setOverlayOpen, togglePanel } from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
 import { checkForUpdates, getUpdateState } from './updates'
@@ -59,6 +60,10 @@ export function registerIpc(deps: IpcDeps): void {
     event.sender.send('update:state', next)
     return next
   })
+
+  ipcMain.handle('layout:get', () => getLayout())
+  ipcMain.handle('layout:set', (_event, layout: unknown) => setLayout(layout))
+  ipcMain.handle('layout:reset', () => resetLayout())
 
   ipcMain.handle('app:quit', () => {
     app.quit()

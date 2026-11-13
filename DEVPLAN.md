@@ -1,12 +1,12 @@
 # Sill 开发文档
 
-v0.4.6 · 2026-11-13
+v0.4.7 · 2026-11-13
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
 ---
 
-## 0. 变更记录（v0.3 → v0.4.6）
+## 0. 变更记录（v0.3 → v0.4.7）
 
 | 变更 | 原因 |
 |---|---|
@@ -40,6 +40,8 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.4.5** Details 卡片化 | 折叠区从一条淡分割线改成带边框的整行，解决「看不出来能点」 |
 | **v0.4.6** 面板宽度改成**形状预设** | 连续宽度滑块换成 Rail / Compact / Board / Wide 四种形状，宽高与列数一起定；`settings.panelShape` 取代 `panelWidth` |
 | **v0.4.6** 响应式 1 / 2 / 3 列 | CSS grid 落格：头图横跨整行，Board 两列、Wide 三列且待办横跨；这是将来 widget 自己声明跨列的基础 |
+| **v0.4.7** 布局可编辑 | 编辑态下卡片可拖动 / 上下移动、可按当前列数设跨列；顺序与跨列存 `layout.json`，Esc 先退出编辑 |
+| **v0.4.7** 布局模型先于引擎 | 卡片 id 与 `order + spans` 的结构就是将来 widget 的落位模型；引擎落地时把写死的卡片换成 `WidgetShell` 即可复用 |
 
 ---
 
@@ -195,6 +197,7 @@ interface Provider<T> {
 |---|---|
 | `%APPDATA%/Sill/settings.json` | 主题、热键、面板形状、语言、停靠边与边缘距离、开机自启、自动检查更新 |
 | `%APPDATA%/Sill/todo.json` | 待办（`{id,text,done}`，原子写） |
+| `%APPDATA%/Sill/layout.json` | 卡片顺序与跨列（`{version,order,spans}`，原子写） |
 | `%APPDATA%/Sill/widgets/<id>/` | 组件私有数据（配额 5MB） |
 | `%APPDATA%/Sill/packages/<id>@<ver>/` | 已安装组件 |
 
@@ -295,6 +298,34 @@ interface Provider<T> {
 不碰 blur、不碰背景采样；`prefers-reduced-motion` 下全部关闭。
 
 参考实现：`docs/mockups/panel-forms.html`（C 场景即面板本体；那份仍是旧的四层照片玻璃）。
+
+### 5.5 布局编辑
+
+每个分区是一张卡片，卡片有稳定 id：`hero` / `system` / `processes` / `media` / `todo`。
+`layout.json` 保存两样东西：
+
+- **顺序**：全局共享；单列靠 flex `order`，多列靠 grid `order`
+- **跨列**：`spans[id]`，渲染时按当前形状的列数夹住（Rail / Compact 永远只有 1 列）
+
+入口是 Settings → 行为 →「编辑布局」。编辑态下：
+
+- 每张卡右上角有拖动把手、↑ ↓、跨列按钮；整张卡也可以直接拖到另一张卡上交换位置
+- 顶部条有 Reset / Done；Esc 先退出编辑，不直接收面板
+- 改动即时写入 `layout.json`
+
+> 这份模型先于组件引擎存在：M1 落地时把写死的 `<section class="card">` 换成 `WidgetShell`，
+> 顺序与跨列直接复用，不需要再设计一套。
+
+### 5.6 设置界面
+
+同一种设置，两套排布，**永远铺满面板**：
+
+| 形状 | 排布 |
+|---|---|
+| Rail / Compact（1 列） | 顶部三段 tab + 单列内容 |
+| Board / Wide（≥2 列） | 左侧 152px 竖向导航 + 右侧内容区 |
+
+不做固定宽度浮层：面板形状只有四种，直接按形状切换 grid areas，比「居中的小卡片」更贴合空间。
 
 ---
 

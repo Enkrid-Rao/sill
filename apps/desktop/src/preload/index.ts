@@ -16,6 +16,9 @@ const api = {
   removeTodo: (id: string) => ipcRenderer.invoke('todo:remove', id),
   getUpdateState: () => ipcRenderer.invoke('update:get'),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  getLayout: () => ipcRenderer.invoke('layout:get'),
+  setLayout: (layout: unknown) => ipcRenderer.invoke('layout:set', layout),
+  resetLayout: () => ipcRenderer.invoke('layout:reset'),
   onUpdateState: (callback: (state: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: unknown): void => callback(state)
     ipcRenderer.on('update:state', listener)

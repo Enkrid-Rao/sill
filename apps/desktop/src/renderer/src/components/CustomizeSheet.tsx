@@ -35,7 +35,9 @@ interface Props {
   onAutoUpdateChange: (value: boolean) => void
   update: UpdateState
   onCheckUpdate: () => void
+  onEditLayout: () => void
   version: string
+  columns: number
 }
 
 function Slider({
@@ -279,7 +281,9 @@ export function CustomizeSheet({
   onAutoUpdateChange,
   update,
   onCheckUpdate,
-  version
+  onEditLayout,
+  version,
+  columns
 }: Props): React.JSX.Element {
   const closeRef = useRef<HTMLButtonElement>(null)
   const [tab, setTab] = useState<Tab>('appearance')
@@ -307,7 +311,13 @@ export function CustomizeSheet({
   }, [])
 
   return (
-    <section className="cz-sheet" role="dialog" aria-label={t(language, 'settings.title')} aria-modal="true">
+    <section
+      className="cz-sheet"
+      data-wide={columns > 1}
+      role="dialog"
+      aria-label={t(language, 'settings.title')}
+      aria-modal="true"
+    >
       <header className="cz-head">
         <div>
           <div className="cap">{t(language, 'settings.title')}</div>
@@ -535,6 +545,16 @@ export function CustomizeSheet({
                   {t(language, 'behavior.right')}
                 </button>
               </div>
+            </div>
+
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'behavior.layout')}</span>
+                <span className="cz-setrow__note">{t(language, 'behavior.layoutNote')}</span>
+              </div>
+              <button className="cz-action" type="button" onClick={onEditLayout}>
+                {t(language, 'behavior.editLayout')}
+              </button>
             </div>
 
             <Slider
