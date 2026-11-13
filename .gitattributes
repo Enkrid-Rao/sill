@@ -1,0 +1,13 @@
+# 文本文件统一在仓库里存 LF；工作区按平台签出（这台机器 core.autocrlf=true）
+* text=auto
+
+# 二进制资源：不做换行/文本处理，避免 diff 与体积膨胀
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.woff2 binary
+*.exe  binary
+*.dll  binary
+
+# 锁文件不参与合并（改依赖就重新生成，不要手工解冲突）
+pnpm-lock.yaml merge=binary

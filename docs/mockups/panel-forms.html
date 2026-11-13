@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sill · 面板形态对比</title>
+<style>
+@font-face{font-family:"Instrument Sans";src:url("_assets/fonts/instrument-sans-var.woff2") format("woff2");font-weight:400 700;font-style:normal;font-display:block}
+@font-face{font-family:"Instrument Sans";src:url("_assets/fonts/instrument-sans-var-italic.woff2") format("woff2");font-weight:400 700;font-style:italic;font-display:block}
+@font-face{font-family:"Instrument Serif";src:url("_assets/fonts/instrument-serif.woff2") format("woff2");font-weight:400;font-style:normal;font-display:block}
+@font-face{font-family:"Instrument Serif";src:url("_assets/fonts/instrument-serif-italic.woff2") format("woff2");font-weight:400;font-style:italic;font-display:block}
+
+:root{
+  --sans:"Instrument Sans","Microsoft YaHei UI","PingFang SC","Segoe UI",sans-serif;
+  --serif:"Instrument Serif","Songti SC",Georgia,serif;
+  --ink:#f2fbf6;
+  --ink-soft:rgba(241,253,247,.76);
+  --ink-dim:rgba(236,252,244,.58);
+  --ink-faint:rgba(234,251,243,.40);
+  --mint:#a9f8d4;
+  --lime:#dcffb4;
+  --apricot:#ffc99b;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#07090b;color:var(--ink);font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{display:grid;place-items:center;overflow:hidden}
+
+/* ---------- stage ---------- */
+.viewport{position:relative;overflow:hidden}
+.stage{position:relative;width:1920px;height:1080px;overflow:hidden;transform-origin:top left;background:#0a0d10}
+
+/* ---------- wallpaper ---------- */
+.wall{position:absolute;inset:0;
+  background:
+    radial-gradient(46% 40% at 12% 2%, rgba(139,101,206,.95) 0%, rgba(139,101,206,0) 66%),
+    radial-gradient(38% 34% at 28% 24%, rgba(186,74,152,.62) 0%, rgba(186,74,152,0) 70%),
+    radial-gradient(52% 48% at 97% 26%, rgba(36,164,131,.92) 0%, rgba(36,164,131,0) 68%),
+    radial-gradient(62% 54% at 78% 94%, rgba(13,102,102,.78) 0%, rgba(13,102,102,0) 74%),
+    radial-gradient(44% 40% at 0% 96%, rgba(52,44,104,.82) 0%, rgba(52,44,104,0) 74%),
+    linear-gradient(158deg,#2c2344 0%,#1f1f37 38%,#122329 70%,#0b171a 100%);
+}
+.wall::after{content:"";position:absolute;inset:0;
+  background:radial-gradient(118% 88% at 50% 48%,transparent 46%,rgba(4,8,10,.42) 100%)}
+.grain{position:absolute;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;background-size:200px 200px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.scrim{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s ease;
+  background:radial-gradient(58% 52% at 50% 42%,rgba(3,9,11,.06) 0%,rgba(3,9,11,.46) 100%)}
+
+/* ---------- glass ---------- */
+.cad{position:relative;isolation:isolate;overflow:clip;
+  border:1px solid rgba(255,255,255,.135);
+  border-radius:32px;
+  background:
+    radial-gradient(84% 56% at 2% 0%,rgba(255,255,255,.11) 0%,transparent 58%),
+    linear-gradient(180deg,rgba(4,17,14,.20) 0%,rgba(3,14,12,.32) 52%,rgba(2,12,9,.58) 100%),
+    linear-gradient(152deg,rgba(255,255,255,.05) 0%,rgba(255,255,255,.008) 44%,rgba(255,255,255,.03) 100%),
+    url("_assets/atmosphere.jpg") var(--atmp,50% 47%) / cover no-repeat,
+    #06140f;
+  box-shadow:
+    0 26px 64px -26px rgba(0,0,0,.9),
+    0 8px 24px -12px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.24),
+    inset 0 -1px 0 rgba(0,0,0,.22);
+}
+.cad::after{content:"";position:absolute;z-index:1;right:-30%;bottom:-38%;width:80%;height:68%;
+  border-radius:50%;pointer-events:none;filter:blur(26px);
+  background:radial-gradient(circle,rgba(255,189,126,.09) 0%,transparent 68%)}
+.rim{position:absolute;z-index:6;inset:0;padding:1px;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(132deg,
+    rgba(255,255,255,.78) 0%,rgba(255,255,255,.07) 18%,rgba(189,255,231,.15) 42%,
+    rgba(255,255,255,.04) 66%,rgba(255,211,172,.38) 100%);
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  mask-composite:exclude}
+/* dark shell that holds tiles */
+.shell{border-radius:44px;background:
+    radial-gradient(90% 60% at 0% 0%,rgba(255,255,255,.075) 0%,transparent 60%),
+    linear-gradient(164deg,rgba(13,28,25,.78) 0%,rgba(6,17,16,.90) 100%)}
+.shell::before{content:none}
+.in{position:relative;z-index:5;height:100%;display:flex;flex-direction:column}
+
+/* ---------- type ---------- */
+.brand{display:flex;align-items:center;gap:9px}
+.brand svg{width:22px;height:22px;display:block}
+.bw{font-family:var(--serif);font-style:italic;font-size:25px;line-height:1;letter-spacing:-.015em;
+  color:rgba(249,255,251,.96);margin-top:-2px}
+.cap{font-size:10px;letter-spacing:.17em;text-transform:uppercase;color:var(--ink-faint)}
+.num{font-family:var(--serif);font-style:italic;line-height:.92;letter-spacing:-.02em;
+  color:rgba(250,255,252,.97);font-variant-numeric:lining-nums tabular-nums}
+.sub{font-size:12.5px;line-height:1.45;color:var(--ink-dim)}
+.lbl{font-size:11px;color:var(--ink-dim)}
+.val{font-size:12.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.hair{height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.17),transparent)}
+
+/* ---------- primitives ---------- */
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bar{position:relative;height:3px;border-radius:99px;overflow:hidden;
+  background:rgba(3,14,11,.42);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:99px;
+  background:linear-gradient(90deg,rgba(169,248,212,.5),var(--mint))}
+.bar.warm i{background:linear-gradient(90deg,rgba(255,201,155,.45),var(--apricot))}
+.ring{width:44px;height:44px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:3.2}
+.ring .bg{stroke:rgba(255,255,255,.11)}
+.ring .fg{stroke:var(--mint);stroke-linecap:round;stroke-dasharray:119.4;
+  stroke-dashoffset:calc(119.4 - 119.4 * var(--p) / 100)}
+.dot{width:13px;height:13px;border-radius:50%;border:1.3px solid rgba(255,255,255,.3);flex:none}
+.dot.done{background:rgba(169,248,212,.85);border-color:transparent;position:relative}
+.dot.done::after{content:"";position:absolute;inset:0;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.4 8.3 6.4 11.3 12.7 4.9' fill='none' stroke='%23071c15' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/10px no-repeat}
+.task{display:flex;align-items:center;gap:11px;font-size:13.5px;color:var(--ink-soft)}
+.task.done{color:var(--ink-faint);text-decoration:line-through}
+.cover{width:44px;height:44px;border-radius:11px;flex:none;position:relative;overflow:hidden;
+  background:linear-gradient(145deg,#8a639c,#31475c 55%,#1f6357);border:1px solid rgba(255,255,255,.15)}
+.cover::after{content:"";position:absolute;inset:0;
+  background:radial-gradient(64% 44% at 30% 18%,rgba(255,255,255,.4),transparent 72%)}
+.chip{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);
+  border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:4px 7px;white-space:nowrap}
+.wicon{flex:none}
+
+/* ---------- scenes ---------- */
+.scene{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .26s ease}
+.scene.on{opacity:1;visibility:visible}
+
+/* === A · tile cluster === */
+.pA{position:absolute;left:510px;top:248px;width:900px;height:492px;padding:22px 24px 24px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:1fr 1fr;gap:13px;
+  flex:1;min-height:0;margin-top:15px}
+.tile{border-radius:26px;padding:17px 19px;display:flex;flex-direction:column}
+.t-clock{grid-column:span 2}
+.t-todo{grid-column:span 2}
+.t-clock .num{font-size:70px;margin-top:9px}
+.t-clock .sub{margin-top:auto}
+.t-weather .num{font-size:38px}
+.whead{display:flex;align-items:flex-start;justify-content:space-between;margin-top:12px}
+.tile .cap+.growfill{margin-top:auto}
+.ringbox{display:flex;align-items:center;gap:12px;margin-top:14px}
+.ringval{font-size:17px;font-variant-numeric:tabular-nums}
+.ringlbl{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin-top:3px}
+.bars{display:flex;flex-direction:column;gap:9px;margin-top:auto}
+.tasks{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.addrow{display:flex;align-items:center;gap:9px;margin-top:auto;font-size:12.5px;color:var(--ink-faint)}
+.plus{width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,.22);
+  position:relative;flex:none}
+.plus::before,.plus::after{content:"";position:absolute;background:rgba(255,255,255,.4);border-radius:2px}
+.plus::before{left:50%;top:3.2px;bottom:3.2px;width:1px;transform:translateX(-50%)}
+.plus::after{top:50%;left:3.2px;right:3.2px;height:1px;transform:translateY(-50%)}
+
+/* === B · single column === */
+.pB{position:absolute;left:50%;top:150px;transform:translateX(-50%);width:492px;padding:26px 28px 22px;border-radius:36px}
+.pB .sec{padding:17px 0}
+.pB .sec:first-of-type{padding-top:8px}
+.greet{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.greet h1{margin:0;font-family:var(--serif);font-style:italic;font-weight:400;font-size:46px;
+  line-height:.95;letter-spacing:-.02em}
+.clock-sm{font-size:15px;color:var(--ink-soft);font-variant-numeric:tabular-nums;padding-bottom:6px}
+.minibars{display:flex;flex-direction:column;gap:13px}
+.minibars .row{font-size:12px}
+
+/* === C · side rail === */
+.pC{position:absolute;right:30px;top:100px;width:384px;height:834px;padding:22px 24px 16px;border-radius:34px}
+.pC .grp{padding:11px 0}
+.pC .grp:first-child{padding-top:0}
+.pC .num{font-size:56px}
+.proc{display:grid;grid-template-columns:1fr auto auto;gap:12px;font-size:12px;
+  color:var(--ink-dim);font-variant-numeric:tabular-nums;padding:4px 0}
+.proc b{font-weight:400;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* === D · free canvas === */
+.d-clock{--atmp:26% 22%;position:absolute;left:140px;top:150px;width:344px;height:196px;padding:22px 24px;border-radius:30px;
+  display:flex;flex-direction:column}
+.d-weather{--atmp:74% 24%;position:absolute;left:506px;top:150px;width:236px;height:196px;padding:20px 22px;border-radius:30px;
+  display:flex;flex-direction:column}
+.d-system{--atmp:20% 74%;position:absolute;left:140px;top:370px;width:344px;height:268px;padding:20px 22px;border-radius:30px;
+  display:flex;flex-direction:column}
+.d-media{--atmp:64% 62%;position:absolute;left:506px;top:370px;width:236px;height:268px;padding:19px 21px;border-radius:30px;
+  display:flex;flex-direction:column}
+.d-todo{--atmp:42% 30%;position:absolute;left:1290px;top:322px;width:372px;height:290px;padding:22px 24px;border-radius:32px;
+  display:flex;flex-direction:column}
+.d-clock .num{font-size:62px;margin-top:10px}
+.d-weather .num{font-size:44px}
+.d-media .cover{width:56px;height:56px;border-radius:13px}
+.d-todo .tasks{display:flex;flex-direction:column;gap:14px;margin-top:16px}
+.d-system .bars{margin-top:16px}
+.d-system .prochead{margin-top:auto}
+
+/* ---------- taskbar ---------- */
+.taskbar{position:absolute;left:0;right:0;bottom:0;height:46px;display:flex;align-items:center;
+  justify-content:center;gap:9px;background:rgba(9,14,17,.55);
+  border-top:1px solid rgba(255,255,255,.07);backdrop-filter:blur(22px)}
+.tb{width:24px;height:24px;border-radius:7px;background:rgba(255,255,255,.12);position:relative}
+.tb::after{content:"";position:absolute;inset:5px;border-radius:4px;background:rgba(255,255,255,.24)}
+.tb.start{background:rgba(169,248,212,.18)}
+.tb.start::after{inset:4px;border-radius:50%;background:linear-gradient(140deg,var(--mint),rgba(125,240,195,.45))}
+.tbright{position:absolute;right:20px;display:flex;align-items:center;gap:16px;font-size:11.5px;color:var(--ink-dim)}
+.tbleft{position:absolute;left:22px;font-size:11.5px;color:var(--ink-faint);letter-spacing:.08em}
+
+/* ---------- hud ---------- */
+.hud{position:fixed;left:22px;bottom:22px;z-index:50;display:flex;align-items:center;gap:10px;
+  padding:9px 12px;border-radius:14px;background:rgba(13,19,23,.74);
+  border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(18px);
+  font-size:12px;color:var(--ink-dim);user-select:none}
+.hud b{font-weight:500;color:var(--ink)}
+.hud .tabs{display:flex;gap:4px;margin-left:4px}
+.hud button{all:unset;cursor:pointer;padding:3px 9px;border-radius:8px;font-size:11.5px;
+  color:var(--ink-dim);border:1px solid transparent}
+.hud button:hover{color:var(--ink);background:rgba(255,255,255,.06)}
+.hud button.on{color:#07150f;background:var(--mint);font-weight:500}
+.hud .note{color:var(--ink-faint);margin-left:6px}
+body.shot .hud{display:none}
+body.shot .stage{transform:none!important}
+</style>
+</head>
+<body data-active="a">
+
+<div class="viewport" id="viewport"><div class="stage" id="stage">
+  <div class="wall"></div>
+  <div class="scrim" id="scrim"></div>
+  <div class="grain"></div>
+
+  <!-- ============ A · 磁贴群 ============ -->
+  <section class="scene on" data-scene="a">
+    <div class="cad shell pA"><span class="rim"></span><div class="in">
+      <header class="row">
+        <div class="brand">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10.4" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.28)" stroke-width=".8"/>
+            <path d="M5.1 13.6c2.2-2.6 4.4-2.6 6.5-.1 2.1 2.5 4.4 2.4 7.1-.4" fill="none" stroke="#a9f8d4" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="16.7" cy="8.1" r="1.8" fill="#ffc69a"/>
+          </svg>
+          <span class="bw">sill</span>
+        </div>
+        <span class="chip">alt + w</span>
+      </header>
+
+      <div class="grid">
+        <div class="cad tile t-clock" style="--atmp:24% 26%">
+          <div class="cap">Thursday 12 November</div>
+          <div class="num">22:03</div>
+          <div class="sub">Five small things, one at a time.</div>
+        </div>
+
+        <div class="cad tile t-weather" style="--atmp:76% 18%">
+          <div class="cap">Shanghai</div>
+          <div class="whead">
+            <div class="num">14°</div>
+            <svg class="wicon" width="36" height="36" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+              <path d="M25.6 5.4a8.1 8.1 0 1 0 8 10.2 6.5 6.5 0 0 1-8-10.2Z" fill="rgba(220,255,180,.10)" stroke="#dcffb4" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M14.4 33.6h12.9a4.6 4.6 0 0 0 0-9.2 6.9 6.9 0 0 0-13-1.5 4.6 4.6 0 0 0 .1 10.7Z" fill="rgba(230,244,238,.07)" stroke="#e2efe9" stroke-width="1.25" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="sub" style="margin-top:auto">Partly cloudy<br>H 17° · L 9°</div>
+        </div>
+
+        <div class="cad tile" style="--atmp:14% 66%">
+          <div class="cap">CPU</div>
+          <div class="ringbox">
+            <svg class="ring" viewBox="0 0 44 44" style="--p:42">
+              <circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/>
+            </svg>
+            <div>
+              <div class="ringval">42%</div>
+              <div class="ringlbl">8 cores</div>
+            </div>
+          </div>
+          <div class="bars">
+            <div><div class="row lbl"><span>MEM</span><span class="val">61%</span></div><div class="bar" style="margin-top:6px"><i style="width:61%"></i></div></div>
+            <div><div class="row lbl"><span>GPU</span><span class="val">8%</span></div><div class="bar warm" style="margin-top:6px"><i style="width:8%"></i></div></div>
+          </div>
+        </div>
+
+        <div class="cad tile t-todo" style="--atmp:66% 74%">
+          <div class="row"><div class="cap">Today</div><div class="cap">2 / 5</div></div>
+          <div class="tasks">
+            <div class="task"><span class="dot"></span>Reply to Mira about the studio keys</div>
+            <div class="task"><span class="dot"></span>Book the Friday train north</div>
+            <div class="task done"><span class="dot done"></span>Water the monstera</div>
+          </div>
+          <div class="addrow"><span class="plus"></span>add a task</div>
+        </div>
+
+        <div class="cad tile" style="--atmp:32% 84%">
+          <div class="cap">Now playing</div>
+          <div style="display:flex;align-items:center;gap:11px;margin-top:13px">
+            <span class="cover"></span>
+            <div style="min-width:0">
+              <div style="font-size:13.5px;color:var(--ink)">Nightcall</div>
+              <div class="sub" style="font-size:11.5px">Kavinsky</div>
+            </div>
+          </div>
+          <div class="bars"><div class="bar"><i style="width:38%"></i></div></div>
+        </div>
+
+        <div class="cad tile" style="--atmp:50% 40%">
+          <div class="cap">Network</div>
+          <div style="margin-top:11px">
+            <div class="row"><span class="lbl">Down</span><span class="val">1.2 MB/s</span></div>
+            <div class="row" style="margin-top:4px"><span class="lbl">Up</span><span class="val">84 KB/s</span></div>
+          </div>
+          <div class="bars">
+            <div class="row"><span class="cap">Disk</span><span class="cap">268 GB free</span></div>
+            <div class="bar" style="margin-top:7px"><i style="width:44%"></i></div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ============ B · 单列流 ============ -->
+  <section class="scene" data-scene="b">
+    <div class="cad pB" style="--atmp:52% 40%"><span class="rim"></span><div class="in">
+      <header class="row">
+        <div class="brand">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10.4" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.28)" stroke-width=".8"/>
+            <path d="M5.1 13.6c2.2-2.6 4.4-2.6 6.5-.1 2.1 2.5 4.4 2.4 7.1-.4" fill="none" stroke="#a9f8d4" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="16.7" cy="8.1" r="1.8" fill="#ffc69a"/>
+          </svg>
+          <span class="bw">sill</span>
+        </div>
+        <span class="cap">Thursday 12 November</span>
+      </header>
+
+      <div class="sec">
+        <div class="greet">
+          <h1>Good<br>evening.</h1>
+          <div class="clock-sm">22:03</div>
+        </div>
+        <div class="sub" style="margin-top:13px">Five small things, one at a time.</div>
+      </div>
+
+      <div class="hair"></div>
+      <div class="sec">
+        <div class="row">
+          <div style="display:flex;align-items:center;gap:13px">
+            <svg class="wicon" width="32" height="32" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+              <path d="M25.6 5.4a8.1 8.1 0 1 0 8 10.2 6.5 6.5 0 0 1-8-10.2Z" fill="rgba(220,255,180,.10)" stroke="#dcffb4" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M14.4 33.6h12.9a4.6 4.6 0 0 0 0-9.2 6.9 6.9 0 0 0-13-1.5 4.6 4.6 0 0 0 .1 10.7Z" fill="rgba(230,244,238,.07)" stroke="#e2efe9" stroke-width="1.25" stroke-linejoin="round"/>
+            </svg>
+            <div>
+              <div style="font-size:19px;letter-spacing:-.01em">14°</div>
+              <div class="sub" style="font-size:11.5px">Partly cloudy</div>
+            </div>
+          </div>
+          <div class="cap" style="text-align:right;line-height:1.8">Shanghai<br>H 17° · L 9°</div>
+        </div>
+      </div>
+
+      <div class="hair"></div>
+      <div class="sec">
+        <div class="minibars">
+          <div><div class="row lbl"><span>CPU</span><span class="val">42%</span></div><div class="bar" style="margin-top:7px"><i style="width:42%"></i></div></div>
+          <div><div class="row lbl"><span>Memory</span><span class="val">61%</span></div><div class="bar" style="margin-top:7px"><i style="width:61%"></i></div></div>
+          <div><div class="row lbl"><span>GPU</span><span class="val">8%</span></div><div class="bar warm" style="margin-top:7px"><i style="width:8%"></i></div></div>
+        </div>
+      </div>
+
+      <div class="hair"></div>
+      <div class="sec">
+        <div class="row">
+          <div style="display:flex;align-items:center;gap:12px;min-width:0">
+            <span class="cover"></span>
+            <div style="min-width:0">
+              <div style="font-size:13.5px">Nightcall</div>
+              <div class="sub" style="font-size:11.5px">Kavinsky · OutRun</div>
+            </div>
+          </div>
+          <span class="cap">2:48</span>
+        </div>
+      </div>
+
+      <div class="hair"></div>
+      <div class="sec">
+        <div class="row" style="margin-bottom:15px"><span class="cap">Today</span><span class="cap">2 / 5</span></div>
+        <div style="display:flex;flex-direction:column;gap:13px">
+          <div class="task"><span class="dot"></span>Reply to Mira about the studio keys</div>
+          <div class="task"><span class="dot"></span>Book the Friday train north</div>
+          <div class="task done"><span class="dot done"></span>Water the monstera</div>
+        </div>
+      </div>
+
+      <div class="hair"></div>
+      <div class="row" style="padding-top:17px">
+        <span class="sub" style="font-size:11.5px">Five small things, nothing urgent.</span>
+        <span class="chip">esc</span>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ============ C · 侧边廊 ============ -->
+  <section class="scene" data-scene="c">
+    <div class="cad pC" style="--atmp:56% 30%"><span class="rim"></span><div class="in">
+      <header class="row">
+        <div class="brand">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10.4" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.28)" stroke-width=".8"/>
+            <path d="M5.1 13.6c2.2-2.6 4.4-2.6 6.5-.1 2.1 2.5 4.4 2.4 7.1-.4" fill="none" stroke="#a9f8d4" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="16.7" cy="8.1" r="1.8" fill="#ffc69a"/>
+          </svg>
+          <span class="bw">sill</span>
+        </div>
+        <span class="chip">alt + w</span>
+      </header>
+
+      <div class="grp" style="padding-top:20px">
+        <div class="cap">Thursday 12 November</div>
+        <div class="num" style="margin-top:11px">22:03</div>
+      </div>
+
+      <div class="grp">
+        <div class="row">
+          <div style="display:flex;align-items:center;gap:12px">
+            <svg class="wicon" width="30" height="30" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+              <path d="M25.6 5.4a8.1 8.1 0 1 0 8 10.2 6.5 6.5 0 0 1-8-10.2Z" fill="rgba(220,255,180,.10)" stroke="#dcffb4" stroke-width="1.3" stroke-linejoin="round"/>
+              <path d="M14.4 33.6h12.9a4.6 4.6 0 0 0 0-9.2 6.9 6.9 0 0 0-13-1.5 4.6 4.6 0 0 0 .1 10.7Z" fill="rgba(230,244,238,.07)" stroke="#e2efe9" stroke-width="1.25" stroke-linejoin="round"/>
+            </svg>
+            <div><div style="font-size:20px;letter-spacing:-.01em">14°</div><div class="sub" style="font-size:11.5px">Partly cloudy</div></div>
+          </div>
+          <div class="cap" style="text-align:right;line-height:1.8">Shanghai<br>H 17° · L 9°</div>
+        </div>
+      </div>
+
+      <div class="hair"></div>
+      <div class="grp">
+        <div class="row" style="margin-bottom:13px"><span class="cap">System</span><span class="cap">8 cores</span></div>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:15px">
+          <svg class="ring" viewBox="0 0 44 44" style="--p:42;width:50px;height:50px">
+            <circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/>
+          </svg>
+          <div>
+            <div style="font-size:23px;letter-spacing:-.01em;font-variant-numeric:tabular-nums">42%</div>
+            <div class="cap" style="font-size:9.5px">CPU load</div>
+          </div>
+        </div>
+        <div class="minibars" style="gap:11px">
+          <div><div class="row lbl"><span>Memory</span><span class="val">61% · 19.5 GB</span></div><div class="bar" style="margin-top:6px"><i style="width:61%"></i></div></div>
+          <div><div class="row lbl"><span>GPU</span><span class="val">8%</span></div><div class="bar warm" style="margin-top:6px"><i style="width:8%"></i></div></div>
+          <div><div class="row lbl"><span>Network</span><span class="val">↓ 1.2 MB/s</span></div><div class="bar" style="margin-top:6px"><i style="width:22%"></i></div></div>
+        </div>
+      </div>
+
+      <div class="hair"></div>
+      <div class="grp">
+        <div class="row" style="margin-bottom:9px"><span class="cap">Top RAM</span><span class="cap">Memory</span></div>
+        <div class="proc" style="grid-template-columns:1fr auto"><b>chrome.exe</b><span>2.4 GB</span></div>
+        <div class="proc" style="grid-template-columns:1fr auto"><b>Code.exe</b><span>1.1 GB</span></div>
+        <div class="row" style="margin-top:11px"><span class="cap">Top GPU</span><span class="cap">chrome.exe · 26%</span></div>
+      </div>
+
+      <div class="hair"></div>
+      <div class="grp">
+        <div class="cap" style="margin-bottom:11px">Now playing</div>
+        <div class="row">
+          <div style="display:flex;align-items:center;gap:12px;min-width:0">
+            <span class="cover"></span>
+            <div style="min-width:0"><div style="font-size:13.5px">Nightcall</div><div class="sub" style="font-size:11.5px">Kavinsky · OutRun</div></div>
+          </div>
+          <span class="cap">2:48</span>
+        </div>
+        <div class="bar" style="margin-top:13px"><i style="width:38%"></i></div>
+      </div>
+
+      <div class="hair"></div>
+      <div class="grp" style="flex:1;min-height:0">
+        <div class="row" style="margin-bottom:12px"><span class="cap">Today</span><span class="cap">3 open</span></div>
+        <div style="display:flex;flex-direction:column;gap:13px">
+          <div class="task"><span class="dot"></span>Reply to Mira about the studio keys</div>
+          <div class="task"><span class="dot"></span>Book the Friday train north</div>
+          <div class="task"><span class="dot"></span>Send the field notes to Noor</div>
+        </div>
+      </div>
+
+      <div class="row" style="padding-top:10px">
+        <span class="sub" style="font-size:11.5px">Esc to dismiss</span>
+        <span class="cap">sill · v0.4</span>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ============ D · 自由画布 ============ -->
+  <section class="scene" data-scene="d">
+    <div class="cad d-clock">
+      <div class="cap">Thursday 12 November</div>
+      <div class="num">22:03</div>
+      <div class="sub" style="margin-top:auto">Good evening.</div>
+    </div>
+
+    <div class="cad d-weather">
+      <div class="cap">Shanghai</div>
+      <div class="whead" style="margin-top:14px">
+        <div class="num">14°</div>
+        <svg class="wicon" width="34" height="34" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <path d="M25.6 5.4a8.1 8.1 0 1 0 8 10.2 6.5 6.5 0 0 1-8-10.2Z" fill="rgba(220,255,180,.10)" stroke="#dcffb4" stroke-width="1.3" stroke-linejoin="round"/>
+          <path d="M14.4 33.6h12.9a4.6 4.6 0 0 0 0-9.2 6.9 6.9 0 0 0-13-1.5 4.6 4.6 0 0 0 .1 10.7Z" fill="rgba(230,244,238,.07)" stroke="#e2efe9" stroke-width="1.25" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="sub" style="margin-top:auto">Partly cloudy<br>H 17° · L 9°</div>
+    </div>
+
+    <div class="cad d-system">
+      <div class="row"><span class="cap">System</span><span class="cap">8 cores</span></div>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:16px">
+        <svg class="ring" viewBox="0 0 44 44" style="--p:42;width:56px;height:56px">
+          <circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19"/>
+        </svg>
+        <div><div style="font-size:25px;letter-spacing:-.01em;font-variant-numeric:tabular-nums">42%</div><div class="cap" style="font-size:9.5px">CPU load</div></div>
+      </div>
+      <div class="bars">
+        <div><div class="row lbl"><span>Memory</span><span class="val">61%</span></div><div class="bar" style="margin-top:6px"><i style="width:61%"></i></div></div>
+        <div><div class="row lbl"><span>GPU</span><span class="val">8%</span></div><div class="bar warm" style="margin-top:6px"><i style="width:8%"></i></div></div>
+      </div>
+      <div class="row prochead"><span class="cap">Top RAM</span><span class="cap">2.4 GB</span></div>
+      <div class="proc" style="padding-bottom:0;grid-template-columns:1fr auto"><b>chrome.exe</b><span>34% CPU</span></div>
+    </div>
+
+    <div class="cad d-media">
+      <div class="cap">Now playing</div>
+      <div style="display:flex;align-items:center;gap:13px;margin-top:16px">
+        <span class="cover"></span>
+        <div style="min-width:0">
+          <div style="font-size:13.5px">Nightcall</div>
+          <div class="sub" style="font-size:11px">Kavinsky</div>
+        </div>
+      </div>
+      <div class="sub" style="font-size:11.5px;margin-top:16px">OutRun · 2010</div>
+      <div style="display:flex;align-items:center;gap:16px;margin-top:auto;color:var(--ink-faint)">
+        <svg width="15" height="15" viewBox="0 0 14 14" aria-hidden="true"><path d="M10.5 3 5 7l5.5 4V3Z" fill="currentColor"/><path d="M3.4 3v8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <svg width="15" height="15" viewBox="0 0 14 14" aria-hidden="true"><path d="M5.2 3.4h2v7.2h-2zM8.4 3.4h2v7.2h-2z" fill="currentColor"/></svg>
+        <svg width="15" height="15" viewBox="0 0 14 14" aria-hidden="true"><path d="M3.5 3 9 7l-5.5 4V3Z" fill="currentColor"/><path d="M10.6 3v8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </div>
+      <div style="margin-top:16px">
+        <div class="bar"><i style="width:38%"></i></div>
+        <div class="row" style="margin-top:9px"><span class="cap" style="font-size:9.5px">1:04</span><span class="cap" style="font-size:9.5px">2:48</span></div>
+      </div>
+    </div>
+
+    <div class="cad d-todo">
+      <div class="row"><span class="cap">Today</span><span class="cap">4 / 6</span></div>
+      <div class="tasks">
+        <div class="task"><span class="dot"></span>Reply to Mira about the studio keys</div>
+        <div class="task"><span class="dot"></span>Book the Friday train north</div>
+        <div class="task"><span class="dot"></span>Send the field notes to Noor</div>
+        <div class="task done"><span class="dot done"></span>Water the monstera</div>
+      </div>
+      <div class="addrow" style="margin-top:18px"><span class="plus"></span>add a task</div>
+      <div class="hair" style="margin-top:auto"></div>
+      <div class="row" style="padding-top:14px">
+        <span class="sub" style="font-size:11.5px">3 open · 1 done</span>
+        <span class="chip">alt + w</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- taskbar -->
+  <div class="taskbar">
+    <div class="tbleft">sill</div>
+    <span class="tb start"></span>
+    <span class="tb"></span><span class="tb"></span><span class="tb"></span><span class="tb"></span>
+    <div class="tbright"><span>22:03</span><span>2026/11/12</span></div>
+  </div>
+
+  <div class="hud" id="hud">
+    <b id="hudTitle">A · 磁贴群</b>
+    <span class="note" id="hudNote"></span>
+    <div class="tabs">
+      <button data-go="a" class="on">A</button>
+      <button data-go="b">B</button>
+      <button data-go="c">C</button>
+      <button data-go="d">D</button>
+    </div>
+  </div>
+</div></div>
+
+<script>
+const NOTES = {
+  a: ["A · 磁贴群", "一组固定尺寸卡片拼在一张玻璃上 —— 组件靠格子对齐，最接近 iOS 控制中心"],
+  b: ["B · 单列流", "一个居中窄面板，组件从上往下排 —— 最轻、读起来最顺，但并排信息少"],
+  c: ["C · 侧边廊", "贴屏幕右侧的一条竖向面板 —— 常驻不挡视野，信息量最大"],
+  d: ["D · 自由画布", "没有容器，每块玻璃自己站在桌面上 —— 最像 Rainmeter，但要管位置和对齐"]
+};
+const stage = document.getElementById('stage');
+const viewport = document.getElementById('viewport');
+const scrim = document.getElementById('scrim');
+const hudTitle = document.getElementById('hudTitle');
+const hudNote = document.getElementById('hudNote');
+
+function fit() {
+  const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  stage.style.transform = `scale(${s})`;
+  viewport.style.width = 1920 * s + 'px';
+  viewport.style.height = 1080 * s + 'px';
+}
+function show(key) {
+  document.body.dataset.active = key;
+  document.querySelectorAll('.scene').forEach(el => el.classList.toggle('on', el.dataset.scene === key));
+  document.querySelectorAll('.hud button').forEach(b => b.classList.toggle('on', b.dataset.go === key));
+  const n = NOTES[key] || NOTES.a;
+  hudTitle.textContent = n[0];
+  hudNote.textContent = n[1];
+  scrim.style.opacity = (key === 'c' || key === 'd') ? '0' : '1';
+}
+addEventListener('keydown', e => {
+  const map = { '1':'a','2':'b','3':'c','4':'d', a:'a', b:'b', c:'c', d:'d' };
+  if (map[e.key.toLowerCase()]) show(map[e.key.toLowerCase()]);
+});
+document.querySelectorAll('.hud button').forEach(b => b.addEventListener('click', () => show(b.dataset.go)));
+
+const shotKey = new URLSearchParams(location.search).get('shot');
+if (shotKey) {
+  document.body.classList.add('shot');
+  show(shotKey);
+} else {
+  fit();
+  addEventListener('resize', fit);
+  show(new URLSearchParams(location.search).get('v') || 'a');
+}
+</script>
+</body>
+</html>
+
+
+

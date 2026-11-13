@@ -1,0 +1,641 @@
+/* =========================================================
+   Sill — 侧边廊面板
+   玻璃配方与 384 宽的排版取自 docs/mockups/panel-forms.html 的 C 场景
+   ========================================================= */
+
+@font-face {
+  font-family: 'Instrument Sans';
+  src: url('../assets/fonts/instrument-sans-var.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Instrument Sans';
+  src: url('../assets/fonts/instrument-sans-var-italic.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('../assets/fonts/instrument-serif.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('../assets/fonts/instrument-serif-italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: block;
+}
+
+:root {
+  --sans: 'Instrument Sans', 'Microsoft YaHei UI', 'PingFang SC', 'Segoe UI', sans-serif;
+  --serif: 'Instrument Serif', 'Songti SC', Georgia, serif;
+
+  /* -------------------------------------------------------------
+     主题活变量：由 renderer/src/lib/theme.ts 按 settings.theme 写入。
+     所有玻璃层、强调色、按钮、进度、勾选都从这 7 个数推导出来。
+     ------------------------------------------------------------- */
+  --hue: 165;            /* 玻璃主色相 */
+  --tint-s: 34%;         /* 上色强度（0 = 中性深色玻璃） */
+  --accent-h: 158;       /* 强调色相 */
+  --glass-alpha: 0.731;  /* 玻璃底透明度（Glass opacity 30–100） */
+  --atmo-k: 0.92;        /* 氛围可见度 0–1 */
+  --halo-k: 0.7;         /* 左上角顶光 0–1 */
+  --grain-k: 1;          /* 水光纹理开关 0/1 */
+
+  --accent: hsl(var(--accent-h) 78% 76%);
+  --accent-pale: hsl(var(--accent-h) 88% 89%);
+  --accent-wash: hsl(var(--accent-h) 92% 93%);
+  --accent-ink: hsl(var(--accent-h) 60% 8%);
+  --accent-2: hsl(calc(var(--accent-h) + 42) 78% 84%);
+  --accent-soft: hsl(var(--accent-h) 80% 76% / 0.12);
+  --accent-glow: hsl(var(--accent-h) 90% 66% / 0.34);
+
+  --ink: #f2fbf6;
+  --ink-soft: rgba(241, 253, 247, 0.76);
+  --ink-dim: rgba(236, 252, 244, 0.58);
+  --ink-faint: rgba(234, 251, 243, 0.4);
+
+  /* 旧别名：既有规则不用改就跟着主题走 */
+  --mint: var(--accent);
+  --apricot: var(--accent-2);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
+  --radius: 34px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+}
+
+body {
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+  cursor: default;
+}
+
+#root {
+  height: 100%;
+}
+
+/* ---------- 玻璃 ----------
+   一种材质、四层、全静态（DEVPLAN §5.4）：
+   color mesh → 去色水光纹理 → 顶光 → 描边。
+   颜色全部来自主题变量，材质本身只有这一种。 */
+.rail {
+  position: relative;
+  height: 100%;
+  padding: 20px 24px 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.135);
+  border-radius: var(--radius);
+  isolation: isolate;
+  background:
+    linear-gradient(152deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.008) 44%, rgba(255, 255, 255, 0.03) 100%),
+    radial-gradient(120% 100% at 60% 68%, hsl(var(--hue) 40% 3% / 0.16) 0%, transparent 60%),
+    hsl(var(--hue) var(--tint-s) 7% / var(--glass-alpha));
+  box-shadow:
+    0 26px 64px -26px rgba(0, 0, 0, 0.9),
+    0 8px 24px -12px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.22);
+}
+
+/* ① 氛围：颜色网格，几何由 8 种配方决定，色相来自主题 */
+.rail__atmo {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  background-color: hsl(var(--hue) calc(var(--tint-s) * 0.8) 5%);
+  background-image: var(--atmo-layer), var(--atmo-base);
+  opacity: var(--atmo-k);
+  transition: opacity 0.6s var(--ease-soft);
+  pointer-events: none;
+}
+
+.rail__atmo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, hsl(var(--hue) 32% 4% / 0.1) 0%, hsl(var(--hue) 32% 4% / 0.16) 50%, hsl(var(--hue) 32% 3% / 0.42) 100%),
+    radial-gradient(74% 46% at 92% 4%, hsl(calc(var(--hue) + 215) 80% 66% / 0.1) 0%, transparent 66%),
+    radial-gradient(100% 60% at 24% 40%, hsl(var(--hue) 34% 3% / 0.07) 0%, transparent 70%);
+}
+
+/* ② 去色水光纹理：给任何色相都提供同一层有机细节 */
+.rail__grain {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  background: url('../assets/atmosphere-grain.jpg') center 30% / cover no-repeat;
+  mix-blend-mode: overlay;
+  opacity: calc(var(--atmo-k) * var(--grain-k, 1) * 0.24);
+  transition: opacity 0.6s var(--ease-soft);
+  pointer-events: none;
+}
+
+/* ③ 左上角顶光 */
+.rail__halo {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(86% 34% at -4% -8%, hsl(calc(var(--hue) + 34) 62% 90% / 0.3) 0%, transparent 66%),
+    radial-gradient(52% 20% at 8% 1%, hsl(0 0% 100% / 0.17) 0%, transparent 72%),
+    radial-gradient(26% 12% at 22% 8%, hsl(0 0% 100% / 0.09) 0%, transparent 74%);
+  mix-blend-mode: screen;
+  opacity: calc(var(--halo-k) * 1.08);
+  transition: opacity 0.55s var(--ease-soft);
+  pointer-events: none;
+}
+
+/* ④ 1px 渐变描边 */
+.rail__rim {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    132deg,
+    rgba(255, 255, 255, 0.8) 0%,
+    rgba(255, 255, 255, 0.08) 18%,
+    hsl(calc(var(--hue) + 18) 70% 84% / 0.15) 42%,
+    rgba(255, 255, 255, 0.04) 66%,
+    hsl(calc(var(--hue) + 215) 82% 74% / 0.38) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ---------- 氛围配方：8 种光照几何 ----------
+   同一组颜色角色（色相偏移）换不同的 blob 位置；
+   因为色相来自 --hue，所以 8 种氛围 × 任意背景色都成立。 */
+:root {
+  --atmo-base: linear-gradient(168deg, hsl(calc(var(--hue) + 8) 40% 21% / 0.56) 0%, hsl(var(--hue) 36% 9% / 0.76) 48%, hsl(var(--hue) 34% 4% / 0.9) 100%);
+  --atmo-layer:
+    radial-gradient(116% 58% at 0% 98%, hsl(calc(var(--hue) - 10) 62% 36% / 0.9) 0%, transparent 62%),
+    radial-gradient(86% 44% at 100% 0%, hsl(calc(var(--hue) + 30) 70% 62% / 0.6) 0%, transparent 60%),
+    radial-gradient(52% 26% at 74% 26%, hsl(calc(var(--hue) + 46) 80% 78% / 0.2) 0%, transparent 70%);
+}
+
+[data-atmo='lagoon'] {
+  --atmo-base: linear-gradient(168deg, hsl(calc(var(--hue) + 8) 40% 21% / 0.56) 0%, hsl(var(--hue) 36% 9% / 0.76) 48%, hsl(var(--hue) 34% 4% / 0.9) 100%);
+  --atmo-layer:
+    radial-gradient(116% 58% at 0% 98%, hsl(calc(var(--hue) - 10) 62% 36% / 0.9) 0%, transparent 62%),
+    radial-gradient(86% 44% at 100% 0%, hsl(calc(var(--hue) + 30) 70% 62% / 0.6) 0%, transparent 60%),
+    radial-gradient(52% 26% at 74% 26%, hsl(calc(var(--hue) + 46) 80% 78% / 0.2) 0%, transparent 70%);
+}
+
+[data-atmo='aurora'] {
+  --atmo-base: linear-gradient(150deg, hsl(calc(var(--hue) - 16) 42% 18% / 0.56) 0%, hsl(var(--hue) 34% 7% / 0.78) 58%, hsl(calc(var(--hue) + 20) 36% 4% / 0.9) 100%);
+  --atmo-layer:
+    radial-gradient(128% 32% at 0% 14%, hsl(calc(var(--hue) - 44) 68% 54% / 0.58) 0%, transparent 64%),
+    radial-gradient(116% 30% at 92% 2%, hsl(calc(var(--hue) + 48) 72% 62% / 0.5) 0%, transparent 62%),
+    radial-gradient(140% 36% at 34% 102%, hsl(calc(var(--hue) + 4) 70% 44% / 0.55) 0%, transparent 70%);
+}
+
+[data-atmo='dusk'] {
+  --atmo-base: linear-gradient(178deg, hsl(calc(var(--hue) - 14) 40% 16% / 0.62) 0%, hsl(calc(var(--hue) + 8) 34% 8% / 0.78) 60%, hsl(var(--hue) 32% 4% / 0.9) 100%);
+  --atmo-layer:
+    radial-gradient(136% 34% at 58% 102%, hsl(calc(var(--hue) + 26) 88% 56% / 0.55) 0%, transparent 66%),
+    radial-gradient(88% 30% at 4% 20%, hsl(calc(var(--hue) - 32) 66% 50% / 0.4) 0%, transparent 66%),
+    radial-gradient(42% 22% at 92% 34%, hsl(calc(var(--hue) + 60) 78% 74% / 0.16) 0%, transparent 72%);
+}
+
+[data-atmo='ember'] {
+  --atmo-base: linear-gradient(148deg, hsl(calc(var(--hue) - 10) 36% 17% / 0.58) 0%, hsl(var(--hue) 32% 7% / 0.8) 54%, hsl(calc(var(--hue) + 8) 34% 4% / 0.9) 100%);
+  --atmo-layer:
+    radial-gradient(102% 54% at 100% 102%, hsl(calc(var(--hue) + 16) 94% 56% / 0.6) 0%, transparent 60%),
+    radial-gradient(78% 34% at 0% 2%, hsl(calc(var(--hue) - 26) 40% 24% / 0.5) 0%, transparent 68%),
+    radial-gradient(46% 22% at 64% 66%, hsl(calc(var(--hue) + 32) 96% 76% / 0.14) 0%, transparent 72%);
+}
+
+[data-atmo='frost'] {
+  --atmo-base: linear-gradient(170deg, hsl(calc(var(--hue) + 8) 44% 27% / 0.54) 0%, hsl(var(--hue) 36% 13% / 0.68) 52%, hsl(var(--hue) 30% 6% / 0.86) 100%);
+  --atmo-layer:
+    radial-gradient(122% 46% at 44% -12%, hsl(calc(var(--hue) + 6) 62% 80% / 0.4) 0%, transparent 62%),
+    radial-gradient(84% 40% at 2% 84%, hsl(calc(var(--hue) - 24) 52% 58% / 0.3) 0%, transparent 68%),
+    radial-gradient(64% 30% at 98% 66%, hsl(calc(var(--hue) + 40) 60% 70% / 0.2) 0%, transparent 70%);
+}
+
+[data-atmo='noir'] {
+  --atmo-base: linear-gradient(165deg, hsl(var(--hue) 12% 20% / 0.46) 0%, hsl(var(--hue) 10% 8% / 0.74) 55%, hsl(var(--hue) 8% 3% / 0.9) 100%);
+  --atmo-layer:
+    radial-gradient(96% 42% at -2% 0%, hsl(var(--hue) 16% 48% / 0.3) 0%, transparent 66%),
+    radial-gradient(74% 36% at 102% 102%, hsl(calc(var(--hue) + 26) 20% 28% / 0.3) 0%, transparent 70%);
+}
+
+[data-atmo='veil'] {
+  --atmo-base: linear-gradient(180deg, hsl(calc(var(--hue) + 4) 38% 20% / 0.56) 0%, hsl(var(--hue) 32% 7% / 0.8) 58%, hsl(var(--hue) 32% 4% / 0.9) 100%);
+  --atmo-layer:
+    linear-gradient(102deg, transparent 4%, hsl(calc(var(--hue) - 18) 60% 48% / 0.4) 26%, transparent 48%, hsl(calc(var(--hue) + 34) 66% 58% / 0.36) 68%, transparent 88%),
+    radial-gradient(100% 38% at 100% 0%, hsl(calc(var(--hue) + 18) 70% 70% / 0.22) 0%, transparent 70%);
+}
+
+[data-atmo='mist'] {
+  --atmo-base: linear-gradient(170deg, hsl(calc(var(--hue) + 6) 34% 24% / 0.48) 0%, hsl(var(--hue) 28% 10% / 0.7) 55%, hsl(var(--hue) 28% 5% / 0.86) 100%);
+  --atmo-layer:
+    radial-gradient(126% 52% at 16% 16%, hsl(calc(var(--hue) + 14) 52% 54% / 0.34) 0%, transparent 66%),
+    radial-gradient(116% 48% at 94% 84%, hsl(calc(var(--hue) - 20) 48% 44% / 0.3) 0%, transparent 68%);
+}
+
+/* ---------- 滚动区 ---------- */
+.rail__scroll {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  margin: 0 -10px;
+  padding: 0 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  transition: opacity 0.22s ease;
+}
+
+/* Customize 盖住整块玻璃时，底下的内容退场，避免文字透出来 */
+.rail[data-customizing='true'] .rail__scroll {
+  opacity: 0;
+}
+
+.rail__scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.rail__scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 99px;
+  transition: background 0.2s ease;
+}
+.rail__scroll:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+}
+.rail__scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+.rail__scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 内容随窗口滑入后轻轻亮起，位移交给我们移动的窗口本身 */
+.rail[data-visible='true'] .sheet {
+  animation: sheet-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* ---------- 排版原子 ---------- */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cap {
+  font-size: 10px;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 56px;
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+  color: rgba(250, 255, 252, 0.97);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.sub {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-dim);
+}
+
+.lbl {
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.val {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.hair {
+  height: 1px;
+  flex: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.17), transparent);
+}
+
+.grp {
+  padding: 11px 0;
+  flex: none;
+}
+
+.grp--grow {
+  flex: 1;
+  min-height: 0;
+}
+
+.bar {
+  position: relative;
+  height: 3px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: rgba(3, 14, 11, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 99px;
+  background: linear-gradient(90deg, hsl(var(--accent-h) 80% 72% / 0.45), var(--accent));
+}
+.bar--warm > i {
+  background: linear-gradient(90deg, hsl(calc(var(--accent-h) + 42) 82% 78% / 0.45), var(--accent-2));
+}
+
+.ring {
+  width: 50px;
+  height: 50px;
+  transform: rotate(-90deg);
+  flex: none;
+}
+.ring circle {
+  fill: none;
+  stroke-width: 3.2;
+}
+.ring .bg {
+  stroke: rgba(255, 255, 255, 0.11);
+}
+.ring .fg {
+  stroke: var(--mint);
+  stroke-linecap: round;
+  stroke-dasharray: 119.4;
+  stroke-dashoffset: calc(119.4 - 119.4 * var(--p) / 100);
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+.dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.3px solid rgba(255, 255, 255, 0.3);
+  flex: none;
+}
+.dot--done {
+  background: var(--accent);
+  border-color: transparent;
+  position: relative;
+}
+.dot--done::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.4 8.3 6.4 11.3 12.7 4.9' fill='none' stroke='%23071c15' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 10px no-repeat;
+}
+.task--done {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+}
+
+.cover {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  flex: none;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, #8a639c, #31475c 55%, #1f6357);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(64% 44% at 30% 18%, rgba(255, 255, 255, 0.4), transparent 72%);
+}
+
+.chip {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 4px 7px;
+  white-space: nowrap;
+}
+
+.addrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  margin-top: 18px;
+}
+.plus {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  position: relative;
+  flex: none;
+}
+.plus::before,
+.plus::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+}
+.plus::before {
+  left: 50%;
+  top: 3.2px;
+  bottom: 3.2px;
+  width: 1px;
+  transform: translateX(-50%);
+}
+.plus::after {
+  top: 50%;
+  left: 3.2px;
+  right: 3.2px;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+/* ---------- 具体区块 ---------- */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+/* 品牌行右侧：热键 chip + 主题入口 */
+.headtools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iconbtn {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition:
+    color 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s var(--ease-out);
+}
+.iconbtn:hover {
+  border-color: rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+}
+.iconbtn:active {
+  transform: scale(0.9);
+}
+.iconbtn[aria-expanded='true'] {
+  border-color: hsl(var(--accent-h) 82% 84% / 0.18);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.iconbtn:focus-visible {
+  outline: 2px solid hsl(var(--accent-h) 85% 80% / 0.8);
+  outline-offset: 2px;
+}
+
+.brand svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+.brand__word {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 25px;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  color: rgba(249, 255, 251, 0.96);
+  margin-top: -2px;
+}
+
+.weather__temp {
+  font-size: 20px;
+  letter-spacing: -0.01em;
+}
+.weather__side {
+  text-align: right;
+  line-height: 1.8;
+}
+
+.system__cpu {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 15px;
+}
+.system__pct {
+  font-size: 23px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.system__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.proc {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+  padding: 4px 0;
+}
+.proc b {
+  font-weight: 400;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  flex: none;
+}

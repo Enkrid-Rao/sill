@@ -1,0 +1,583 @@
+/* =========================================================
+   Customize — 面板内的主题表面
+   一块盖住整块玻璃的「iOS 控制中心」式面板：预设、颜色、氛围、光晕。
+   它的底色与 .rail 用同一套主题变量，所以改任何一项都能立刻在这块表面上看出来。
+   ========================================================= */
+
+.cz-sheet {
+  position: absolute;
+  z-index: 12;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px 18px 10px;
+  border-radius: var(--radius);
+  /* 半透明：底下的真实玻璃（氛围、顶光、颗粒）透上来，所以改主题即时可见；
+     上面一层深色 scrim 保证文字对比度。 */
+  background:
+    radial-gradient(120% 40% at 4% 0%, rgba(255, 255, 255, 0.07), transparent 58%),
+    linear-gradient(
+      180deg,
+      hsl(var(--hue) 28% 4% / 0.58) 0%,
+      hsl(var(--hue) 28% 4% / 0.66) 55%,
+      hsl(var(--hue) 28% 3% / 0.72) 100%
+    );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  animation: cz-in 0.34s var(--ease-out) both;
+}
+
+@keyframes cz-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cz-head {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 2px 12px;
+}
+
+.cz-title {
+  margin: 3px 0 0;
+  color: rgba(250, 255, 252, 0.96);
+  font-family: var(--serif);
+  font-size: 25px;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+
+.cz-body {
+  flex: 1;
+  min-height: 0;
+  margin: 4px -6px 0;
+  padding: 1px 6px 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+.cz-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cz-body::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.cz-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 2px 2px 8px;
+  color: var(--ink-faint);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.cz-label--spaced {
+  margin-top: 15px;
+}
+
+.cz-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+/* ---------- 预设 ---------- */
+
+.cz-preset {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 3px 3px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+  transition:
+    border-color 0.22s ease,
+    background 0.22s ease,
+    box-shadow 0.24s ease,
+    transform 0.24s var(--ease-out);
+}
+
+.cz-preset:hover {
+  background: rgba(255, 255, 255, 0.075);
+  transform: translateY(-1px);
+}
+
+.cz-preset:active {
+  transform: scale(0.97);
+}
+
+.cz-preset[aria-pressed='true'] {
+  border-color: hsl(var(--accent-h) 85% 82% / 0.5);
+  box-shadow:
+    0 0 0 1px hsl(var(--accent-h) 85% 82% / 0.2),
+    0 8px 18px -12px var(--accent-glow);
+}
+
+.cz-scene {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 7px;
+  background-color: hsl(var(--hue) calc(var(--tint-s) * 0.8) 5%);
+  background-image: var(--atmo-layer), var(--atmo-base);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.cz-scene::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(158deg, rgba(255, 255, 255, 0.2) 0%, transparent 44%),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.26) 0%, transparent 58%);
+}
+
+.cz-preset .cz-scene {
+  height: 32px;
+}
+
+.cz-preset__name {
+  color: rgba(244, 251, 248, 0.62);
+  font-size: 8.2px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.cz-preset[aria-pressed='true'] .cz-preset__name {
+  color: rgba(252, 255, 254, 0.92);
+}
+
+/* ---------- 氛围 ---------- */
+
+.cz-atmo {
+  position: relative;
+  height: 42px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.24s ease,
+    transform 0.24s var(--ease-out);
+}
+
+.cz-atmo:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.cz-atmo:active {
+  transform: scale(0.97);
+}
+
+.cz-atmo[aria-pressed='true'] {
+  border-color: hsl(var(--accent-h) 85% 82% / 0.55);
+  box-shadow:
+    0 0 0 1px hsl(var(--accent-h) 85% 82% / 0.22),
+    0 8px 18px -12px var(--accent-glow);
+}
+
+.cz-atmo .cz-scene {
+  position: absolute;
+  inset: 0;
+}
+
+.cz-atmo__name {
+  position: absolute;
+  bottom: 4px;
+  left: 6px;
+  color: rgba(250, 255, 252, 0.88);
+  font-size: 7.8px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.cz-atmo-grid {
+  margin-bottom: 12px;
+}
+
+.cz-atmo-grid.is-disabled {
+  opacity: 0.36;
+  pointer-events: none;
+}
+
+/* ---------- 开关 ---------- */
+
+.cz-switchrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 2px 9px;
+}
+
+/* 预设网格之后的「Atmosphere」标题行 */
+.cz-switchrow.cz-label--spaced {
+  margin-top: 18px;
+  margin-bottom: 10px;
+}
+
+.cz-switchrow__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cz-switchrow__name {
+  color: rgba(246, 252, 249, 0.88);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.cz-switchrow__note {
+  color: var(--ink-faint);
+  font-size: 9px;
+}
+
+.cz-toggle {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  cursor: pointer;
+}
+
+.cz-check {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cz-switch {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 19px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+  transition:
+    background 0.24s ease,
+    border-color 0.24s ease,
+    box-shadow 0.24s ease;
+}
+
+.cz-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: rgba(242, 251, 247, 0.66);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition:
+    transform 0.28s var(--ease-out),
+    background 0.24s ease;
+}
+
+.cz-check:checked + .cz-switch {
+  border-color: hsl(var(--accent-h) 85% 84% / 0.4);
+  background: linear-gradient(100deg, hsl(var(--accent-h) 68% 56%), hsl(var(--accent-h) 84% 76%));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 15px -3px var(--accent-glow);
+}
+
+.cz-check:checked + .cz-switch::after {
+  background: hsl(var(--hue) 34% 8%);
+  transform: translateX(13px);
+}
+
+.cz-check:focus-visible + .cz-switch {
+  outline: 2px solid hsl(var(--accent-h) 85% 80% / 0.8);
+  outline-offset: 3px;
+}
+
+/* ---------- 滑块 ---------- */
+
+.cz-field {
+  margin: 0 2px 11px;
+}
+
+.cz-field.is-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.cz-field__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.cz-field__name {
+  color: rgba(244, 251, 248, 0.83);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.cz-field__value {
+  flex: none;
+  color: hsl(var(--accent-h) 72% 84% / 0.8);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cz-range {
+  --range-progress: 50%;
+  --thumb-color: var(--accent);
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 99px;
+  outline: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cz-range::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  border: 0;
+  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--accent-h) 78% 62% / 0.9) 0%,
+    hsl(var(--accent-h) 88% 80% / 0.95) var(--range-progress),
+    rgba(255, 255, 255, 0.1) var(--range-progress),
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.16),
+    0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.cz-range::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  background: var(--thumb-color);
+  box-shadow:
+    0 0 12px -1px var(--accent-glow),
+    0 2px 5px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition:
+    transform 0.18s var(--ease-out),
+    box-shadow 0.18s ease;
+}
+
+.cz-range:hover::-webkit-slider-thumb {
+  transform: scale(1.08);
+}
+
+.cz-range:active::-webkit-slider-thumb {
+  transform: scale(0.94);
+}
+
+.cz-range:focus-visible {
+  outline: 2px solid hsl(var(--accent-h) 85% 80% / 0.8);
+  outline-offset: 4px;
+}
+
+.cz-range--hue::-webkit-slider-runnable-track {
+  background: linear-gradient(
+    90deg,
+    hsl(0 80% 64%) 0%,
+    hsl(45 85% 66%) 12.5%,
+    hsl(90 75% 62%) 25%,
+    hsl(150 70% 60%) 37.5%,
+    hsl(190 80% 62%) 50%,
+    hsl(230 80% 68%) 62.5%,
+    hsl(275 75% 68%) 75%,
+    hsl(320 80% 68%) 87.5%,
+    hsl(360 80% 64%) 100%
+  );
+  opacity: 0.92;
+}
+
+.cz-range--hue::-webkit-slider-thumb {
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 0 0 2px hsl(var(--hue) 30% 6% / 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* ---------- 色珠 ---------- */
+
+.cz-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 2px 13px;
+}
+
+.cz-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.32) 0%, transparent 54%),
+    var(--sw, rgba(255, 255, 255, 0.1));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  transition:
+    transform 0.2s var(--ease-out),
+    box-shadow 0.22s ease;
+}
+
+.cz-swatch:hover {
+  transform: scale(1.09);
+}
+
+.cz-swatch:active {
+  transform: scale(0.94);
+}
+
+.cz-swatch[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px hsl(var(--hue) 30% 6% / 0.85),
+    0 0 0 3.5px rgba(255, 255, 255, 0.82),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* ---------- 行 ---------- */
+
+.cz-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 7px 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
+  cursor: pointer;
+}
+
+.cz-row:first-child {
+  border-top: 0;
+}
+
+.cz-row:hover .cz-switchrow__name {
+  color: #fff;
+}
+
+.cz-divider {
+  height: 1px;
+  margin: 6px 2px 4px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.02) 76%, transparent);
+}
+
+.cz-note {
+  margin: 8px 2px 12px;
+  color: rgba(236, 250, 244, 0.34);
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+/* ---------- 页脚 ---------- */
+
+.cz-foot {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 2px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(236, 250, 244, 0.3);
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.cz-dot {
+  width: 4px;
+  height: 4px;
+  flex: none;
+  border-radius: 50%;
+  background: hsl(var(--accent-h) 85% 80% / 0.65);
+  box-shadow: 0 0 7px hsl(var(--accent-h) 88% 72% / 0.36);
+}
+
+.cz-reset {
+  margin-left: auto;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(244, 250, 248, 0.7);
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.cz-reset:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cz-sheet {
+    animation: none;
+    transition: none;
+  }
+}
