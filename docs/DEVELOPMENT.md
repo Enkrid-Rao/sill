@@ -89,7 +89,7 @@ Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: Package subpath './internal' is not defin
 
 ```
 Sill/
-├─ DEVPLAN.md                 产品与架构规划（v0.4.2）
+├─ DEVPLAN.md                 产品与架构规划（v0.4.3）
 ├─ docs/
 │  ├─ DEVELOPMENT.md          本文
 │  ├─ HANDOFF.md              交接
@@ -298,3 +298,14 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 4. **没有设置界面**。托盘的「打开设置文件」直接打开 `settings.json`，改完重启生效（M2 再做 UI）。
 5. **多屏只按鼠标所在屏计算**，未做每块屏的独立记忆。
 6. **没有组件引擎**。面板内容是 `App.tsx` 里写死的占位数据，M1 才接 Provider。
+
+## 10. 发布与自动更新（M0.5，尚未实现）
+
+规格与验收在 DEVPLAN §11，这里只记实现约束：
+
+- 更新器**只在打包态生效**：`app.isPackaged` 为假（`pnpm dev` / `--smoke`）时模块直接返回。
+  别在 dev 里调 electron-updater——它读不到 `latest.yml`，只会抛错
+- `pnpm dist` 走 electron-builder + NSIS，装到 `%LOCALAPPDATA%\Programs\Sill`；
+  `%APPDATA%\Sill` 是数据目录，卸载不删、更新不碰
+- 主进程里**唯一允许碰网络的是 `src/main/updater.ts`**；渲染进程只消费 `window.sill.update.*` 的状态
+- `package.json` 的 `version` 是 `latest.yml`、安装包文件名、面板页脚的唯一来源，发版前先核对它

@@ -1,12 +1,12 @@
 # Sill 开发文档
 
-v0.4.2 · 2026-11-13
+v0.4.3 · 2026-11-13
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
 ---
 
-## 0. v0.3 → v0.4 变更
+## 0. 变更记录（v0.3 → v0.4.3）
 
 | 变更 | 原因 |
 |---|---|
@@ -26,6 +26,9 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.4.2** 玻璃仍是「一种材质」 | 可变的是 token（色相/上色强度/强调色/透明度）与 8 套氛围配方，不是多种玻璃；§5.4 的 `backdrop-filter` 禁令不变 |
 | **v0.4.2** 主题存进 `settings.theme` | §4.5 早就写了「主题」在 settings.json，这次把它实现，并共用 `src/shared/theme.ts` 收敛 |
 | **v0.4.2** Esc 分层 | 面板里盖着 Customize 时，Esc 先关覆盖层，再按一次才收面板 |
+| **v0.4.3** 自动更新升级为硬需求，新增 **M0.5 发布通道** | 更新器决定安装器形态、安装目录、`app.isPackaged` 分支与回滚路径；拖到 M6 会逼着 M1–M5 返工，趁应用还小先打通 |
+| **v0.4.3** 更新源用 generic provider，不锁 GitHub | `publish.url` 构建期注入；公开 GitHub Releases、私有 OSS、自建静态站共用一套代码，不被「是否开源」卡住 |
+| **v0.4.3** 更新不自动重启 | 面板常驻、唤出不抢焦点，重启可能打断正在输入的内容；只能由用户点（与 §5.3 同一原则） |
 
 ---
 
@@ -36,6 +39,7 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 - 侧边廊面板：全局热键、托盘、玻璃、滚动、Esc
 - 框架：声明式 IR + 沙箱脚本组件 + 组件包安装
 - 内置组件：clock / system / weather / todo
+- 安装包与自动更新：M0.5 打通「装旧版 → 发新版 → 自己更新上来」，M6 再补签名与灰度
 - rmskin 导入（M4）
 - 桌面常驻卡片（M5）
 
@@ -44,7 +48,7 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 - 100% Rainmeter 兼容（Lua、自定义 DLL）
 - 在线市场、移动端、macOS
 - 原生 DLL 插件
-- 边缘拖拽手势、全屏点击捕获窗（见 §11）
+- 边缘拖拽手势、全屏点击捕获窗（见 §12）
 
 ---
 
@@ -69,14 +73,16 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | 里程碑 | 交付 | 工期 |
 |---|---|---|
 | M0 工程骨架 | pnpm monorepo、TS、Vite、Electron 壳、侧边廊窗口、热键、托盘、自启、单实例、热重载 | 2–3 天 |
+| M0.5 发布通道 | electron-builder NSIS 安装包、electron-updater、更新状态与页脚提示、v0.1.0→v0.1.1 干跑（§11） | 2–3 天 |
 | M1 引擎 | IR、Loader/Validator/Compiler/Binder/Patcher、DataHub（time/system）、Provider 接口、调试面板 | 1 周 |
 | M2 组件系统 | manifest、安装/卸载、沙箱脚本、设置、生命周期、CLI | 1 周 |
 | M3 内置组件 | clock / system / weather / todo，全部走引擎 | 1 周 |
 | M4 rmskin | 桥接（T3）→ 解包解析转换（T1）→ 兼容报告 | 2 周 |
 | M5 桌面形态 | 常驻卡片窗口、自由位置、位置记忆、多屏 | 3–5 天 |
-| M6 打磨 | 动效、性能基线、安装器、自动更新 | 1 周 |
+| M6 打磨 | 动效、性能基线、签名与灰度发布、安装器细节 | 1 周 |
 
-M0–M3 是框架验证期；M3 结束再做 rmskin。
+M0.5 紧跟 M0、不插进框架期：更新器要在应用还小的时候验证，拖到 M6 就是一次性压上安装器、
+安装目录、`app.isPackaged` 分支和回滚路径。M1–M3 仍是框架验证期；M3 结束再做 rmskin。
 
 ### 3.1 M0 验收标准
 
@@ -487,7 +493,7 @@ sill/
 └─ package.json           # pnpm workspace
 ```
 
-Electron + TypeScript + Vite + React + Zustand；测试 Vitest + Playwright；打包 electron-builder。
+Electron + TypeScript + Vite + React + Zustand；测试 Vitest + Playwright；打包 electron-builder（NSIS per-user），更新 electron-updater。
 
 ---
 
@@ -506,11 +512,84 @@ Electron + TypeScript + Vite + React + Zustand；测试 Vitest + Playwright；�
 
 ---
 
-## 11. 待定
+## 11. 自动更新与发布通道（M0.5）
+
+### 11.1 为什么不等 M6
+
+更新器不是一个依赖：它决定安装器形态（NSIS per-user / per-machine）、安装目录、`app.isPackaged`
+分支、托盘与页脚的提示位、失败回滚路径。这些一旦被 M1–M5 的代码假定，改起来就是全线返工。
+趁现在只有一个窗口、两千多行代码，把「装 v0.1.0 → 发 v0.1.1 → 自己更新上来」跑通，成本最低。
+
+### 11.2 选型
+
+| 项 | 取值 | 理由 |
+|---|---|---|
+| 打包 | electron-builder + NSIS | 生态最稳；NSIS 支持 per-user 安装，不需要 UAC；自带 blockmap 差异更新 |
+| 更新库 | electron-updater | 直接读 electron-builder 产出的 `latest.yml` |
+| 更新源 | generic provider，URL 构建期注入 | 公开 GitHub Releases、私有 OSS、自建静态站共用一套代码 |
+| 安装位置 | `%LOCALAPPDATA%\Programs\Sill`（per-user） | 不弹 UAC；与数据目录 `%APPDATA%\Sill` 分开，卸载不丢主题 |
+| 版本 | `package.json` 单一来源 | 构建时注入；页脚与托盘显示 `app.getVersion()` |
+| 签名 | M0.5 先不签，M6 前定 | 未签名只会被 SmartScreen 拦一次；证书要买，不该拖住通道验证 |
+
+### 11.3 状态机与时机
+
+```
+idle → checking → up-to-date
+                → available → downloading(%) → downloaded → quitAndInstall
+                → error（只记日志，不弹窗）
+```
+
+- 只在 `app.isPackaged === true` 且非 `--smoke` 时启动；dev 态整个模块睡眠，状态恒为 `idle`
+- 启动后 30s 首次检查，之后每 6 小时；托盘「检查更新」可手动触发
+- 静默后台下载，不阻塞面板、不抢焦点；**下载完成后才提示**
+- 提示位：面板页脚右侧 `v0.1.0 · 更新已就绪`（点击重启安装）+ 托盘同名菜单项
+- **不自动重启**：用户可能正在打字，重启只能由用户发起（与 §5.3「唤出不抢焦点」同一原则）
+- 退出路径复用现有 `before-quit`（`rememberPosition()` 已在里面），安装器不需要另存位置
+
+### 11.4 失败与回滚
+
+- feed 404 / 断网 / sha512 不符：状态回 `error`，不弹窗，下次定时重试；面板照常可用
+- 安装失败：NSIS 保留旧版本目录，下次启动仍是旧版，不出现「装完打不开」
+- `allowDowngrade: false`：不把用户推回旧版
+- 更新不触碰 `%APPDATA%\Sill`；`settings.json` 的 `coerce()` 已保证旧文件补默认、新字段回落（§4.5），
+  更新后主题不会丢
+
+### 11.5 安全底线
+
+- 只走 HTTPS；`latest.yml` 自带 sha512，electron-updater 校验通过才安装
+- 更新源只来自构建期常量或 `SILL_UPDATE_FEED` 环境变量（仅开发/测试）
+- **不接受运行时用户输入的更新源**——那等于把远程代码执行交给一个输入框
+- 未来：代码签名 + `verifyUpdateCodeSignature`
+
+### 11.6 验收标准（M0.5 不算完成，直到）
+
+1. `pnpm dist` 产出 `Sill-Setup-0.1.0.exe`；双击装到 `%LOCALAPPDATA%\Programs\Sill`，
+   开始菜单有快捷方式，托盘 / 面板 / 热键全部正常
+2. 版本改 0.1.1 再 `pnpm dist`，产物放进本地 feed → 启动 0.1.0 → 自动下载 → 页脚提示 →
+   点击重启 → 版本变 0.1.1，且 `settings.json` 的 theme 原样保留
+3. 断网启动：不崩、不弹窗，日志里有一条 error
+4. feed 里放 sha512 错误的包：拒绝安装，旧版仍可启动
+5. `pnpm dev` 与 `pnpm smoke` 不发任何更新请求（日志断言）
+
+### 11.7 实现落点
+
+```
+apps/desktop/electron-builder.yml      appId com.sill.app、NSIS per-user、publish: generic
+apps/desktop/src/main/updater.ts       状态机 + electron-updater 封装（唯一碰网络的模块）
+apps/desktop/src/main/ipc.ts           update:get / update:check / update:install
+apps/desktop/src/preload/index.ts      window.sill.update.*
+apps/desktop/src/renderer/…            页脚版本号与更新入口
+package.json                           dist / dist:dir 脚本
+```
+
+---
+
+## 12. 待定
 
 1. 侧边廊固定在右侧，还是允许用户切到左侧。
 2. LiquidGlassTodo 合并（降级成内置 `sill.todo`，数据迁移）还是保持独立。
 3. 是否开源（影响包格式、许可证策略、是否要做签名）。
 4. 「点空白收起」值不值得一个全屏透明捕获窗（要多一个窗口，且会挡桌面点击）。
 5. 面板是否需要「钉住」模式（不自动隐藏，当常驻侧栏用）。
+6. 更新源放哪：公开 GitHub Releases，还是自建/OSS（与第 3 条是同一个决定，决定 §11 的 `publish.url`）。
 
