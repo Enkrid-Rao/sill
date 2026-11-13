@@ -104,7 +104,7 @@ body {
 .rail {
   position: relative;
   height: 100%;
-  padding: 20px 24px 16px;
+  padding: 18px 18px 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -120,6 +120,8 @@ body {
     0 8px 24px -12px rgba(0, 0, 0, 0.55),
     inset 0 1px 0 rgba(255, 255, 255, 0.24),
     inset 0 -1px 0 rgba(0, 0, 0, 0.22);
+  /* 玻璃更透之后，白字靠一点点投影扛住亮壁纸 */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
 }
 
 /* ① 氛围：颜色网格，几何由 8 种配方决定，色相来自主题 */
@@ -194,6 +196,83 @@ body {
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
+}
+
+/* ⑤ 缓慢掠过的高光：玻璃的「液态」感来自这道移动的斜向反光 */
+.rail__sheen {
+  position: absolute;
+  z-index: 1;
+  inset: -25% -45%;
+  border-radius: inherit;
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.03) 46%,
+    rgba(255, 255, 255, 0.085) 50%,
+    rgba(255, 255, 255, 0.03) 54%,
+    transparent 61%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* ---------- 呼吸 ----------
+   极慢的合成层动画：氛围网格缓慢漂移、顶光轻微起伏、颗粒明暗呼吸。
+   窗口隐藏时 Chromium 不渲染，所以只有面板真的在屏幕上时才跑。
+   不碰 blur、不碰背景采样，只有 transform / opacity。 */
+@media (prefers-reduced-motion: no-preference) {
+  .rail__atmo {
+    animation: atmo-drift 52s ease-in-out infinite alternate;
+  }
+  .rail__halo {
+    animation: halo-breathe 19s ease-in-out infinite;
+  }
+  .rail__grain {
+    animation: grain-breathe 27s ease-in-out infinite;
+  }
+  .rail__sheen {
+    animation: sheen-drift 38s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes sheen-drift {
+  from {
+    transform: translate3d(-16%, -2%, 0);
+    opacity: 0.5;
+  }
+  to {
+    transform: translate3d(16%, 2%, 0);
+    opacity: 0.85;
+  }
+}
+
+@keyframes atmo-drift {
+  from {
+    transform: scale(1.02) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.055) translate3d(-1.4%, 1.1%, 0);
+  }
+}
+
+@keyframes halo-breathe {
+  0%,
+  100% {
+    opacity: calc(var(--halo-k) * 1.02);
+  }
+  50% {
+    opacity: calc(var(--halo-k) * 1.2);
+  }
+}
+
+@keyframes grain-breathe {
+  0%,
+  100% {
+    opacity: calc(var(--atmo-k) * var(--grain-k, 1) * 0.21);
+  }
+  50% {
+    opacity: calc(var(--atmo-k) * var(--grain-k, 1) * 0.26);
+  }
 }
 
 /* ---------- 氛围配方：8 种光照几何 ----------
@@ -323,7 +402,60 @@ body {
 .sheet {
   display: flex;
   flex-direction: column;
+  gap: 9px;
   min-height: 100%;
+  padding: 1px 0 2px;
+}
+
+/* 每个分区是一张液态玻璃卡片：1px 内侧高光 + 极淡的白色底 */
+.card {
+  position: relative;
+  border-radius: 18px;
+  padding: 13px 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.016));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 1px 0 rgba(0, 0, 0, 0.14);
+}
+
+.card--hero {
+  padding: 15px 15px 14px;
+}
+
+.card--grow {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card--grow .tasks {
+  flex: 1;
+}
+
+.sheet__head {
+  padding: 1px 2px 3px;
+}
+
+.card__weather {
+  margin-top: 14px;
+}
+
+.card--hero .num {
+  margin-top: 8px;
+}
+
+.weather__now {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.media__now {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 /* ---------- 排版原子 ---------- */
@@ -400,26 +532,6 @@ body {
 }
 .bar--warm > i {
   background: linear-gradient(90deg, hsl(calc(var(--accent-h) + 42) 82% 78% / 0.45), var(--accent-2));
-}
-
-.ring {
-  width: 50px;
-  height: 50px;
-  transform: rotate(-90deg);
-  flex: none;
-}
-.ring circle {
-  fill: none;
-  stroke-width: 3.2;
-}
-.ring .bg {
-  stroke: rgba(255, 255, 255, 0.11);
-}
-.ring .fg {
-  stroke: var(--mint);
-  stroke-linecap: round;
-  stroke-dasharray: 119.4;
-  stroke-dashoffset: calc(119.4 - 119.4 * var(--p) / 100);
 }
 
 .task {
@@ -592,17 +704,6 @@ body {
   line-height: 1.8;
 }
 
-.system__cpu {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 15px;
-}
-.system__pct {
-  font-size: 23px;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-}
 .system__bars {
   display: flex;
   flex-direction: column;
@@ -634,8 +735,13 @@ body {
 
 .footer {
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
-  padding-top: 10px;
-  flex: none;
+  padding: 8px 4px 0;
+  transition: opacity 0.22s ease;
+}
+
+.rail[data-customizing='true'] .footer {
+  opacity: 0;
 }

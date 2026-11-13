@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { formatDate, t, type Language } from '../../shared/i18n'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../../shared/theme'
 import { CustomizeSheet } from './components/CustomizeSheet'
+import { formatHotkey } from './lib/hotkey'
 import { applyTheme } from './lib/theme'
-
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-]
 
 function useClock(): Date {
   const [now, setNow] = useState(() => new Date())
@@ -16,15 +12,6 @@ function useClock(): Date {
     return () => window.clearInterval(id)
   }, [])
   return now
-}
-
-function Ring({ p }: { p: number }): React.JSX.Element {
-  return (
-    <svg className="ring" viewBox="0 0 44 44" style={{ '--p': p } as React.CSSProperties}>
-      <circle className="bg" cx="22" cy="22" r="19" />
-      <circle className="fg" cx="22" cy="22" r="19" />
-    </svg>
-  )
 }
 
 function Bar({
@@ -105,17 +92,20 @@ function SlidersIcon(): React.JSX.Element {
   )
 }
 
-const TASKS = [
-  { text: 'Reply to Mira about the studio keys', done: false },
-  { text: 'Book the Friday train north', done: false },
-  { text: 'Send the field notes to Noor', done: false }
-]
+const TASK_KEYS = ['todo.one', 'todo.two', 'todo.three'] as const
 
 export default function App(): React.JSX.Element {
   const now = useClock()
   const [visible, setVisible] = useState(false)
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME)
   const [customizing, setCustomizing] = useState(false)
+  const [hotkey, setHotkey] = useState('Alt+Q')
+  const [side, setSide] = useState<'left' | 'right'>('right')
+  const [edgeGap, setEdgeGap] = useState(30)
+  const [language, setLanguage] = useState<Language>('en')
+  const [startAtLogin, setStartAtLogin] = useState(false)
+  const [pinned, setPinned] = useState(true)
+  const [version, setVersion] = useState('')
   const themeRef = useRef<Theme>(DEFAULT_THEME)
   const saveTimer = useRef<number | null>(null)
 
@@ -125,15 +115,25 @@ export default function App(): React.JSX.Element {
     applyTheme(theme)
   }, [theme])
 
-  // 启动时把 settings.theme 读进来；读不到就用默认主题（浏览器预览也走这条）
+  // 启动时把 settings 读进来；读不到就用默认值（浏览器预览也走这条）
   useEffect(() => {
     let alive = true
     void (async () => {
       try {
         const settings = await window.sill?.getSettings()
-        if (alive && settings) setTheme(normalizeTheme(settings.theme))
+        if (alive && settings) {
+          setTheme(normalizeTheme(settings.theme))
+          setHotkey(settings.hotkey)
+          setSide(settings.side)
+          setEdgeGap(settings.edgeGap)
+          setLanguage(settings.language)
+          setStartAtLogin(settings.startAtLogin)
+          setPinned(settings.pinned)
+        }
+        const appVersion = await window.sill?.getVersion()
+        if (alive && appVersion) setVersion(appVersion)
       } catch {
-        // 保持默认主题
+        // 保持默认值
       }
     })()
     return () => {
@@ -156,6 +156,47 @@ export default function App(): React.JSX.Element {
     updateTheme({ ...DEFAULT_THEME })
   }, [updateTheme])
 
+  /** 换热键：主进程试注册成功才落盘；失败保留旧键 */
+  const changeHotkey = useCallback(async (accel: string): Promise<boolean> => {
+    const result = await window.sill?.setHotkey(accel)
+    if (result?.ok) {
+      setHotkey(result.hotkey)
+      return true
+    }
+    return false
+  }, [])
+
+  /** 换边：主进程会把窗口挪到新一侧，下次唤出从对应方向滑入 */
+  const changeSide = useCallback((next: 'left' | 'right') => {
+    setSide(next)
+    void window.sill?.updateSettings({ side: next })
+  }, [])
+
+  const changeEdgeGap = useCallback((value: number) => {
+    setEdgeGap(value)
+    void window.sill?.updateSettings({ edgeGap: value })
+  }, [])
+
+  const changeLanguage = useCallback((next: Language) => {
+    setLanguage(next)
+    void window.sill?.updateSettings({ language: next })
+  }, [])
+
+  const changeFlags = useCallback(
+    async (patch: { startAtLogin?: boolean; pinned?: boolean }) => {
+      const next = await window.sill?.updateSettings(patch)
+      if (!next) return
+      setStartAtLogin(next.startAtLogin)
+      setPinned(next.pinned)
+    },
+    []
+  )
+
+  // 语言：同步 <html lang>，让中文标题不走合成斜体
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
+
   useEffect(() => {
     const off = window.sill?.onPanelState((next) => {
       setVisible(next)
@@ -164,7 +205,7 @@ export default function App(): React.JSX.Element {
     return () => off?.()
   }, [])
 
-  // 面板不抢焦点，Esc 由主进程全局接管；盖着 Customize 时先关这一层
+  // 面板不抢焦点，Esc 由主进程全局接管；盖着设置面板时先关这一层
   useEffect(() => {
     const off = window.sill?.onEscape(() => setCustomizing(false))
     return () => off?.()
@@ -175,7 +216,7 @@ export default function App(): React.JSX.Element {
     void window.sill?.setOverlayOpen(customizing)
   }, [customizing])
 
-  const dateLabel = `${WEEKDAYS[now.getDay()]} ${now.getDate()} ${MONTHS[now.getMonth()]}`
+  const dateLabel = formatDate(now, language)
   const timeLabel = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
   return (
@@ -183,24 +224,25 @@ export default function App(): React.JSX.Element {
       <span className="rail__atmo" aria-hidden="true" />
       <span className="rail__grain" aria-hidden="true" />
       <span className="rail__halo" aria-hidden="true" />
+      <span className="rail__sheen" aria-hidden="true" />
       <span className="rail__rim" aria-hidden="true" />
 
       <div className="rail__scroll" inert={customizing}>
         <div className="sheet">
-          <header className="row">
+          <header className="row sheet__head">
             <div className="brand">
               <BrandMark />
               <span className="brand__word">sill</span>
             </div>
             <div className="headtools">
-              <span className="chip">alt + q</span>
+              <span className="chip">{formatHotkey(hotkey)}</span>
               <button
                 className="iconbtn"
                 type="button"
-                aria-label="Customize appearance"
+                aria-label={t(language, 'settings.title')}
                 aria-haspopup="dialog"
                 aria-expanded={customizing}
-                title="Customize"
+                title={t(language, 'settings.title')}
                 onClick={() => setCustomizing(true)}
               >
                 <SlidersIcon />
@@ -208,61 +250,44 @@ export default function App(): React.JSX.Element {
             </div>
           </header>
 
-          <div className="grp" style={{ paddingTop: 16 }}>
+          <section className="card card--hero">
             <div className="cap">{dateLabel}</div>
-            <div className="num" style={{ marginTop: 11 }}>
-              {timeLabel}
-            </div>
-          </div>
-
-          <div className="grp">
-            <div className="row">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="num">{timeLabel}</div>
+            <div className="row card__weather">
+              <div className="weather__now">
                 <MoonCloud />
                 <div>
                   <div className="weather__temp">14°</div>
                   <div className="sub" style={{ fontSize: 11.5 }}>
-                    Partly cloudy
+                    {t(language, 'weather.condition')}
                   </div>
                 </div>
               </div>
               <div className="cap weather__side">
-                Shanghai
+                {t(language, 'weather.city')}
                 <br />
-                H 17° · L 9°
+                {t(language, 'weather.range')}
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="hair" />
-
-          <div className="grp">
+          <section className="card">
             <div className="row" style={{ marginBottom: 13 }}>
-              <span className="cap">System</span>
-              <span className="cap">8 cores</span>
-            </div>
-            <div className="system__cpu">
-              <Ring p={42} />
-              <div>
-                <div className="system__pct">42%</div>
-                <div className="cap" style={{ fontSize: 9.5 }}>
-                  CPU load
-                </div>
-              </div>
+              <span className="cap">{t(language, 'system.title')}</span>
+              <span className="cap">{t(language, 'system.cores')}</span>
             </div>
             <div className="system__bars">
-              <Bar label="Memory" value="61% · 19.5 GB" pct={61} />
-              <Bar label="GPU" value="8%" pct={8} warm />
-              <Bar label="Network" value="↓ 1.2 MB/s" pct={22} />
+              <Bar label={t(language, 'metric.cpu')} value="42%" pct={42} />
+              <Bar label={t(language, 'metric.memory')} value="61% · 19.5 GB" pct={61} />
+              <Bar label={t(language, 'metric.gpu')} value="8%" pct={8} warm />
+              <Bar label={t(language, 'metric.network')} value="↓ 1.2 MB/s" pct={22} />
             </div>
-          </div>
+          </section>
 
-          <div className="hair" />
-
-          <div className="grp">
+          <section className="card">
             <div className="row" style={{ marginBottom: 9 }}>
-              <span className="cap">Top RAM</span>
-              <span className="cap">Memory</span>
+              <span className="cap">{t(language, 'system.topRam')}</span>
+              <span className="cap">{t(language, 'system.memory')}</span>
             </div>
             <div className="proc">
               <b>chrome.exe</b>
@@ -273,19 +298,17 @@ export default function App(): React.JSX.Element {
               <span>1.1 GB</span>
             </div>
             <div className="row" style={{ marginTop: 11 }}>
-              <span className="cap">Top GPU</span>
+              <span className="cap">{t(language, 'system.topGpu')}</span>
               <span className="cap">chrome.exe · 26%</span>
             </div>
-          </div>
+          </section>
 
-          <div className="hair" />
-
-          <div className="grp">
+          <section className="card">
             <div className="cap" style={{ marginBottom: 11 }}>
-              Now playing
+              {t(language, 'media.nowPlaying')}
             </div>
             <div className="row">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+              <div className="media__now">
                 <span className="cover" />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13.5 }}>Nightcall</div>
@@ -299,36 +322,34 @@ export default function App(): React.JSX.Element {
             <div className="bar" style={{ marginTop: 13 }}>
               <i style={{ width: '38%' }} />
             </div>
-          </div>
+          </section>
 
-          <div className="hair" />
-
-          <div className="grp grp--grow">
+          <section className="card card--grow">
             <div className="row" style={{ marginBottom: 12 }}>
-              <span className="cap">Today</span>
-              <span className="cap">3 open</span>
+              <span className="cap">{t(language, 'todo.today')}</span>
+              <span className="cap">{t(language, 'todo.open')}</span>
             </div>
             <div className="tasks">
-              {TASKS.map((task) => (
-                <div className="task" key={task.text}>
+              {TASK_KEYS.map((key) => (
+                <div className="task" key={key}>
                   <span className="dot" />
-                  {task.text}
+                  {t(language, key)}
                 </div>
               ))}
             </div>
             <div className="addrow">
               <span className="plus" />
-              add a task
+              {t(language, 'todo.add')}
             </div>
-          </div>
-
-          <div className="footer">
-            <span className="sub" style={{ fontSize: 11.5 }}>
-              Esc to dismiss
-            </span>
-            <span className="cap">sill · m0</span>
-          </div>
+          </section>
         </div>
+      </div>
+
+      <div className="footer">
+        <span className="sub" style={{ fontSize: 11.5 }}>
+          {t(language, 'footer.dismiss')}
+        </span>
+        <span className="cap">{t(language, 'footer.version')}</span>
       </div>
 
       {customizing ? (
@@ -337,6 +358,19 @@ export default function App(): React.JSX.Element {
           onChange={updateTheme}
           onClose={() => setCustomizing(false)}
           onReset={resetTheme}
+          hotkey={hotkey}
+          onHotkeyChange={changeHotkey}
+          side={side}
+          onSideChange={changeSide}
+          edgeGap={edgeGap}
+          onEdgeGapChange={changeEdgeGap}
+          language={language}
+          onLanguageChange={changeLanguage}
+          startAtLogin={startAtLogin}
+          onStartAtLoginChange={(value) => void changeFlags({ startAtLogin: value })}
+          pinned={pinned}
+          onPinnedChange={(value) => void changeFlags({ pinned: value })}
+          version={version}
         />
       ) : null}
     </div>

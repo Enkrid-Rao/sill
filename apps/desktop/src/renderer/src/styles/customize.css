@@ -58,6 +58,63 @@
   letter-spacing: -0.015em;
 }
 
+/* 中文没有真正的斜体字形，合成斜体很难看：中文标题改走无衬线 */
+:root[lang='zh'] .cz-title {
+  font-family: var(--sans);
+  font-size: 23px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* ---------- 分段控件（iOS 风格） ---------- */
+
+.cz-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  flex: none;
+  gap: 2px;
+  margin: 0 0 12px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cz-tab {
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.cz-tab:hover {
+  color: var(--ink-soft);
+}
+
+.cz-tab[aria-selected='true'] {
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.cz-tab:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.4);
+  outline-offset: 1px;
+}
+
 .cz-body {
   flex: 1;
   min-height: 0;
@@ -68,6 +125,18 @@
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  animation: cz-panel-in 0.22s var(--ease-out) both;
+}
+
+@keyframes cz-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .cz-body::-webkit-scrollbar {
@@ -94,6 +163,27 @@
 
 .cz-label--spaced {
   margin-top: 15px;
+}
+
+/* 设置分类：每组一个标题（Panel / System / Interface / About） */
+.cz-group {
+  margin: 18px 2px 6px;
+  color: var(--ink-faint);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.cz-group:first-child {
+  margin-top: 2px;
+}
+
+.cz-version {
+  color: rgba(246, 252, 249, 0.82);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 .cz-grid {
@@ -230,38 +320,53 @@
   pointer-events: none;
 }
 
-/* ---------- 开关 ---------- */
+/* ---------- 设置行 ---------- */
 
-.cz-switchrow {
+.cz-setrow {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 2px 9px;
+  min-height: 46px;
+  padding: 7px 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
+  cursor: pointer;
 }
 
-/* 预设网格之后的「Atmosphere」标题行 */
-.cz-switchrow.cz-label--spaced {
-  margin-top: 18px;
-  margin-bottom: 10px;
+.cz-setrow:first-child {
+  border-top: 0;
 }
 
-.cz-switchrow__copy {
+/* 快捷键那种「标题在上、控件在下」的行 */
+.cz-setrow--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  cursor: default;
+}
+
+.cz-setrow__copy {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.cz-switchrow__name {
+.cz-setrow__name {
   color: rgba(246, 252, 249, 0.88);
   font-size: 11.5px;
   font-weight: 500;
+  transition: color 0.2s ease;
 }
 
-.cz-switchrow__note {
+.cz-setrow__note {
   color: var(--ink-faint);
   font-size: 9px;
+}
+
+.cz-setrow:hover .cz-setrow__name {
+  color: #fff;
 }
 
 .cz-toggle {
@@ -491,27 +596,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
-/* ---------- 行 ---------- */
-
-.cz-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 44px;
-  padding: 7px 2px;
-  border-top: 1px solid rgba(255, 255, 255, 0.055);
-  cursor: pointer;
-}
-
-.cz-row:first-child {
-  border-top: 0;
-}
-
-.cz-row:hover .cz-switchrow__name {
-  color: #fff;
-}
+/* ---------- 分隔与说明 ---------- */
 
 .cz-divider {
   height: 1px;
@@ -575,8 +660,146 @@
   color: #fff;
 }
 
+/* ---------- 折叠的「Details」 ---------- */
+
+.cz-details {
+  margin-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cz-details__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 34px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.cz-details__head:hover {
+  color: var(--ink-soft);
+}
+
+.cz-details__head svg {
+  transition: transform 0.22s var(--ease-out);
+}
+
+.cz-details.is-open .cz-details__head svg {
+  transform: rotate(180deg);
+}
+
+.cz-details__body {
+  padding: 2px 0 4px;
+  animation: cz-details-in 0.22s var(--ease-out) both;
+}
+
+@keyframes cz-details-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- 快捷键 ---------- */
+
+.cz-keycap {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(248, 252, 250, 0.9);
+  font: inherit;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.cz-keycap:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.cz-keycap.is-recording {
+  border-color: hsl(var(--accent-h) 80% 70% / 0.6);
+  background: hsl(var(--accent-h) 60% 60% / 0.1);
+  color: #fff;
+  box-shadow: 0 0 0 3px hsl(var(--accent-h) 80% 70% / 0.12);
+}
+
+.cz-error {
+  margin: 0;
+  color: hsl(8 82% 74%);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+/* ---------- 二选一（停靠边） ---------- */
+
+.cz-seg {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cz-seg button {
+  min-width: 54px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.cz-seg button:hover {
+  color: var(--ink-soft);
+}
+
+.cz-seg button[aria-pressed='true'] {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cz-sheet {
+    animation: none;
+    transition: none;
+  }
+
+  .cz-body,
+  .cz-details__body,
+  .cz-keycap {
     animation: none;
     transition: none;
   }

@@ -124,7 +124,8 @@ Sill/
    ├─ scripts/make-tray-icon.py 托盘图标生成器（Pillow，可重跑）
    └─ src/
       ├─ shared/
-      │  └─ theme.ts            主题类型、默认值、8 套预设、色珠表、normalizeTheme
+      │  ├─ theme.ts            主题类型、默认值、8 套预设、色珠表、normalizeTheme
+      │  └─ i18n.ts             中英文案、日期格式；主进程与渲染进程共用
       ├─ main/                  主进程
       │  ├─ paths.ts            app 名称与 userData 路径（必须最先导入）
       │  ├─ settings.ts         设置类型、默认值、收敛、原子写（含 theme）
@@ -143,8 +144,9 @@ Sill/
             ├─ main.tsx         createRoot + 两份样式
             ├─ App.tsx          面板结构（单列流）+ 主题状态
             ├─ lib/theme.ts     Theme → CSS 变量
+            ├─ lib/hotkey.ts    accelerator → 显示用文案（Alt + Q）
             ├─ components/
-            │  └─ CustomizeSheet.tsx  主题表面（预设/颜色/氛围/顶光/颗粒）
+            │  └─ CustomizeSheet.tsx  Settings 表面（外观 / 行为 / 通用三页）
             ├─ styles/
             │  ├─ panel.css     玻璃 token、8 套氛围配方、排版原子
             │  └─ customize.css 主题表面的控件样式

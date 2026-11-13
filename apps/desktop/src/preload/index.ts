@@ -7,6 +7,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 const api = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (patch: unknown) => ipcRenderer.invoke('settings:update', patch),
+  setHotkey: (accel: string) => ipcRenderer.invoke('hotkey:set', accel),
+  getVersion: () => ipcRenderer.invoke('app:version'),
   hidePanel: () => ipcRenderer.invoke('panel:hide'),
   togglePanel: () => ipcRenderer.invoke('panel:toggle'),
   setOverlayOpen: (open: boolean) => ipcRenderer.invoke('panel:overlay', Boolean(open)),

@@ -1,9 +1,8 @@
 import { join } from 'node:path'
 import { BrowserWindow, screen, shell } from 'electron'
 import { bindEscape, unbindEscape } from './hotkey'
-import { loadSettings, updateSettings } from './settings'
+import { loadSettings } from './settings'
 
-const PANEL_MARGIN = 30
 const PANEL_VERTICAL_MARGIN = 100
 const MAX_HEIGHT = 900
 const SLIDE_IN_MS = 240
@@ -32,8 +31,8 @@ function targetBounds(): Rect {
   const height = Math.min(area.height - PANEL_VERTICAL_MARGIN * 2, MAX_HEIGHT)
   const y = area.y + Math.round((area.height - height) / 2)
   const x = settings.side === 'left'
-    ? area.x + PANEL_MARGIN
-    : area.x + area.width - width - PANEL_MARGIN
+    ? area.x + settings.edgeGap
+    : area.x + area.width - width - settings.edgeGap
 
   return { x, y, width, height }
 }
@@ -208,11 +207,11 @@ export function applyPinned(pinned: boolean): void {
   panel?.setAlwaysOnTop(pinned, 'screen-saver')
 }
 
-/** 记住停靠位置（M5 多屏细化时真正使用） */
-export function rememberPosition(): void {
-  if (!panel || panel.isDestroyed()) return
-  const { x, y } = panel.getBounds()
-  updateSettings({ panel: { x, y } })
+/** 停靠方向变了：面板开着就直接挪到新一侧（不播动画，避免设置面板被收起） */
+export function reanchor(): void {
+  if (!visible || !panel || panel.isDestroyed()) return
+  stopTicker()
+  panel.setBounds(targetBounds(), false)
 }
 
 export function getPanelWindow(): BrowserWindow | null {

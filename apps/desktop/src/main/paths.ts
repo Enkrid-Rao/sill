@@ -8,7 +8,9 @@ import { app } from 'electron'
  * 必须在 app ready 之前执行，所以这个模块要在 index.ts 的第一行导入。
  */
 app.setName('Sill')
-app.setPath('userData', join(app.getPath('appData'), 'Sill'))
+// 测试/截图时可以用 SILL_USER_DATA 指一个临时目录，别碰真实设置
+const userData = process.env.SILL_USER_DATA?.trim() || join(app.getPath('appData'), 'Sill')
+app.setPath('userData', userData)
 
 export const USER_DATA_DIR = app.getPath('userData')
 export const SETTINGS_FILE = join(USER_DATA_DIR, 'settings.json')

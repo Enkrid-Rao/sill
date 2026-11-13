@@ -1,5 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { app } from 'electron'
+import type { Language } from '../shared/i18n'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../shared/theme'
 import { SETTINGS_FILE } from './paths'
 
@@ -12,24 +14,32 @@ export interface Settings {
   panelWidth: number
   /** 停靠方向：right 从屏幕右侧滑入，left 从左侧 */
   side: Side
+  /** 面板离屏幕左右边缘的距离（px） */
+  edgeGap: number
+  /** 界面语言 */
+  language: Language
   /** 是否开机自启 */
   startAtLogin: boolean
   /** 面板是否置顶 */
   pinned: boolean
   /** 玻璃主题：颜色、氛围、光晕、颗粒 */
   theme: Theme
-  /** 上次停靠位置（多屏记忆，M0 只记录不强制） */
-  panel: { x: number; y: number } | null
 }
 
 export const DEFAULTS: Settings = {
   hotkey: 'Alt+Q',
   panelWidth: 384,
   side: 'right',
+  edgeGap: 30,
+  language: 'en',
   startAtLogin: false,
   pinned: true,
-  theme: DEFAULT_THEME,
-  panel: null
+  theme: DEFAULT_THEME
+}
+
+/** 首次启动跟随系统语言；之后以 settings.json 为准 */
+function systemLanguage(): Language {
+  return app.getLocale().toLowerCase().startsWith('zh') ? 'zh' : 'en'
 }
 
 let cache: Settings | null = null
@@ -38,25 +48,20 @@ let cache: Settings | null = null
 function coerce(raw: unknown): Settings {
   const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
   const width = Number(src.panelWidth)
+  const gap = Number(src.edgeGap)
   const side = src.side === 'left' ? 'left' : 'right'
-  const panel =
-    src.panel && typeof src.panel === 'object' &&
-    Number.isFinite((src.panel as { x: unknown }).x) &&
-    Number.isFinite((src.panel as { y: unknown }).y)
-      ? {
-          x: Math.round((src.panel as { x: number }).x),
-          y: Math.round((src.panel as { y: number }).y)
-        }
-      : null
+  const language: Language =
+    src.language === 'zh' || src.language === 'en' ? src.language : systemLanguage()
 
   return {
     hotkey: typeof src.hotkey === 'string' && src.hotkey.trim() ? src.hotkey.trim() : DEFAULTS.hotkey,
     panelWidth: Number.isFinite(width) ? Math.min(460, Math.max(340, Math.round(width))) : DEFAULTS.panelWidth,
     side,
+    edgeGap: Number.isFinite(gap) ? Math.min(80, Math.max(0, Math.round(gap))) : DEFAULTS.edgeGap,
+    language,
     startAtLogin: src.startAtLogin === true,
     pinned: src.pinned !== false,
-    theme: normalizeTheme(src.theme),
-    panel
+    theme: normalizeTheme(src.theme)
   }
 }
 
@@ -66,7 +71,7 @@ export function loadSettings(): Settings {
     cache = coerce(JSON.parse(readFileSync(SETTINGS_FILE, 'utf8')))
   } catch {
     // 文件不存在或已损坏：回落默认值，不阻塞启动
-    cache = { ...DEFAULTS, theme: normalizeTheme(DEFAULT_THEME) }
+    cache = coerce({})
   }
   return cache
 }

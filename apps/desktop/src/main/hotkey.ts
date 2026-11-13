@@ -3,11 +3,12 @@ import { globalShortcut } from 'electron'
 let hotkeyAccel: string | null = null
 let escapeBound = false
 
-/** 绑定唤出热键；换键时先解绑旧的，失败则不留下半绑定状态 */
+/** 绑定唤出热键；换键失败时把旧键恢复回来，不留下「热键全没了」的状态 */
 export function bindHotkey(accel: string, handler: () => void): boolean {
   if (hotkeyAccel === accel && globalShortcut.isRegistered(accel)) return true
-  if (hotkeyAccel) {
-    globalShortcut.unregister(hotkeyAccel)
+  const previous = hotkeyAccel
+  if (previous) {
+    globalShortcut.unregister(previous)
     hotkeyAccel = null
   }
   let ok = false
@@ -16,9 +17,19 @@ export function bindHotkey(accel: string, handler: () => void): boolean {
   } catch (error) {
     console.error('[sill] 热键注册异常：', error)
   }
-  if (ok) hotkeyAccel = accel
-  else console.error(`[sill] 热键 ${accel} 被其他程序占用，面板只能用托盘唤出`)
-  return ok
+  if (ok) {
+    hotkeyAccel = accel
+    return true
+  }
+  console.error(`[sill] 热键 ${accel} 被其他程序占用，保留原热键`)
+  if (previous) {
+    try {
+      if (globalShortcut.register(previous, handler)) hotkeyAccel = previous
+    } catch (error) {
+      console.error('[sill] 恢复原热键失败：', error)
+    }
+  }
+  return false
 }
 
 /**

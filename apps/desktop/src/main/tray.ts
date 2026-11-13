@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { Menu, Tray, app, nativeImage, shell } from 'electron'
+import { t } from '../shared/i18n'
 import { RESOURCES_DIR, SETTINGS_FILE } from './paths'
 import { loadSettings } from './settings'
 
@@ -24,33 +25,34 @@ export function createTray(actions: TrayActions): Tray {
   rebuild = () => {
     if (!tray) return
     const current = loadSettings()
+    const tr = (key: Parameters<typeof t>[1]): string => t(current.language, key)
     const menu = Menu.buildFromTemplate([
       { label: `sill · ${current.hotkey}`, enabled: false },
       { type: 'separator' },
-      { label: current.hotkey === '' ? '显示面板' : `显示 / 隐藏（${current.hotkey}）`, click: actions.toggle },
+      { label: `${tr('tray.showHide')} · ${current.hotkey}`, click: actions.toggle },
       { type: 'separator' },
       {
-        label: '从左侧滑出',
+        label: tr('tray.slideLeft'),
         type: 'checkbox',
         checked: current.side === 'left',
         click: (item) => actions.setSide(item.checked ? 'left' : 'right')
       },
       {
-        label: '开机自启',
+        label: tr('tray.autostart'),
         type: 'checkbox',
         checked: current.startAtLogin,
         click: (item) => actions.setAutostart(item.checked)
       },
       {
-        label: '置顶',
+        label: tr('tray.pinned'),
         type: 'checkbox',
         checked: current.pinned,
         click: (item) => actions.setPinned(item.checked)
       },
       { type: 'separator' },
-      { label: '打开设置文件', click: () => void shell.openPath(SETTINGS_FILE) },
+      { label: tr('tray.settings'), click: () => void shell.openPath(SETTINGS_FILE) },
       { type: 'separator' },
-      { label: '退出', click: () => app.quit() }
+      { label: tr('tray.quit'), click: () => app.quit() }
     ])
     tray.setContextMenu(menu)
     tray.setToolTip(`sill · ${current.hotkey}`)

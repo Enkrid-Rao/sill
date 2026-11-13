@@ -11,7 +11,7 @@ import {
   getPanelWindow,
   hidePanel,
   isPanelVisible,
-  rememberPosition,
+  reanchor,
   showPanel
 } from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
@@ -38,7 +38,6 @@ if (!singleInstance) {
 app.on('window-all-closed', () => {})
 
 app.on('before-quit', () => {
-  rememberPosition()
   disposeHotkeys()
   destroyTray()
 })
@@ -48,11 +47,21 @@ function onToggle(): void {
   else showPanel()
 }
 
-/** 设置变更后贴到系统上的副作用（热键改名、自启、置顶、托盘菜单） */
+/** 换热键：先试着注册，失败就保留旧键、不写盘 */
+function changeHotkey(accel: string): { ok: boolean; hotkey: string } {
+  const next = accel.trim()
+  if (!next) return { ok: false, hotkey: loadSettings().hotkey }
+  if (!bindHotkey(next, onToggle)) return { ok: false, hotkey: loadSettings().hotkey }
+  updateSettings({ hotkey: next })
+  refreshTray()
+  return { ok: true, hotkey: next }
+}
+
+/** 设置变更后贴到系统上的副作用（自启、置顶、停靠边、托盘菜单） */
 function applySideEffects(settings: Settings, patch: Partial<Settings>): void {
-  if ('hotkey' in patch) bindHotkey(settings.hotkey, onToggle)
   if ('startAtLogin' in patch) applyAutostart(settings.startAtLogin)
   if ('pinned' in patch) applyPinned(settings.pinned)
+  if ('side' in patch) reanchor()
   refreshTray()
 }
 
@@ -60,7 +69,7 @@ async function boot(): Promise<void> {
   const settings = loadSettings()
 
   Menu.setApplicationMenu(null)
-  registerIpc({ apply: applySideEffects })
+  registerIpc({ apply: applySideEffects, setHotkey: changeHotkey })
   createPanel()
 
   if (!SMOKE) {

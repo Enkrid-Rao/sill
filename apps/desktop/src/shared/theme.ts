@@ -46,15 +46,15 @@ export interface Theme {
 }
 
 export const DEFAULT_THEME: Theme = {
-  atmosphere: true,
-  atmoStyle: 'lagoon',
-  atmoStrength: 92,
-  hue: 165,
-  tintSat: 34,
+  atmosphere: false,
+  atmoStyle: 'noir',
+  atmoStrength: 70,
+  hue: 210,
+  tintSat: 0,
   accentHue: 158,
-  glassOpacity: 82,
+  glassOpacity: 52,
   halo: true,
-  haloStrength: 70,
+  haloStrength: 55,
   grain: true
 }
 
@@ -66,18 +66,35 @@ export interface Preset {
   accent: number
   atmo: AtmoStyle
   intensity: number
+  /** 不写就是 true；Clear 这类中性预设要关掉氛围 */
+  atmosphere?: boolean
+  /** 可选：连透明度一起收（Clear 要真的清透） */
+  glassOpacity?: number
+  /** 可选：连顶光一起收 */
+  halo?: boolean
 }
 
 /** 一键主题：只设置颜色与氛围，不动透明度 / 光晕 / 颗粒 */
 export const PRESETS: readonly Preset[] = [
+  {
+    id: 'clear',
+    name: 'Clear',
+    hue: 210,
+    tint: 0,
+    accent: 158,
+    atmo: 'noir',
+    intensity: 70,
+    atmosphere: false,
+    glassOpacity: 52,
+    halo: true
+  },
   { id: 'lagoon', name: 'Lagoon', hue: 165, tint: 34, accent: 158, atmo: 'lagoon', intensity: 92 },
   { id: 'aurora', name: 'Aurora', hue: 236, tint: 30, accent: 202, atmo: 'aurora', intensity: 95 },
   { id: 'dusk', name: 'Dusk', hue: 296, tint: 27, accent: 330, atmo: 'dusk', intensity: 90 },
   { id: 'ember', name: 'Ember', hue: 24, tint: 34, accent: 26, atmo: 'ember', intensity: 88 },
   { id: 'frost', name: 'Frost', hue: 202, tint: 24, accent: 190, atmo: 'frost', intensity: 84 },
   { id: 'iris', name: 'Iris', hue: 264, tint: 32, accent: 272, atmo: 'veil', intensity: 92 },
-  { id: 'moss', name: 'Moss', hue: 96, tint: 30, accent: 88, atmo: 'mist', intensity: 86 },
-  { id: 'ink', name: 'Ink', hue: 218, tint: 4, accent: 210, atmo: 'noir', intensity: 62 }
+  { id: 'moss', name: 'Moss', hue: 96, tint: 30, accent: 88, atmo: 'mist', intensity: 86 }
 ]
 
 export interface TintSwatch {
@@ -142,17 +159,19 @@ export function normalizeTheme(raw: unknown): Theme {
   }
 }
 
-/** 当前配色是否正好等于某个预设（用于高亮）；关掉氛围后视为自定义 */
+/** 当前配色是否正好等于某个预设（用于高亮）；Clear 这类关氛围的预设也能命中 */
 export function matchPreset(theme: Theme): Preset | null {
-  if (!theme.atmosphere) return null
   return (
     PRESETS.find(
       (preset) =>
+        (preset.atmosphere ?? true) === theme.atmosphere &&
         preset.hue === theme.hue &&
         preset.tint === theme.tintSat &&
         preset.accent === theme.accentHue &&
         preset.atmo === theme.atmoStyle &&
-        preset.intensity === theme.atmoStrength
+        preset.intensity === theme.atmoStrength &&
+        (preset.glassOpacity === undefined || preset.glassOpacity === theme.glassOpacity) &&
+        (preset.halo === undefined || preset.halo === theme.halo)
     ) ?? null
   )
 }
@@ -160,11 +179,13 @@ export function matchPreset(theme: Theme): Preset | null {
 /** 预设按钮 → 一组可应用的 Theme 补丁 */
 export function presetPatch(preset: Preset): Partial<Theme> {
   return {
-    atmosphere: true,
+    atmosphere: preset.atmosphere ?? true,
     hue: preset.hue,
     tintSat: preset.tint,
     accentHue: preset.accent,
     atmoStyle: preset.atmo,
-    atmoStrength: preset.intensity
+    atmoStrength: preset.intensity,
+    ...(preset.glassOpacity === undefined ? {} : { glassOpacity: preset.glassOpacity }),
+    ...(preset.halo === undefined ? {} : { halo: preset.halo })
   }
 }
