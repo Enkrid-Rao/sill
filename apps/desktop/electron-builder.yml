@@ -13,6 +13,10 @@ directories:
 files:
   - out/**/*
   - "!out/smoke.png"
+  - "!out/desktop*.png"
+  - "!out/shots*/**"
+  - "!out/*.mjs"
+  - "!out/*.log"
   - package.json
 
 # 托盘图标放在 asar 外面：nativeImage 读 asar 内的文件不可靠。
