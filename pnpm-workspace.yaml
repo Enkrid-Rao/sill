@@ -4,6 +4,8 @@ packages:
   - widgets/*
 
 # pnpm 10+ 默认不执行依赖的安装脚本；这两个是必须的：
-# esbuild 要落平台二进制，electron 要下载运行时
+# esbuild 要落平台二进制，electron-winstaller 要选 7z 架构
+# （electron 自己的二进制是手动 node install.js 装的，见 DEVELOPMENT.md §3.3）
 allowBuilds:
+  electron-winstaller: true
   esbuild: true

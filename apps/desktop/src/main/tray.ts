@@ -15,8 +15,9 @@ interface TrayActions {
 
 function icon(): Electron.NativeImage {
   const ico = nativeImage.createFromPath(join(RESOURCES_DIR, 'tray.ico'))
-  if (!ico.isEmpty()) return ico
-  return nativeImage.createFromPath(join(RESOURCES_DIR, 'tray.png'))
+  const image = ico.isEmpty() ? nativeImage.createFromPath(join(RESOURCES_DIR, 'tray.png')) : ico
+  if (image.isEmpty()) console.error('[sill] 托盘图标为空，检查 RESOURCES_DIR：', RESOURCES_DIR)
+  return image
 }
 
 export function createTray(actions: TrayActions): Tray {

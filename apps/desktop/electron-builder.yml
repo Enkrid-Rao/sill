@@ -1,0 +1,47 @@
+# Sill 安装包配置。规格与验收见 DEVPLAN §11。
+# 当前只负责「能装」；`publish` 段在接 electron-updater 时再补（M0.5 第二步）。
+
+appId: com.sill.app
+productName: Sill
+copyright: Copyright © 2026 raoxi
+
+directories:
+  output: dist
+  buildResources: resources
+
+# 只打构建产物。React 已被 Vite 打进 renderer bundle，运行时没有额外 node_modules 依赖。
+files:
+  - out/**/*
+  - "!out/smoke.png"
+  - package.json
+
+# 托盘图标放在 asar 外面：nativeImage 读 asar 内的文件不可靠。
+# paths.ts 在打包态用 process.resourcesPath/resources 找它们。
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - "*.ico"
+      - "*.png"
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # 256×256，由 scripts/make-tray-icon.py 生成，和托盘图标同源
+  icon: resources/app-icon.png
+  artifactName: Sill-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false                     # 向导式，用户能选安装目录
+  perMachine: false                   # 装进 %LOCALAPPDATA%\Programs\Sill，不弹 UAC
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: false        # 托盘应用，桌面不放图标
+  createStartMenuShortcut: true
+  shortcutName: Sill
+  uninstallDisplayName: Sill
+  deleteAppDataOnUninstall: false     # %APPDATA%\Sill 存主题与设置，卸载不删
+  runAfterFinish: true

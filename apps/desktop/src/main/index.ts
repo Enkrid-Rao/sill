@@ -100,7 +100,10 @@ async function runSmoke(): Promise<void> {
   const win = getPanelWindow()
   if (!win) throw new Error('面板窗口没有创建')
   const image = await win.webContents.capturePage()
-  const out = join(app.getAppPath(), 'out', 'smoke.png')
+  // 打包态的 app.getAppPath() 在 app.asar 里面，写不进去，改落到 userData
+  const out = app.isPackaged
+    ? join(app.getPath('userData'), 'smoke.png')
+    : join(app.getAppPath(), 'out', 'smoke.png')
   writeFileSync(out, image.toPNG())
   console.log(`[sill] smoke 截图已写入 ${out}`)
   setTimeout(() => app.quit(), 150)

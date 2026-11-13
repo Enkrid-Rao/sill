@@ -12,4 +12,8 @@ app.setPath('userData', join(app.getPath('appData'), 'Sill'))
 
 export const USER_DATA_DIR = app.getPath('userData')
 export const SETTINGS_FILE = join(USER_DATA_DIR, 'settings.json')
-export const RESOURCES_DIR = join(app.getAppPath(), 'resources')
+// 打包后图标在 asar 外面（electron-builder 的 extraResources），dev 态在源码 resources 下。
+// 不要把图标放进 asar：nativeImage 读 asar 内文件的行为不可靠。
+export const RESOURCES_DIR = app.isPackaged
+  ? join(process.resourcesPath, 'resources')
+  : join(app.getAppPath(), 'resources')

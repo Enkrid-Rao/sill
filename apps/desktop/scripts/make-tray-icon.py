@@ -7,6 +7,8 @@ from PIL import Image, ImageDraw
 
 SUPERSAMPLE = 4
 SIZES = [16, 24, 32, 48, 64]
+# 安装包图标要求 256×256；electron-builder 会把这张 PNG 转成 .ico
+APP_SIZE = 256
 OUT_DIR = Path(__file__).resolve().parent.parent / "resources"
 
 MINT = (169, 248, 212, 235)
@@ -66,7 +68,10 @@ def main() -> None:
         sizes=[(s, s) for s in SIZES],
     )
     frames[32].save(OUT_DIR / "tray.png")
-    print(f"写入 {OUT_DIR}：tray.ico + tray.png + tray-*.png")
+
+    # 安装包/任务栏用的大图，和托盘同源
+    draw_mark(APP_SIZE).save(OUT_DIR / "app-icon.png")
+    print(f"写入 {OUT_DIR}：tray.ico + tray.png + tray-*.png + app-icon.png")
 
 
 if __name__ == "__main__":

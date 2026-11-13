@@ -9,6 +9,8 @@
     "dev": "pnpm --filter @sill/desktop dev",
     "build": "pnpm --filter @sill/desktop build",
     "typecheck": "pnpm --filter @sill/desktop typecheck",
-    "smoke": "pnpm --filter @sill/desktop smoke"
+    "smoke": "pnpm --filter @sill/desktop smoke",
+    "dist": "pnpm --filter @sill/desktop dist",
+    "dist:dir": "pnpm --filter @sill/desktop dist:dir"
   }
 }
