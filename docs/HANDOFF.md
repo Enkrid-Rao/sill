@@ -120,7 +120,7 @@
 | 打包态能跑 | 装完的 `Sill.exe --smoke` exit 0，截图写 `%APPDATA%\Sill\smoke.png`，画面与 dev 一致；托盘图标从 asar 外的 `resources\resources\` 加载（stderr 无「图标为空」） |
 | 真实数据能跑 | `collector.ps1` 独立运行每 2s 输出一行 JSON；应用内快照含 CPU/内存、GPU 30%、网络速率、TOP 进程、SMTC 媒体（张惠妹《忘记》），截图已核 |
 | 待办可写 | 临时 profile 下 `todo.json` 自动生成；通过 IPC add / toggle 后落盘为 `done: true` |
-| 更新检查 | 手动检查走公开 GitHub Release API；v0.5.0 发布后返回 latest，设置页显示「已是最新」；不下载、不安装 |
+| 更新检查 | 手动检查走公开 GitHub Release API；v0.5.1 发布后返回 latest，设置页显示「已是最新」；不下载、不安装 |
 
 ---
 

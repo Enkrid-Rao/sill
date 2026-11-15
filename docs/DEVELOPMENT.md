@@ -110,7 +110,7 @@ pnpm dist
 
 ```
 Sill/
-├─ DEVPLAN.md                 产品与架构规划（v0.5.0）
+├─ DEVPLAN.md                 产品与架构规划（v0.5.1）
 ├─ docs/
 │  ├─ DEVELOPMENT.md          本文
 │  ├─ HANDOFF.md              交接
@@ -324,7 +324,7 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 ### 6.11 更新检查（只查，不装）
 
 `updates.ts` 请求 `api.github.com/repos/Enkrid-Rao/sill/releases/latest`，与 `app.getVersion()` 比较。
-**不下载、不安装**；仓库是公开的，v0.5.0 发布后返回 latest，设置页显示「已是最新」。
+**不下载、不安装**；仓库是公开的，v0.5.1 发布后返回 latest，设置页显示「已是最新」。
 真正的安装留给 M0.5 的 electron-updater。
 
 ### 6.12 自由尺寸与响应式列
