@@ -28,23 +28,28 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
   The content reflows from one to three columns as it widens.
 - **Settings — in.** Three tabs (Appearance / Behavior / General), 8 theme presets, accent colours,
   hotkey recorder, free panel size (drag, sliders, presets, fill-height), dock side, edge distance,
-  zh/en switch.
+  zh/en switch, per-widget visibility, and an option to open Settings in its own window.
 - **Layout — editable.** Drag a card onto another to swap, or use the arrows, and set how many columns
-  each card spans. The arrangement lives in `layout.json`.
+  each card spans. The arrangement lives in `layout.json`; hidden widgets keep their slot.
+- **Widget host — in.** Cards render from a registry (`WidgetShell` + `WIDGETS`), so adding a built-in
+  component no longer means editing `App.tsx`. The declarative IR compiler is the next step.
 - **Live data — in.** CPU, memory, GPU, network, top processes, Windows SMTC now-playing with
-  play/pause, previous/next and system volume, and an editable todo list stored in `todo.json`
-  (silky FLIP reordering, height-collapsing deletes). **Weather is still a placeholder.**
+  play/pause, previous/next and system volume, and an editable todo list stored in `todo.json`.
+  Completed tasks stay in place; deletes fade horizontally while the row height collapses, so nothing
+  jumps up or down. **Weather is still a placeholder.**
+- **Chinese type — tuned.** Chinese no longer inherits the 9–10px English caption sizes: it gets a
+  YaHei fallback, 11.5–14px body/caption sizes, tighter tracking, higher faint-text contrast and
+  subpixel rendering; English keeps Instrument Sans.
 - **M0.5 — installer done.** `pnpm dist` builds an NSIS per-user installer; the app has an
   auto/manual release check. Auto-update installation is not wired yet.
-- **M1 widget engine — not started.** The cards are still hand-written in `App.tsx`.
 
 ## Install
 
 Grab `Sill-Setup-0.1.3.exe` from [Releases](https://github.com/Enkrid-Rao/sill/releases).
 It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
 so SmartScreen warns once — choose “More info → Run anyway”.
-The source is currently at **v0.2.0** (free resize, media controls, todo animation); that release is
-not published yet.
+The source is currently at **v0.4.0** (free resize, media controls, calmer todo animation,
+widget host, optional standalone Settings window); that release is not published yet.
 
 Requires Windows 10/11 x64.
 

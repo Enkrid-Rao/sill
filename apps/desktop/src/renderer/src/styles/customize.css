@@ -59,14 +59,16 @@
   grid-area: foot;
 }
 
-/* 板式 / 宽屏：竖向导航 + 内容区，铺满整个面板 */
+/* 板式 / 宽屏：竖向导航 + 内容区。
+   内容列有硬上限：面板再宽，表单也不会被拉成一条细长的横线。 */
 .cz-sheet[data-wide='true'] {
-  grid-template-columns: 152px minmax(0, 1fr);
+  grid-template-columns: 152px minmax(0, 560px);
   grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
     'tabs head'
     'tabs body'
     'tabs foot';
+  justify-content: start;
   column-gap: 16px;
   padding: 18px 20px 12px;
 }
@@ -226,6 +228,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
+  max-width: 380px;
 }
 
 /* ---------- 预设 ---------- */
@@ -282,7 +285,8 @@
 }
 
 .cz-preset .cz-scene {
-  height: 32px;
+  height: auto;
+  aspect-ratio: 16 / 9;
 }
 
 .cz-preset__name {
@@ -302,7 +306,8 @@
 
 .cz-atmo {
   position: relative;
-  height: 42px;
+  height: auto;
+  aspect-ratio: 16 / 10;
   padding: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.085);
@@ -1000,6 +1005,41 @@
   padding-top: 2px;
 }
 
+/* ---------- 宽面板下的比例约束 ----------
+   面板可以被拉得很宽，但表单控件不该跟着无限拉长：
+   滑杆、快捷键、尺寸预设和预览网格都有各自的最大宽度。 */
+.cz-field {
+  max-width: 420px;
+}
+
+.cz-keycap {
+  width: min(100%, 280px);
+  align-self: flex-start;
+}
+
+.cz-sizepresets,
+.cz-size-meta {
+  max-width: 420px;
+}
+
+.cz-atmo-grid {
+  max-width: 380px;
+}
+
+/* ---------- 独立设置窗口 ---------- */
+.cz-sheet[data-standalone='true'] {
+  border-radius: var(--radius);
+}
+
+.cz-sheet[data-standalone='true'] .cz-head {
+  cursor: default;
+  -webkit-app-region: drag;
+}
+
+.cz-sheet[data-standalone='true'] .cz-head .iconbtn {
+  -webkit-app-region: no-drag;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cz-sheet,
   .cz-body,
@@ -1008,4 +1048,126 @@
     animation: none;
     transition: none;
   }
+}
+
+/* =========================================================
+   中文排版
+   设置页的小字原本沿用英文的 8.5–9px + 0.17em 字距，中文几乎糊成一片。
+   这里按语言单独放大标题、分组、说明、按钮与表单标签，并收紧字距。
+   ========================================================= */
+
+:root[lang='zh'] .cz-title {
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+:root[lang='zh'] .cz-tab {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+:root[lang='zh'] .cz-sheet[data-wide='true'] .cz-tab {
+  font-size: 12px;
+}
+
+:root[lang='zh'] .cz-label,
+:root[lang='zh'] .cz-group {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.055em;
+  line-height: 1.5;
+  color: rgba(238, 252, 246, 0.66);
+}
+
+:root[lang='zh'] .cz-group {
+  margin-top: 20px;
+}
+
+:root[lang='zh'] .cz-setrow__name {
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+:root[lang='zh'] .cz-setrow__note {
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: rgba(236, 252, 244, 0.6);
+}
+
+:root[lang='zh'] .cz-field__name {
+  font-size: 11.5px;
+}
+
+:root[lang='zh'] .cz-field__value {
+  font-size: 10px;
+}
+
+:root[lang='zh'] .cz-note {
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: rgba(236, 250, 244, 0.56);
+}
+
+:root[lang='zh'] .cz-foot {
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: rgba(236, 250, 244, 0.48);
+}
+
+:root[lang='zh'] .cz-preset__name {
+  font-size: 10px;
+  color: rgba(244, 251, 248, 0.78);
+}
+
+:root[lang='zh'] .cz-atmo__name {
+  font-size: 10px;
+}
+
+:root[lang='zh'] .cz-sizepreset span {
+  font-size: 11.5px;
+}
+
+:root[lang='zh'] .cz-sizepreset em {
+  font-size: 10.5px;
+  color: rgba(236, 252, 244, 0.58);
+}
+
+:root[lang='zh'] .cz-size-meta {
+  font-size: 10.5px;
+  color: rgba(236, 252, 244, 0.6);
+}
+
+:root[lang='zh'] .cz-mini {
+  font-size: 10.5px;
+}
+
+:root[lang='zh'] .cz-seg button {
+  font-size: 11px;
+}
+
+:root[lang='zh'] .cz-action {
+  font-size: 10.5px;
+}
+
+:root[lang='zh'] .cz-details__head {
+  font-size: 11px;
+  letter-spacing: 0.055em;
+  font-weight: 600;
+}
+
+:root[lang='zh'] .cz-reset {
+  font-size: 10px;
+}
+
+:root[lang='zh'] .cz-error {
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+:root[lang='zh'] .cz-version {
+  font-size: 12px;
+}
+
+:root[lang='zh'] .cz-keycap {
+  font-size: 10.5px;
 }

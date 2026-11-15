@@ -21,6 +21,8 @@ let visible = false
 let ticker: NodeJS.Timeout | null = null
 /** 面板里是否盖着一层自绘表面（Customize / 布局编辑）；此时 Esc 先交给它关自己 */
 let overlayOpen = false
+/** 主进程级的 Esc 拦截（例如独立设置窗口开着时先关它） */
+let escapeInterceptor: (() => boolean) | null = null
 
 interface Rect {
   x: number
@@ -216,6 +218,7 @@ export function showPanel(): void {
   // 面板不抢焦点，Esc 只能靠全局临时接管；收起时立刻解绑。
   // 面板里盖着设置面板时，Esc 先关那一层，再按一次才收面板。
   bindEscape(() => {
+    if (escapeInterceptor?.()) return
     if (overlayOpen) panel?.webContents.send('panel:escape')
     else hidePanel()
   })
@@ -225,6 +228,11 @@ export function showPanel(): void {
 /** 渲染进程告知「有覆盖层开着」，Esc 的优先级据此切换 */
 export function setOverlayOpen(open: boolean): void {
   overlayOpen = Boolean(open)
+}
+
+/** 主进程注册一个优先于面板覆盖层的 Esc 处理（返回 true 表示已消费） */
+export function setEscapeInterceptor(handler: (() => boolean) | null): void {
+  escapeInterceptor = handler
 }
 
 export function hidePanel(done?: () => void): void {

@@ -191,111 +191,123 @@ export function MediaWidget({
   }
 
   if (!media) {
-    return <div className="media__empty sub">{t(language, 'media.nothing')}</div>
+    return (
+      <>
+        <div className="row" style={{ marginBottom: 11 }}>
+          <span className="cap">{t(language, 'media.nowPlaying')}</span>
+        </div>
+        <div className="media__empty sub">{t(language, 'media.nothing')}</div>
+      </>
+    )
   }
 
   const artist = [media.artist, media.album].filter(Boolean).join(' · ') || media.app
   const statusLabel = status === 'Paused' ? t(language, 'media.paused') : ''
 
   return (
-    <div className="media" data-playing={playing}>
-      <div className="media__now">
-        <span className="cover" data-playing={playing} aria-hidden="true">
-          <i className="cover__shine" />
-        </span>
-        <div className="media__info">
-          <div className="media__title" title={media.title}>
-            {media.title}
+    <>
+      <div className="row" style={{ marginBottom: 11 }}>
+        <span className="cap">{t(language, 'media.nowPlaying')}</span>
+      </div>
+      <div className="media" data-playing={playing}>
+        <div className="media__now">
+          <span className="cover" data-playing={playing} aria-hidden="true">
+            <i className="cover__shine" />
+          </span>
+          <div className="media__info">
+            <div className="media__title" title={media.title}>
+              {media.title}
+            </div>
+            <div className="sub media__artist" title={artist}>
+              {artist}
+            </div>
           </div>
-          <div className="sub media__artist" title={artist}>
-            {artist}
+          {playing ? <Equalizer /> : null}
+        </div>
+
+        <div className="bar media__progress" aria-hidden="true">
+          <i style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
+        </div>
+        <div className="media__meta-row">
+          <span className="cap media__status">{statusLabel}</span>
+          <span className="cap media__time">
+            {formatClock(position)} / {formatClock(media.duration)}
+          </span>
+        </div>
+
+        <div className="media__deck">
+          <div className="media__transport" role="group" aria-label={t(language, 'media.nowPlaying')}>
+            <button
+              type="button"
+              className="media__btn"
+              aria-label={t(language, 'media.previous')}
+              title={t(language, 'media.previous')}
+              onClick={() => void send('prev')}
+            >
+              <PrevIcon />
+            </button>
+            <button
+              type="button"
+              className="media__btn media__btn--play"
+              aria-label={playing ? t(language, 'media.pause') : t(language, 'media.play')}
+              title={playing ? t(language, 'media.pause') : t(language, 'media.play')}
+              aria-pressed={playing}
+              onClick={() => void send('playpause')}
+            >
+              {playing ? <PauseIcon /> : <PlayIcon />}
+            </button>
+            <button
+              type="button"
+              className="media__btn"
+              aria-label={t(language, 'media.next')}
+              title={t(language, 'media.next')}
+              onClick={() => void send('next')}
+            >
+              <NextIcon />
+            </button>
+          </div>
+
+          <div className={`media__volume${volumeHud ? ' is-dragging' : ''}`}>
+            <button
+              type="button"
+              className="media__btn media__btn--small"
+              aria-label={muted ? t(language, 'media.unmute') : t(language, 'media.mute')}
+              aria-pressed={muted}
+              title={muted ? t(language, 'media.unmute') : t(language, 'media.mute')}
+              onClick={() => void send('mute')}
+            >
+              <VolumeIcon muted={muted} />
+            </button>
+            <input
+              className="media__range"
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={volume}
+              aria-label={t(language, 'media.volume')}
+              aria-valuetext={`${volume}%`}
+              title={t(language, 'media.volume')}
+              style={{ '--range-progress': `${volume}%` } as React.CSSProperties}
+              onPointerDown={() => {
+                dragging.current = true
+                setVolumeHud(true)
+              }}
+              onPointerUp={() => commitVolume(volume)}
+              onPointerCancel={() => commitVolume(volume)}
+              onChange={(event) => changeVolume(Number(event.currentTarget.value))}
+              onKeyDown={() => {
+                dragging.current = false
+                setVolumeHud(true)
+              }}
+              onBlur={() => setVolumeHud(false)}
+            />
+            <output className="media__volpct" aria-hidden={!volumeHud}>
+              {muted ? '—' : `${volume}%`}
+            </output>
           </div>
         </div>
-        {playing ? <Equalizer /> : null}
       </div>
-
-      <div className="bar media__progress" aria-hidden="true">
-        <i style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
-      </div>
-      <div className="media__meta-row">
-        <span className="cap media__status">{statusLabel}</span>
-        <span className="cap media__time">
-          {formatClock(position)} / {formatClock(media.duration)}
-        </span>
-      </div>
-
-      <div className="media__deck">
-        <div className="media__transport" role="group" aria-label={t(language, 'media.nowPlaying')}>
-          <button
-            type="button"
-            className="media__btn"
-            aria-label={t(language, 'media.previous')}
-            title={t(language, 'media.previous')}
-            onClick={() => void send('prev')}
-          >
-            <PrevIcon />
-          </button>
-          <button
-            type="button"
-            className="media__btn media__btn--play"
-            aria-label={playing ? t(language, 'media.pause') : t(language, 'media.play')}
-            title={playing ? t(language, 'media.pause') : t(language, 'media.play')}
-            aria-pressed={playing}
-            onClick={() => void send('playpause')}
-          >
-            {playing ? <PauseIcon /> : <PlayIcon />}
-          </button>
-          <button
-            type="button"
-            className="media__btn"
-            aria-label={t(language, 'media.next')}
-            title={t(language, 'media.next')}
-            onClick={() => void send('next')}
-          >
-            <NextIcon />
-          </button>
-        </div>
-
-        <div className={`media__volume${volumeHud ? ' is-dragging' : ''}`}>
-          <button
-            type="button"
-            className="media__btn media__btn--small"
-            aria-label={muted ? t(language, 'media.unmute') : t(language, 'media.mute')}
-            aria-pressed={muted}
-            title={muted ? t(language, 'media.unmute') : t(language, 'media.mute')}
-            onClick={() => void send('mute')}
-          >
-            <VolumeIcon muted={muted} />
-          </button>
-          <input
-            className="media__range"
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={volume}
-            aria-label={t(language, 'media.volume')}
-            aria-valuetext={`${volume}%`}
-            title={t(language, 'media.volume')}
-            style={{ '--range-progress': `${volume}%` } as React.CSSProperties}
-            onPointerDown={() => {
-              dragging.current = true
-              setVolumeHud(true)
-            }}
-            onPointerUp={() => commitVolume(volume)}
-            onPointerCancel={() => commitVolume(volume)}
-            onChange={(event) => changeVolume(Number(event.currentTarget.value))}
-            onKeyDown={() => {
-              dragging.current = false
-              setVolumeHud(true)
-            }}
-            onBlur={() => setVolumeHud(false)}
-          />
-          <output className="media__volpct" aria-hidden={!volumeHud}>
-            {muted ? '—' : `${volume}%`}
-          </output>
-        </div>
-      </div>
-    </div>
+    </>
   )
 }

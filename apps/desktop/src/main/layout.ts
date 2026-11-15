@@ -8,7 +8,12 @@ const LAYOUT_FILE = join(USER_DATA_DIR, 'layout.json')
 let cache: PanelLayout | null = null
 
 function cloneDefaults(): PanelLayout {
-  return { version: 1, order: [...DEFAULT_LAYOUT.order], spans: { ...DEFAULT_LAYOUT.spans } }
+  return {
+    version: 1,
+    order: [...DEFAULT_LAYOUT.order],
+    spans: { ...DEFAULT_LAYOUT.spans },
+    hidden: []
+  }
 }
 
 function persist(layout: PanelLayout): void {

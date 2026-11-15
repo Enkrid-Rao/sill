@@ -20,6 +20,17 @@ const api = {
   getLayout: () => ipcRenderer.invoke('layout:get'),
   setLayout: (layout: unknown) => ipcRenderer.invoke('layout:set', layout),
   resetLayout: () => ipcRenderer.invoke('layout:reset'),
+  onSettingsChanged: (callback: (settings: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, settings: unknown): void =>
+      callback(settings)
+    ipcRenderer.on('settings:changed', listener)
+    return () => ipcRenderer.removeListener('settings:changed', listener)
+  },
+  onLayoutChanged: (callback: (layout: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, layout: unknown): void => callback(layout)
+    ipcRenderer.on('layout:changed', listener)
+    return () => ipcRenderer.removeListener('layout:changed', listener)
+  },
   onUpdateState: (callback: (state: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: unknown): void => callback(state)
     ipcRenderer.on('update:state', listener)
@@ -34,6 +45,15 @@ const api = {
   commitPanelSize: (width?: number, height?: number) =>
     ipcRenderer.invoke('panel:resize-commit', width, height),
   getPanelSizeLimits: () => ipcRenderer.invoke('panel:limits'),
+  openSettingsWindow: () => ipcRenderer.invoke('settings:open-window'),
+  isSettingsWindowOpen: () => ipcRenderer.invoke('settings:window-open'),
+  closeSettingsWindow: () => ipcRenderer.invoke('settings:close-window'),
+  editLayout: () => ipcRenderer.invoke('panel:edit-layout'),
+  onEditLayout: (callback: () => void) => {
+    const listener = (): void => callback()
+    ipcRenderer.on('panel:edit-layout', listener)
+    return () => ipcRenderer.removeListener('panel:edit-layout', listener)
+  },
   quit: () => ipcRenderer.invoke('app:quit'),
   onPanelState: (callback: (visible: boolean) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, visible: boolean): void => callback(visible)

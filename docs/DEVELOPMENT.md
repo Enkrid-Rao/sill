@@ -2,7 +2,7 @@
 
 面向**动手改代码**的人。产品目标与架构规划在 [../DEVPLAN.md](../DEVPLAN.md)，进度与交接在 [HANDOFF.md](HANDOFF.md)。
 
-最后更新：2026-11-13（v0.4.8：自由尺寸 / 媒体控制 / 待办动效）
+最后更新：2026-11-14（v0.5.0：待办动效、设置比例、独立设置窗口、中文排版）
 
 ---
 
@@ -132,11 +132,13 @@ Sill/
       │  └─ update.ts           更新检查的状态类型
       ├─ main/                  主进程
       │  ├─ paths.ts            app 名称与 userData 路径（必须最先导入）
-      │  ├─ settings.ts         设置类型、默认值、收敛、原子写（含主题与面板尺寸）
+      │  ├─ settings.ts         设置类型、默认值、收敛、原子写（含主题、面板尺寸、设置窗口模式）
       │  ├─ data/               真实数据：collector（PS 常驻）、system（os）、todo（todo.json）、
       │  │                      media-control（SMTC + WASAPI 控制进程）
       │  ├─ updates.ts          查 GitHub Release 最新版本（只检查，不安装）
       │  ├─ panel.ts            面板窗口：几何、缩放、滑入动画、显隐、Esc 分层、崩溃重载
+      │  ├─ settings-window.ts  独立设置窗口的创建 / 定位 / 关闭，以及面板置顶临时让位
+      │  ├─ broadcast.ts        settings/layout/update 变更广播给所有渲染窗口
       │  ├─ hotkey.ts           全局热键 + Esc 临时接管
       │  ├─ tray.ts             托盘图标与菜单
       │  ├─ autostart.ts        开机自启
@@ -149,15 +151,24 @@ Sill/
          ├─ index.html          CSP、挂载点
          └─ src/
             ├─ main.tsx         createRoot + 两份样式
-            ├─ App.tsx          面板结构（单列流 / grid board）+ 主题与尺寸状态
+            ├─ App.tsx          面板骨架、主题 / 尺寸 / 数据状态、widgetContext
             ├─ lib/theme.ts     Theme → CSS 变量
+            ├─ lib/useSillSettings.ts 面板与设置窗口共享的设置状态 + 广播订阅
             ├─ lib/hotkey.ts    accelerator → 显示用文案（Alt + Q）
             ├─ components/
             │  ├─ CustomizeSheet.tsx  Settings 表面（外观 / 行为 / 通用三页）
+            │  ├─ SettingsWindow.tsx  独立设置窗口根
             │  ├─ ResizeHandles.tsx   内侧边 / 底边 / 内下角缩放把手 + HUD
             │  └─ widgets/
             │     ├─ MediaWidget.tsx  媒体信息、进度、传输键、音量
-            │     └─ TodoWidget.tsx   待办列表、FLIP、收合删除
+            │     └─ TodoWidget.tsx   待办列表、原位淡出、收合删除
+            ├─ widgets/
+            │  ├─ types.ts            WidgetContext / WidgetDefinition
+            │  ├─ registry.tsx        WIDGETS + WIDGET_BY_ID
+            │  ├─ WidgetShell.tsx     网格落位、拖拽、跨列工具
+            │  ├─ HeroWidget.tsx      日期 / 时钟 / 天气（天气仍占位）
+            │  ├─ SystemWidget.tsx    CPU / 内存 / GPU / 网络
+            │  └─ ProcessesWidget.tsx TOP RAM / TOP GPU
             ├─ styles/
             │  ├─ panel.css     玻璃 token、8 套氛围配方、排版原子、卡片 / 缩放 / 动效
             │  └─ customize.css 主题表面的控件样式
@@ -181,6 +192,8 @@ Electron 主进程
         │ 结构化 IPC
         └─ renderer：React，只读 window.sill，无 Node、无 fs
            主题流程：settings.theme → lib/theme.ts → CSS 变量 → panel.css
+           组件流程：layout.order → WIDGETS/WIDGET_BY_ID → WidgetShell → render(widgetContext)
+           设置窗口：?settings=1 → SettingsWindow → useSillSettings（同一份广播状态）
 ```
 
 窗口参数：`frame:false, transparent:true, hasShadow:false, skipTaskbar:true,
@@ -227,7 +240,8 @@ resizable:false, useContentSize:true, alwaysOnTop('screen-saver')`，创建一�
 ### 6.4 设置：默认值 + 收敛 + 原子写
 
 `updateSettings(patch)` 先 `coerce()`：类型不对回落默认、宽度夹在 320–1180、高度 0 或 420–2200、
-side 只认 right/left、`panelOffsetY` 夹在 ±2200。旧文件里的 `panelShape` 会被读一次并迁移成宽高。
+side 只认 right/left、`panelOffsetY` 夹在 ±2200、`settingsInWindow` 只认 true/false。
+旧文件里的 `panelShape` 会被读一次并迁移成宽高；旧文件没有 `settingsInWindow` 时按 false。
 写盘是「临时文件 + `renameSync`」，避免崩溃留下半个 json。读取失败（不存在/损坏）直接回落默认值，
 **绝不因为设置坏了起不来**。
 
@@ -325,16 +339,18 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 - 列数由 `columnsForWidth(window.innerWidth)` 在 resize 事件里重算（约 470 起 2 列、700 起 3 列）。
   `.sheet[data-cols]` 切换 CSS grid；`align-content: start` + `grid-auto-rows: min-content`，
   避免 `min-height:100%` 把多出来的高度平分给每张卡（会把头图卡撑成一大块空玻璃）。
-- 三列时待办在 `cardAttrs` 里固定 span 3（独占整行）；其余跨列仍由 `layout.json` 决定。
-- 设置界面按**实际列数**分两套：1 列用顶部 tab，≥2 列用左侧 152px 导航 + 右侧内容。
+- 三列时待办默认 span 3（独占整行，由 `WidgetDefinition.spanFor` 决定）；其余跨列仍由 `layout.json` 决定。
+- 设置界面按**实际宽度**分两套：< 620 用顶部 tab，≥ 620 或独立窗口用左侧 152px 导航 + 右侧内容；
+  内容列上限 560，避免宽面板把表单拉成横条。
 
 ### 6.13 布局编辑
 
-- 模型在 `src/shared/layout.ts`：`CARD_IDS`、`PanelLayout { order, spans }`、`normalizeLayout`
+- 模型在 `src/shared/layout.ts`：`CARD_IDS`、`PanelLayout { order, spans, hidden }`、`normalizeLayout`
 - 存储 `%APPDATA%\Sill\layout.json`，主进程 `src/main/layout.ts` 负责原子写与补全缺失卡片
-- 渲染层不重排 JSX：每张卡用 `style.order` 和 `gridColumn` 落位，`data-card` 供拖拽与测试选择
+- 每张卡由 `WidgetShell` 用 `style.order` 和 `gridColumn` 落位，`data-card` 供拖拽与测试选择
 - 编辑态（`editing`）下卡片 `draggable`，把 A 拖到 B 上 = 交换位置；箭头做相邻交换
 - 跨列在渲染时用 `clampSpan(span, columns)` 夹住，所以一列时只会是 1
+- 隐藏（`hidden`）只过滤渲染，不删 `order` / `spans`；行为页「组件」里的开关改它
 - Esc 的分层顺序：编辑态 → 设置面板 → 收面板（`setOverlayOpen(customizing || editing)`）
 
 ### 6.14 媒体控制：SMTC 传输 + WASAPI 音量
@@ -355,14 +371,62 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 
 ### 6.15 待办动效
 
-- `widgets/TodoWidget.tsx` 自己维护一份 `items` 镜像，点击先本地翻转再发 IPC；父级返回真值后同步。
-- 已完成项在**渲染层**排到末尾（`ordered`），`todo.json` 不改顺序。
-- FLIP：每次 `ordered` 变化前记住每行 `getBoundingClientRect().top`，提交后用 WAAPI
-  `translate3d(旧位置 − 新位置)` 补间回 0，320ms `cubic-bezier(.22,1,.36,1)`。
-- 删除：先加 `is-leaving`（`grid-template-rows: 1fr → 0fr` + margin 收合），230ms 后才真正 IPC 删除。
-- 勾选：圆点背景/阴影过渡，SVG 勾用 `stroke-dashoffset` 画出；删除线是 `.task__text::after` 的
-  `scaleX(0 → 1)`，不用 `text-decoration`（无法补间）。
-- `prefers-reduced-motion` 下所有动画/过渡关闭；FLIP 在 JS 里也会检查。
+- 行为对齐 `D:\Projects\LiquidGlassTodo` 的 task 交互：**任务按插入顺序留在原位**，勾选只改变
+  done 状态，不再重排 / 沉底；这是之前「从上方闪到下方」的根因。
+- 新增：`task-in` 从 `translateY(7px) + blur(3px)` 淡入，0.42s `--ease-out`；只在行挂载时播放。
+- 勾选：圆点背景/阴影 + SVG 勾 `stroke-dashoffset`；删除线用 `.task__text::after` 的
+  `scaleX(0 → 1)`（`text-decoration` 无法补间）；勾上时 `.dot__ripple` 播 0.55s ripple。
+- 删除：`.task-row` 加 `is-leaving` 后 `grid-template-rows: 1fr → 0fr` + margin 收合，内容同时
+  `opacity → 0`、`translateX(10px)`；**没有 translateY**。280ms 后才 `onRemove`。
+- `leaving` 不提前清空：等 `items` prop 真的不包含该 id 时才移除，避免「父级还没删、行先弹回」
+  的闪烁；`onRemove` 失败 420ms 后有兜底恢复。
+- **最后一行也保留 12px margin**，由 `.addrow` 的 4px padding-top 补偿成 16px；不要用
+  `:last-child { margin-bottom: 0 }`——删最后一条时上一行会瞬间失去 margin，跳 12px。
+- 滚动容器加 `overflow-anchor: none`，避免浏览器 scroll anchoring 在行高变化时替我们改 scrollTop。
+- `prefers-reduced-motion` 下所有动画/过渡关闭。
+
+### 6.16 组件宿主（v0.4.9）
+
+- `widgets/registry.tsx` 是唯一的组件清单：每个 `WidgetDefinition` 声明 `id`、`nameKey`、
+  可选 `className`、`spanFor(columns)` 与 `render(context)`。
+- `App.tsx` 不再写任何一张卡的 JSX：按 `layout.order` 过滤 `hidden`，查 `WIDGET_BY_ID`，
+  交给 `WidgetShell` 包一层网格 / 拖拽 / 跨列工具。
+- `WidgetContext`（`widgets/types.ts`）是组件唯一的数据入口：`language`、`now`、`snapshot`、
+  `todos`、媒体位置 / 进度 / 命令、待办回调。组件不 import IPC、不读 settings。
+- 新增内置组件：
+  1. `shared/layout.ts` 的 `CARD_IDS` 加 id
+  2. 写一个组件 + 在 `registry.tsx` 加 definition
+  3. i18n 加 `widget.<id>` 与必要文案
+  `App.tsx` 不需要改；`layout.json` 的 `normalizeLayout` 会把新 id 补到 `order` 末尾。
+- 边界：这层**不是 IR 引擎**。它认识 `CardId`、直接 import 五个组件，没有 manifest / 沙箱 / Compiler。
+  别在 registry 里继续堆语法，下一步是 `packages/engine`。
+- 全部隐藏时渲染 `.sheet__empty` 空状态（提示去设置里打开），不会留一块没有任何文字的玻璃。
+
+### 6.17 设置布局比例（v0.5.0）
+
+- 宽面板（`data-wide='true'`）的 grid 是 `152px + minmax(0, 560px)`，内容列不再铺满整个面板。
+- 控件各自有上限：`.cz-field` 420、`.cz-keycap` 280、`.cz-sizepresets` / `.cz-size-meta` 420、
+  `.cz-grid` 380；主题预设 `aspect-ratio: 16/9`，氛围预览 `16/10`。
+- 宽窄切换点从「列数」换成实际宽度 620；620 以下用顶部 tab，表单拿满 343–583 的可用宽度。
+- 目的：拉宽面板时只增加留白，不把滑杆、快捷键、预览卡拉成细长条；高度方向始终滚动，不压缩。
+
+### 6.18 独立设置窗口（v0.5.0）
+
+- `settings.settingsInWindow` 决定齿轮行为：false 打开面板内 `.cz-sheet`，true 调
+  `settings:open-window`。
+- 主进程 `src/main/settings-window.ts`：同一个 renderer 入口 + `?settings=1`；窗口透明无边框、
+  固定尺寸（≤760×820，按工作区夹住），标题栏是 `-webkit-app-region: drag`，X 按钮 no-drag。
+- 两个窗口都跑 `useSillSettings`；主进程在 `settings:update` / `panel:resize-commit` /
+  `layout:set|reset` / `hotkey:set` 之后广播 `settings:changed` / `layout:changed`，
+  所以两边永远收敛到同一份状态。更新状态也广播 `update:state`。
+- 打开设置窗口时 `suspendPanelTop()` 把面板从 `screen-saver` 层放下，避免面板变宽后盖住设置；
+  `closed` / 关闭函数里 `restorePanelTop()`。
+- 设置窗口里的「编辑布局」走 `panel:edit-layout`：关设置窗 → showPanel → 给面板发事件，
+  App 收到后 `setEditing(true)`。
+- 主题滑杆仍有 220ms 防抖；设置窗口关闭前 `flushTheme()` 把最后一帧写掉，避免关窗丢主题。
+- **不要用 `window.innerHeight` 当面板高度**：在独立设置窗口里它是设置窗自己的高度。关闭「撑满高度」
+  时用 `maxHeight`（面板工作区上限），否则会把面板高度写成 824 之类的值。
+- 窗口位置：按面板当前停靠边，把设置窗放在面板旁边的剩余区域；放不下时夹在工作区内。
 
 ## 7. 视觉规范
 
@@ -381,6 +445,35 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 
 颜色只有这几个：`--ink` / `--ink-soft` / `--ink-dim` / `--ink-faint` / `--mint` / `--apricot`。
 新增颜色先问「能不能用现有透明度解决」。
+
+### 7.1 中文排版（v0.5.0）
+
+中文不能直接沿用上表的英文小字：微软雅黑在 9–10px + 0.17em 字距下发虚、发灰。
+`html[lang='zh']` 下有一层独立覆盖，英文不受影响：
+
+| 位置 | 英文原值 | 中文覆盖 |
+|---|---|---|
+| 面板日期 / 分组标题 `.cap` | 10px / .17em / 400 | **11.5px / .045em / 500**，颜色 .72 |
+| 面板正文 `.sub` | 12.5px | **13.5px / 1.55 行高** |
+| 行内标签 `.lbl` | 11px | **12px** |
+| 待办 `.task` | 13.5px | **14px / 1.45 行高** |
+| 媒体标题 / 艺术家 | 13.5 / 11.5 | **14.5 / 12.5** |
+| 设置 tab | 10 / 11（wide） | **11.5 / 12** |
+| 设置分组 / 小标签 | 8.5px / .17em | **10.5px / .055em / 500** |
+| 设置行名 / 说明 | 11.5 / 9 | **12.5 / 10.5** |
+| 设置标题 | 25px | **24px / 1.15 行高** |
+| 设置页脚 | 8.5px | **10.5px** |
+
+- 颜色变量同步提亮：`--ink-dim` .58→.68、`--ink-faint` .4→.52；中文 `.cap` 额外到 .72。
+- `html[lang='zh'] body { -webkit-font-smoothing: auto; }`：Windows 上 `antialiased` 会让小号中文发灰，
+  恢复系统次像素渲染。
+- 字体栈仍以 Instrument Sans 开头（英文/数字），中文回退 `Microsoft YaHei UI` / `Microsoft YaHei` /
+  `PingFang SC` / `Noto Sans SC`；不把整个页面换成雅黑，避免英文和数字失去原字形。
+- 中文放大后内容变高，超出面板时按设计滚动（DEVPLAN §5.2）；不要为了塞下内容把字号再压回去。
+- 独立设置窗口的 `document.title` 也跟着语言：`Sill 设置` / `Sill Settings`；BrowserWindow 的
+  `title` 只是加载前的初始值，最终以 renderer 写回的为准。
+- 验收：`getComputedStyle` 在 `lang=zh` / `lang=en` 下各读一次；中文 `.cap` 11.5、`.task` 14，
+  英文回到 10 / 13.5；切换语言不能残留旧字号。
 
 ---
 
@@ -405,12 +498,20 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 | 音量滑杆一开始是 0 | 控制进程还没回第一帧，`volume = -1` | 等 1–2s；重开面板会先用上一帧缓存值 |
 | 点播放后按钮又弹回暂停 | SMTC 的 `PlaybackStatus` 更新滞后，UI 拿到了旧状态 | v0.4.8 已改成乐观状态保持 2.6s；别把 `next.status` 写回 override |
 | 拖边缘没反应 | 会话锁屏（`LockApp` 盖住全屏）或指针不在窗口内 | 解锁后手动拖；自动化时用合成 PointerEvent（窗口移动后 clientX 会漂移，必须用 screenX） |
+| 勾选任务后它跑到下面 | 旧版把已完成项沉底（v0.5.0 已移除） | 任务必须留在插入位置；不要再加 `ordered` / FLIP 重排 |
+| 设置控件被拉得特别长 | 宽面板内容列没有上限 | 内容列 560、滑杆 420、快捷键 280、预览 380；改 `customize.css` 的 max-width，不要用 100% |
+| 独立设置窗口打不开 | `settingsInWindow` 为 false、或面板齿轮仍走 overlay | 通用页开关打开；重启不必要；设置窗口只在下次点齿轮时生效 |
+| 设置窗口被面板盖住 | 面板仍是 screen-saver 层 | 打开设置窗口应 `suspendPanelTop()`；关闭时 `restorePanelTop()` |
+| 关闭设置窗口后面板不再置顶 | 关闭路径没走 `restorePanelTop()` | 检查 `closed` 事件与 `closeSettingsWindow()` 两条路径 |
+| 中文发虚 / 层级糊成一片 | 中文还在吃英文的 9–10px + .17em 字距，或 `lang` 没切到 zh | 看 `<html lang>`；中文必须命中 `:root[lang='zh']` 覆盖，`.cap` 11.5、说明 ≥10.5、正文 13.5–14 |
+| 切语言后字号没变 | `document.documentElement.lang` 没跟随 settings.language | `useSillSettings` 的 language 变化要写 `document.documentElement.lang`，CSS 才能切覆盖 |
+| 中文在设置窗口又变小 | 独立窗口没跑同一个 `useSillSettings`，或 `lang` 没设置 | 设置窗口与面板共用 hook；检查窗口里的 `document.documentElement.lang` |
 
 ---
 
 ## 9. 已知问题
 
-1. **渲染产物约 737 kB 未压缩**。`electron-vite` 6 默认 `minify: false`（已在其 dist 源码中核实），
+1. **渲染产物约 750 kB 未压缩**。`electron-vite` 6 默认 `minify: false`（已在其 dist 源码中核实），
    产物里 dev/prod 两条 React 分支都在。M6 打包前给 renderer 开 `build.minify`。
 2. **不在 Alt+Tab 里隐藏**。`skipTaskbar` 只管任务栏；要从 Alt+Tab 消失需要 `WS_EX_TOOLWINDOW`，
    Electron 没有直接 API（要 `win.setSkipTaskbar` + 自定义样式或第三方模块），M0 没做。
@@ -419,12 +520,17 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
    DEVPLAN 里写的 `com.sill.app` 是 AppUserModelId，两者不是一回事，**首次实跑后要核对并订正文档**。
 4. **托盘仍是「打开设置文件」**。面板内已有完整 Settings；托盘这一项保留给调试，M2 可换成直接打开设置页。
 5. **多屏只按鼠标所在屏计算**，未做每块屏的独立记忆；`panelOffsetY` 是全局值。
-6. **没有组件引擎**。media / todo 已抽成 `components/widgets/*`，但 hero / system / processes
-   仍是 `App.tsx` 里写死的 JSX；M1 才接 Provider 与 `WidgetShell`。
-7. **面板可见时有两个 PowerShell 进程**（collector + media-control），各占几十 MB；
+6. **只有组件宿主，没有组件引擎**。hero/system/processes/media/todo 已全部走 `WIDGETS` 注册表，
+   但 registry 直接 import 组件、认识 `CardId`；IR / Validator / Compiler / Provider / 沙箱都还没写。
+   下一步是 `packages/engine`，别把宿主当引擎。
+7. **设置窗口是固定尺寸、不可缩放**（≤760×820）。面板本身可自由缩放；设置窗口只在工作区太小时
+   夹小，靠内部滚动。
+8. **面板可见时有两个 PowerShell 进程**（collector + media-control），各占几十 MB；
    隐藏面板后都会退出。若以后常驻组件变多，需要合并成一个采集/控制进程。
-8. **真实鼠标拖拽未在解锁桌面上验证**。自动化跑的时候机会话锁屏，只用合成 PointerEvent
+9. **真实鼠标拖拽未在解锁桌面上验证**。自动化跑的时候机会话锁屏，只用合成 PointerEvent
    验证了 `screenX` 逻辑；下次人肉拖内侧边 / 底边 / 内下角确认手感。
+10. **设置窗口打开期间面板会临时失去置顶**（避免盖住设置窗）；关闭后恢复。若使用者希望面板始终
+    压在最上层，这条需要再权衡。
 
 ## 10. 发布与自动更新（M0.5 进行中）
 
@@ -432,7 +538,7 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 `%LOCALAPPDATA%\Programs\Sill`，开始菜单有 Sill，打包态 `--smoke` 通过，托盘图标走 asar 外的
 `extraResources`（`resources\resources\tray.ico`）。
 **还没做**：`publish` 段、`src/main/updater.ts`、页脚/托盘更新提示、v0.1.0→v0.1.1 干跑。
-当前源码版本 **0.2.0**，尚未出安装包；`media-control.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
+当前源码版本 **0.4.0**，尚未出安装包；`media-control.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：
 

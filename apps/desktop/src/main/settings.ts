@@ -33,6 +33,8 @@ export interface Settings {
   startAtLogin: boolean
   /** 是否自动检查更新 */
   autoUpdate: boolean
+  /** 设置页是否在独立窗口打开（下一位生效） */
+  settingsInWindow: boolean
   /** 玻璃主题：颜色、氛围、光晕、颗粒 */
   theme: Theme
 }
@@ -47,6 +49,7 @@ export const DEFAULTS: Settings = {
   language: 'en',
   startAtLogin: false,
   autoUpdate: true,
+  settingsInWindow: false,
   theme: DEFAULT_THEME
 }
 
@@ -95,6 +98,7 @@ function coerce(raw: unknown): Settings {
     language,
     startAtLogin: src.startAtLogin === true,
     autoUpdate: src.autoUpdate !== false,
+    settingsInWindow: src.settingsInWindow === true,
     theme: normalizeTheme(src.theme)
   }
 }

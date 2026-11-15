@@ -1,12 +1,12 @@
 # Sill 开发文档
 
-v0.4.8 · 2026-11-13
+v0.5.0 · 2026-11-14
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
 ---
 
-## 0. 变更记录（v0.3 → v0.4.8）
+## 0. 变更记录（v0.3 → v0.5.0）
 
 | 变更 | 原因 |
 |---|---|
@@ -45,7 +45,13 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.4.8** 面板形状 → **连续尺寸** | 用户反馈「四种形状太死板」。`panelShape` 换成 `panelWidth` / `panelHeight` / `panelOffsetY`；内侧边 / 底边 / 内下角可直接拖拽，预设降级为起点；列数由实际宽度推导（1 / 2 / 3 列） |
 | **v0.4.8** 窗口几何改用 **content bounds** | Windows 会把 1px 边框算进 `getBounds()`，直接用外框尺寸会每次提交长 1px；统一走 `getContentBounds()` / `setContentBounds()`，尺寸不再漂移 |
 | **v0.4.8** 媒体卡接传输键与系统音量 | SMTC 负责播放 / 暂停 / 上一首 / 下一首，WASAPI 默认渲染设备负责系统主音量与静音；控制进程只在面板可见时存在 |
-| **v0.4.8** 待办卡补动效 | 勾选后 FLIP 落位到已完成区、删除先收合高度、勾选框与删除线连续过渡；排序只发生在渲染层，不写进 `todo.json` |
+| **v0.4.8** 待办卡补动效 | 勾选后 FLIP 落位到已完成区、删除先收合高度、勾选框与删除线连续过渡；排序只发生在渲染层，不写进 `todo.json`（**v0.5.0 已改回原位，不再沉底**） |
+| **v0.4.9** 组件宿主先于 IR | `App.tsx` 不再写死五张卡：`WidgetShell` + `WIDGETS` 注册表按 `layout.order` 渲染，组件只消费 `WidgetContext`；新增内置组件不再改 App |
+| **v0.4.9** 组件可见性 | `layout.hidden` 记住被隐藏的组件；行为页「组件」可逐个开关。隐藏只影响渲染，顺序与跨列不丢 |
+| **v0.5.0** 待办回到「原位状态变化」 | 勾选不再把任务沉到底部（那是之前垂直跳变的来源）；删除改为横向淡出 + 行高收合，加勾选 ripple、模糊淡入。行为对齐 LiquidGlassTodo |
+| **v0.5.0** 设置布局加比例约束 | 宽面板的内容列上限 560px；滑杆 420、快捷键 280、尺寸预设 420、预览网格 380；主题/氛围预览改 16:9 / 16:10，不再被拉成细条 |
+| **v0.5.0** 独立设置窗口 | `settings.settingsInWindow` 开关；设置页可在独立透明窗口中打开，与面板共享 `useSillSettings` + 主进程广播；窗口打开时暂时降下面板置顶，避免互相遮挡 |
+| **v0.5.0** 中文排版 | 中文不再沿用英文的 8.5–10px：面板 `.cap` 11.5、正文 13.5–14、设置说明 10.5、设置标签 10.5–12.5；字距 .17em→.045–.06em，`--ink-faint` .4→.52，中文启用次像素渲染；英文保持原字号 |
 
 ---
 
@@ -125,6 +131,9 @@ M0 不算完成，直到下面每一条都成立：
 4. 调试面板能看到：provider 当前值、最近一次错误、组件重载按钮
 5. 引擎代码里搜不到任何内置组件的名字
 
+> **v0.4.9 只完成了「宿主」**（WidgetShell + 注册表 + 可见性），上面五条一条都没开始。
+> 宿主让组件不再写死在 App 里，但没有 IR、没有包、没有 Provider——别把宿主当成 M1 完成。
+
 ---
 
 ## 4. 架构
@@ -203,9 +212,9 @@ interface Provider<T> {
 
 | 路径 | 内容 |
 |---|---|
-| `%APPDATA%/Sill/settings.json` | 主题、热键、面板宽高与垂直偏移、语言、停靠边与边缘距离、开机自启、自动检查更新 |
+| `%APPDATA%/Sill/settings.json` | 主题、热键、面板宽高与垂直偏移、语言、停靠边与边缘距离、开机自启、自动检查更新、设置窗口模式 |
 | `%APPDATA%/Sill/todo.json` | 待办（`{id,text,done}`，原子写） |
-| `%APPDATA%/Sill/layout.json` | 卡片顺序与跨列（`{version,order,spans}`，原子写） |
+| `%APPDATA%/Sill/layout.json` | 卡片顺序、跨列与隐藏组件（`{version,order,spans,hidden}`，原子写） |
 | `%APPDATA%/Sill/widgets/<id>/` | 组件私有数据（配额 5MB） |
 | `%APPDATA%/Sill/packages/<id>@<ver>/` | 已安装组件 |
 
@@ -269,6 +278,9 @@ interface Provider<T> {
 - 分区内上下 padding 11–13，组内行距 4–9
 - 内容超出时面板内滚动（`overflow-y:auto`，滚动条只在 hover 时出现），不裁切、不撑高窗口
 - 宽过 ~470 后切成 2 列、再宽切 3 列：仍是同一份卡片顺序与跨列，只是 grid 自动落格
+- 中文不沿用英文的 8.5–10px：`html[lang='zh']` 下 `.cap` 11.5、正文 13.5–14、设置说明 10.5、
+  设置标签 10.5–12.5；字距从 .17em 收到 .045–.06em，`--ink-faint` 从 .4 提到 .52。
+  英文排版保持 Instrument Sans 原字号。详见 DEVELOPMENT.md §7.1
 
 ### 5.3 唤出与收起
 
@@ -321,6 +333,7 @@ interface Provider<T> {
 
 - **顺序**：全局共享；单列靠 flex `order`，多列靠 grid `order`
 - **跨列**：`spans[id]`，渲染时按当前实际列数夹住（一列时恒为 1）；三列时待办默认独占整行
+- **隐藏**：`hidden[id]` 只影响渲染；顺序与跨列保留
 - **列数**：不再是形状属性，而是宽度的函数；拖动改宽时自动 1 → 2 → 3 列重排
 
 入口是 Settings → 行为 →「编辑布局」。编辑态下：
@@ -329,8 +342,8 @@ interface Provider<T> {
 - 顶部条有 Reset / Done；Esc 先退出编辑，不直接收面板
 - 改动即时写入 `layout.json`
 
-> 这份模型先于组件引擎存在：M1 落地时把写死的 `<section class="card">` 换成 `WidgetShell`，
-> 顺序与跨列直接复用，不需要再设计一套。
+> **v0.4.9 已落地**：写死的 `<section class="card">` 换成了 `WidgetShell`，顺序、跨列与拖拽复用同一份
+> `layout.json`；下一步才是把 `WidgetDefinition.render()` 换成声明式 IR 的 Compiler。
 
 ### 5.6 设置界面
 
@@ -338,11 +351,48 @@ interface Provider<T> {
 
 | 形状 | 排布 |
 |---|---|
-| 1 列（窄于 ~470） | 顶部三段 tab + 单列内容 |
-| ≥ 2 列 | 左侧 152px 竖向导航 + 右侧内容区 |
+| 1 列（窄于 620） | 顶部三段 tab + 单列内容 |
+| ≥ 620 或独立窗口 | 左侧 152px 竖向导航 + 右侧内容区（内容列上限 560px） |
 
-不做固定宽度浮层：面板尺寸连续可变，直接按实际列数切换 grid areas，比「居中的小卡片」更贴合空间。
+不做固定宽度浮层：面板尺寸连续可变，直接按实际宽度切换 grid areas，比「居中的小卡片」更贴合空间。
 「行为 → 面板尺寸」里同时提供四个预设、宽高滑杆与「撑满高度」开关；拖动边缘是主路径，滑杆是精确落点。
+
+**比例约束**：内容列最大 560；滑杆 420、快捷键 280、尺寸预设 420、主题/氛围网格 380；
+预设预览用 16:9、氛围预览 16:10。面板再宽也不会把控件拉成细长条。
+
+### 5.7 组件宿主（v0.4.9）
+
+```
+layout.json.order
+  → WIDGETS / WIDGET_BY_ID（renderer/widgets/registry.tsx）
+  → WidgetShell（卡片容器：网格落位、拖拽、跨列工具）
+  → definition.render(WidgetContext)（Hero / System / Processes / Media / Todo）
+```
+
+- `WidgetContext` 是组件唯一的数据合同：`language`、`now`、`snapshot`、`todos`、
+  `mediaPosition`、`mediaCommand`、待办回调。组件不直接碰 IPC。
+- `WidgetDefinition` 声明 `id`、设置里的名字、默认跨列（`spanFor(columns)`）与 render。
+  新增内置组件 = 加 definition + i18n + `CARD_IDS`，`App.tsx` 不改。
+- 隐藏状态在 `layout.hidden`；行为页「组件」里开关。隐藏的组件仍保留顺序与跨列，重新打开即回到原位。
+- 这一层刻意**不是**引擎：没有 IR、没有沙箱、没有包安装。它先把「谁放在哪、显示什么」从 App 里剥出来，
+  让 M1 的 IR Compiler 有一个稳定的落点。
+
+### 5.8 独立设置窗口（v0.5.0）
+
+`settings.settingsInWindow`（默认 false）决定设置页的承载方式：
+
+| 值 | 行为 |
+|---|---|
+| false | 设置仍是面板内的 .cz-sheet 覆盖层，Esc 先关它 |
+| true | 点齿轮在独立 BrowserWindow 中打开设置；面板保持可见，主题/尺寸改动实时广播回来 |
+
+- 同一份 renderer 入口，`?settings=1` 切到 `SettingsWindow`；玻璃层复用 `.rail`。
+- 两个窗口共用 `useSillSettings`：主进程写盘后广播 `settings:changed` / `layout:changed`，
+  所以设置窗口改主题面板即时变，面板拖尺寸设置窗口滑杆即时跟。
+- 独立窗口打开期间把面板从 `screen-saver` 层放下来，避免面板变宽后盖住设置窗口；关窗恢复置顶。
+- 设置窗口里的「编辑布局」通过 `panel:edit-layout` 关窗、唤出面板并进入布局编辑。
+- 窗口是透明无边框的固定尺寸（≤760×820，按工作区夹住），标题栏可拖动；Esc / 右上角关闭。
+- 开关本身「下次打开设置时生效」，不会把当前窗口强行搬来搬去。
 
 ---
 
@@ -554,7 +604,7 @@ zip → 解包 → RMSKIN.ini → IniParser → IR → Mapper → Emitter → �
 
 ```
 sill/
-├─ apps/desktop/src/{main,preload,host}
+├─ apps/desktop/src/{main,preload,renderer}
 ├─ packages/{engine,data,rainmeter,package-manager,ui}
 ├─ widgets/{clock,system,weather,todo}
 ├─ docs/mockups/          # 面板形态对比（C 即本体）

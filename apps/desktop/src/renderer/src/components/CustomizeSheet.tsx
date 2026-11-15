@@ -4,7 +4,8 @@ import {
   matchPreset,
   PANEL_MIN_HEIGHT,
   PANEL_MIN_WIDTH,
-  PANEL_PRESETS
+  PANEL_PRESETS,
+  type CardId
 } from '../../../shared/layout'
 import type { UpdateState } from '../../../shared/update'
 import {
@@ -40,6 +41,8 @@ interface Props {
   onEdgeGapChange: (value: number) => void
   language: Language
   onLanguageChange: (language: Language) => void
+  settingsInWindow: boolean
+  onSettingsInWindowChange: (value: boolean) => void
   startAtLogin: boolean
   onStartAtLoginChange: (value: boolean) => void
   autoUpdate: boolean
@@ -47,8 +50,12 @@ interface Props {
   update: UpdateState
   onCheckUpdate: () => void
   onEditLayout: () => void
+  widgets: readonly { id: CardId; label: string; hidden: boolean }[]
+  onToggleWidget: (id: CardId, shown: boolean) => void
   version: string
   columns: number
+  /** 独立窗口模式：没有面板做底，自己就是整块玻璃 */
+  standalone?: boolean
 }
 
 function Slider({
@@ -292,6 +299,8 @@ export function CustomizeSheet({
   onEdgeGapChange,
   language,
   onLanguageChange,
+  settingsInWindow,
+  onSettingsInWindowChange,
   startAtLogin,
   onStartAtLoginChange,
   autoUpdate,
@@ -299,13 +308,18 @@ export function CustomizeSheet({
   update,
   onCheckUpdate,
   onEditLayout,
+  widgets,
+  onToggleWidget,
   version,
-  columns
+  columns,
+  standalone = false
 }: Props): React.JSX.Element {
   const closeRef = useRef<HTMLButtonElement>(null)
   const [tab, setTab] = useState<Tab>('appearance')
   const activePreset = matchThemePreset(theme)
   const activeSize = matchPreset(panelWidth, panelHeight)
+  // 独立窗口默认用左侧导航；窗口窄到放不下 152 + 可用表单时退回顶部 tab
+  const wide = standalone ? window.innerWidth >= 600 : panelWidth >= 620
 
   const updateText = ((): string => {
     switch (update.status) {
@@ -331,10 +345,11 @@ export function CustomizeSheet({
   return (
     <section
       className="cz-sheet"
-      data-wide={columns > 1}
+      data-wide={wide}
+      data-standalone={standalone ? 'true' : undefined}
       role="dialog"
       aria-label={t(language, 'settings.title')}
-      aria-modal="true"
+      aria-modal={standalone ? undefined : true}
     >
       <header className="cz-head">
         <div>
@@ -584,9 +599,9 @@ export function CustomizeSheet({
               note={t(language, 'size.autoNote')}
               checked={panelHeight === 0}
               onChange={(value) =>
-                onPanelHeightChange(
-                  value ? 0 : Math.max(PANEL_MIN_HEIGHT, Math.round(window.innerHeight))
-                )
+                // 关闭「撑满高度」时用面板工作区的实际上限，而不是当前窗口高度：
+                // 独立设置窗口里的 window.innerHeight 是设置窗自己的高度。
+                onPanelHeightChange(value ? 0 : Math.max(PANEL_MIN_HEIGHT, maxHeight))
               }
             />
 
@@ -635,6 +650,22 @@ export function CustomizeSheet({
               onChange={onEdgeGapChange}
             />
 
+            <Details label={t(language, 'behavior.widgets')}>
+              <p className="cz-note" style={{ margin: '0 2px 6px' }}>
+                {t(language, 'behavior.widgetsNote')}
+              </p>
+              {widgets.map((widget) => (
+                <Switch
+                  key={widget.id}
+                  id={`cz-widget-${widget.id}`}
+                  label={widget.label}
+                  note=""
+                  checked={!widget.hidden}
+                  onChange={(value) => onToggleWidget(widget.id, value)}
+                />
+              ))}
+            </Details>
+
             <p className="cz-group">{t(language, 'behavior.system')}</p>
             <Switch
               id="cz-autostart"
@@ -667,6 +698,14 @@ export function CustomizeSheet({
                 ))}
               </div>
             </div>
+
+            <Switch
+              id="cz-settings-window"
+              label={t(language, 'general.settingsWindow')}
+              note={t(language, 'general.settingsWindowNote')}
+              checked={settingsInWindow}
+              onChange={onSettingsInWindowChange}
+            />
 
             <p className="cz-group">{t(language, 'general.updates')}</p>
             <Switch

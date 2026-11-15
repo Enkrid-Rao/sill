@@ -1,4 +1,5 @@
 import { app, ipcMain } from 'electron'
+import { broadcast } from './broadcast'
 import { getSnapshot } from './data'
 import { mediaCommand } from './data/media-control'
 import { addTodo, listTodos, removeTodo, toggleTodo } from './data/todo'
@@ -6,13 +7,16 @@ import { getLayout, resetLayout, setLayout } from './layout'
 import {
   commitPanelSize,
   getPanelSizeLimits,
+  getPanelWindow,
   hidePanel,
   isPanelVisible,
   resizePanel,
   setOverlayOpen,
+  showPanel,
   togglePanel
 } from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
+import { closeSettingsWindow, hasSettingsWindow, openSettingsWindow } from './settings-window'
 import { checkForUpdates, getUpdateState } from './updates'
 
 export interface IpcDeps {
@@ -28,12 +32,33 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle('settings:update', (_event, patch: Partial<Settings>) => {
     const next = updateSettings(patch ?? {})
     deps.apply(next, patch ?? {})
+    // 设置窗口和面板共用一份状态：谁改的都广播出去
+    broadcast('settings:changed', next)
     return next
   })
 
   ipcMain.handle('hotkey:set', (_event, accel: unknown) => {
     if (typeof accel !== 'string') return { ok: false, hotkey: loadSettings().hotkey }
-    return deps.setHotkey(accel)
+    const result = deps.setHotkey(accel)
+    if (result.ok) broadcast('settings:changed', loadSettings())
+    return result
+  })
+
+  ipcMain.handle('settings:open-window', () => {
+    openSettingsWindow()
+  })
+
+  ipcMain.handle('settings:window-open', () => hasSettingsWindow())
+
+  ipcMain.handle('settings:close-window', () => {
+    closeSettingsWindow()
+  })
+
+  // 设置窗口里的「编辑布局」：关掉设置窗口、唤出面板、进入编辑态
+  ipcMain.handle('panel:edit-layout', () => {
+    closeSettingsWindow()
+    showPanel()
+    getPanelWindow()?.webContents.send('panel:edit-layout')
   })
 
   ipcMain.handle('panel:hide', () => {
@@ -55,9 +80,11 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle('panel:resize', (_event, width: unknown, height: unknown) =>
     resizePanel(width, height)
   )
-  ipcMain.handle('panel:resize-commit', (_event, width: unknown, height: unknown) =>
-    commitPanelSize(width, height)
-  )
+  ipcMain.handle('panel:resize-commit', (_event, width: unknown, height: unknown) => {
+    const next = commitPanelSize(width, height)
+    broadcast('settings:changed', next)
+    return next
+  })
   ipcMain.handle('panel:limits', () => getPanelSizeLimits())
 
   ipcMain.handle('media:command', (_event, action: unknown, value?: unknown) =>
@@ -80,15 +107,23 @@ export function registerIpc(deps: IpcDeps): void {
   )
 
   ipcMain.handle('update:get', () => getUpdateState())
-  ipcMain.handle('update:check', async (event) => {
+  ipcMain.handle('update:check', async () => {
     const next = await checkForUpdates()
-    event.sender.send('update:state', next)
+    broadcast('update:state', next)
     return next
   })
 
   ipcMain.handle('layout:get', () => getLayout())
-  ipcMain.handle('layout:set', (_event, layout: unknown) => setLayout(layout))
-  ipcMain.handle('layout:reset', () => resetLayout())
+  ipcMain.handle('layout:set', (_event, layout: unknown) => {
+    const next = setLayout(layout)
+    broadcast('layout:changed', next)
+    return next
+  })
+  ipcMain.handle('layout:reset', () => {
+    const next = resetLayout()
+    broadcast('layout:changed', next)
+    return next
+  })
 
   ipcMain.handle('app:quit', () => {
     app.quit()

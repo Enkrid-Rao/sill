@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Menu, app } from 'electron'
 import { applyAutostart } from './autostart'
+import { broadcast } from './broadcast'
 import { bindHotkey, disposeHotkeys } from './hotkey'
 import { registerIpc } from './ipc'
 import {
@@ -11,9 +12,11 @@ import {
   hidePanel,
   isPanelVisible,
   reanchor,
+  setEscapeInterceptor,
   showPanel
 } from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
+import { closeSettingsWindow, hasSettingsWindow } from './settings-window'
 import { createTray, destroyTray, refreshTray } from './tray'
 import { checkForUpdates } from './updates'
 import type { UpdateState } from '../shared/update'
@@ -77,7 +80,8 @@ function applySideEffects(settings: Settings, patch: Partial<Settings>): void {
 }
 
 function publishUpdate(state: UpdateState): void {
-  getPanelWindow()?.webContents.send('update:state', state)
+  // 面板与独立设置窗口都可能正在显示更新状态
+  broadcast('update:state', state)
 }
 
 /** 启动 15 秒后查一次，之后每 6 小时一次；关掉自动检查就跳过 */
@@ -95,6 +99,12 @@ async function boot(): Promise<void> {
 
   Menu.setApplicationMenu(null)
   registerIpc({ apply: applySideEffects, setHotkey: changeHotkey })
+  // 独立设置窗口开着时，Esc 先关设置，再考虑面板
+  setEscapeInterceptor(() => {
+    if (!hasSettingsWindow()) return false
+    closeSettingsWindow()
+    return true
+  })
   createPanel()
 
   if (!SMOKE) {

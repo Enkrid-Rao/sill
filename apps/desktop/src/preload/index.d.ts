@@ -15,6 +15,7 @@ export interface SillSettings {
   language: Language
   startAtLogin: boolean
   autoUpdate: boolean
+  settingsInWindow: boolean
   theme: Theme
 }
 
@@ -42,6 +43,8 @@ export interface SillApi {
   getLayout: () => Promise<PanelLayout>
   setLayout: (layout: PanelLayout) => Promise<PanelLayout>
   resetLayout: () => Promise<PanelLayout>
+  onSettingsChanged: (callback: (settings: SillSettings) => void) => () => void
+  onLayoutChanged: (callback: (layout: PanelLayout) => void) => () => void
   hidePanel: () => Promise<void>
   togglePanel: () => Promise<void>
   isPanelVisible: () => Promise<boolean>
@@ -49,6 +52,11 @@ export interface SillApi {
   resizePanel: (width: number, height: number) => Promise<PanelSizeInfo | null>
   commitPanelSize: (width?: number, height?: number) => Promise<SillSettings>
   getPanelSizeLimits: () => Promise<{ maxWidth: number; maxHeight: number; columns: number }>
+  openSettingsWindow: () => Promise<void>
+  isSettingsWindowOpen: () => Promise<boolean>
+  closeSettingsWindow: () => Promise<void>
+  editLayout: () => Promise<void>
+  onEditLayout: (callback: () => void) => () => void
   quit: () => Promise<void>
   onPanelState: (callback: (visible: boolean) => void) => () => void
   onEscape: (callback: () => void) => () => void

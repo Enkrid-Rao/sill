@@ -107,6 +107,14 @@ const en = {
   'behavior.layout': 'Layout',
   'behavior.layoutNote': 'Reorder cards and set how many columns each spans',
   'behavior.editLayout': 'Edit layout',
+  'behavior.widgets': 'Widgets',
+  'behavior.widgetsNote': 'Hide the ones you do not need right now',
+  'widgets.empty': 'All widgets are hidden. Settings → Behavior → Widgets brings them back.',
+  'widget.hero': 'Now',
+  'widget.system': 'System',
+  'widget.processes': 'Processes',
+  'widget.media': 'Now playing',
+  'widget.todo': 'To-do',
 
   'layout.title': 'Layout',
   'layout.hint': 'Drag cards, use the arrows, or set columns',
@@ -119,6 +127,8 @@ const en = {
   'general.interface': 'Interface',
   'general.language': 'Language',
   'general.languageNote': 'Applies to the panel and the tray',
+  'general.settingsWindow': 'Settings in its own window',
+  'general.settingsWindowNote': 'Takes effect the next time you open Settings',
   'general.about': 'About',
   'general.version': 'Version',
   'general.updates': 'Updates',
@@ -146,6 +156,8 @@ const en = {
 } as const
 
 type Key = keyof typeof en
+
+export type TranslationKey = Key
 
 const zh: Record<Key, string> = {
   'weather.condition': '局部多云',
@@ -242,6 +254,14 @@ const zh: Record<Key, string> = {
   'behavior.layout': '布局',
   'behavior.layoutNote': '调整卡片顺序，以及每张卡跨几列',
   'behavior.editLayout': '编辑布局',
+  'behavior.widgets': '组件',
+  'behavior.widgetsNote': '暂时用不到的可以先隐藏，顺序与跨列不会丢',
+  'widgets.empty': '所有组件都被隐藏了。设置 → 行为 → 组件可以重新打开。',
+  'widget.hero': '此刻',
+  'widget.system': '系统',
+  'widget.processes': '进程',
+  'widget.media': '正在播放',
+  'widget.todo': '待办',
 
   'layout.title': '布局',
   'layout.hint': '拖动卡片，或用箭头与跨列数',
@@ -254,6 +274,8 @@ const zh: Record<Key, string> = {
   'general.interface': '界面',
   'general.language': '语言',
   'general.languageNote': '同时作用于面板与托盘',
+  'general.settingsWindow': '设置页使用独立窗口',
+  'general.settingsWindowNote': '下次打开设置时生效',
   'general.about': '关于',
   'general.version': '版本',
   'general.updates': '更新',

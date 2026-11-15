@@ -67,12 +67,15 @@ export interface PanelLayout {
   order: CardId[]
   /** 跨几列；渲染时按当前列数夹住。hero 默认占满 */
   spans: Partial<Record<CardId, number>>
+  /** 被用户暂时隐藏的组件；只影响渲染，不删布局顺序与跨列 */
+  hidden: CardId[]
 }
 
 export const DEFAULT_LAYOUT: PanelLayout = {
   version: 1,
   order: [...CARD_IDS],
-  spans: { hero: 3 }
+  spans: { hero: 3 },
+  hidden: []
 }
 
 function isCardId(value: unknown): value is CardId {
@@ -99,7 +102,14 @@ export function normalizeLayout(raw: unknown): PanelLayout {
     if (Number.isFinite(value)) spans[id] = Math.max(1, Math.min(3, Math.round(value)))
   }
 
-  return { version: 1, order, spans }
+  const hidden: CardId[] = []
+  if (Array.isArray(src.hidden)) {
+    for (const id of src.hidden) {
+      if (isCardId(id) && !hidden.includes(id)) hidden.push(id)
+    }
+  }
+
+  return { version: 1, order, spans, hidden }
 }
 
 /** 当前列数下这张卡实际占几列 */
