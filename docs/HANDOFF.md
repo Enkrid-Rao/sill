@@ -3,21 +3,22 @@
 写给**接手这个项目的人或下一个会话**。目标：读完这页，你知道现在到底有什么、什么是真的验证过的、
 下一条命令该敲什么。
 
-- 交接时间：2026-11-15（v0.5.0 发布：真实天气、点外收起、TODO 过滤 / 编辑 / 撤销之后更新）
+- 交接时间：2026-11-15（v0.5.1 绿色版：单文件免安装、数据随 exe）
 - 代码位置：`D:\Projects\Sill`（从旧的 `D:\Projects\Tide` 改名而来，旧路径已不存在）
-- 对应规划：[../DEVPLAN.md](../DEVPLAN.md) v0.5.0
+- 对应规划：[../DEVPLAN.md](../DEVPLAN.md) v0.5.1
 - 对应开发文档：[DEVELOPMENT.md](DEVELOPMENT.md)
 - 组件规范仓库：[Sill-Components](https://github.com/Enkrid-Rao/sill-components)
-- 当前应用版本：**v0.5.0**（`package.json`，已发布）
-- 发布提交：**e1859fe** `feat: 真实天气、点外收起与 TODO 过滤编辑撤销 (v0.5.0)`，tag `v0.5.0`
-- 上一发布：v0.4.0（42f1fc5）
+- 当前应用版本：**v0.5.1**（`package.json`，已发布）
+- 上一发布：v0.5.0（e1859fe）
 
 ---
 
 ## 0. 30 秒速览
 
-- 版本 **v0.5.0**，已发 GitHub Release；源码与安装包都在
+- 版本 **v0.5.1**，已发 GitHub Release；安装版 + **绿色版**都在
   [Releases](https://github.com/Enkrid-Rao/sill/releases)
+- 绿色版 `Sill-Portable-0.5.1.exe`：单文件、不写安装目录 / 注册表卸载项 / Program Files；
+  数据在 exe 旁 `Sill-data`，可随文件夹移动
 - 已完成：M0 骨架、三页设置、真实数据（system / media / todo / **weather**）、NSIS 安装包、
   **面板连续自由缩放**、**媒体传输键与系统音量**、**待办原位动效**、
   **组件宿主（WidgetShell + 注册表）与逐组件显隐**、**独立设置窗口开关**、
@@ -55,7 +56,8 @@
 - 布局编辑：编辑态下可拖动 / ↑↓ 换位、设跨列；顺序、跨列与隐藏存 `layout.json`，Esc 先退出编辑。
 - 组件规范：独立 `Sill-Components` 仓库（manifest / IR / runtime / sandbox / examples），
   但引擎与 CLI 尚未实现。
-- 发布：`pnpm dist` 出 NSIS 安装包；**v0.5.0 是当前已发布版本**（上一发布是 v0.1.3）。
+- 发布：`pnpm dist` 同时出 NSIS 安装包与单文件绿色版；**v0.5.1 是当前已发布版本**
+  （上一发布是 v0.5.0）。
 
 ---
 
@@ -113,6 +115,8 @@
 | TODO 过滤/编辑/撤销 | Playwright + DOM 点击：Open 3 → 勾选后 2（留 360ms 再收起）→ Closed 1 → All 3；行内编辑保存为「编辑测试任务」；删除后 700ms 出现「待办已删除 / 撤销」toast，点撤销恢复 3 条；无页面报错 |
 | TODO 输入框 Esc | Playwright：addrow 输入 draft 后 Esc → 值清空、面板仍在；编辑输入后 Esc → 输入框消失、原文不变、面板仍在 |
 | 组件规范仓库 | `D:\Projects\Sill-Components` 已同步到 [GitHub](https://github.com/Enkrid-Rao/sill-components)，标签 `v0.1.0`；clock / counter 两个 manifest 通过 `spec/widget.schema.json` 校验 |
+| 绿色版可用 | Playwright / smoke 跑 `Sill-Portable-0.5.1.exe --smoke`：不写安装目录、启动后 `Sill-data` 出现在 portable exe 旁，`settings.json` / `todo.json` / `layout.json` / `weather.json` 都落在里面；退出码 0 |
+| 便携路径 | `paths.ts` 在 `PORTABLE_EXECUTABLE_DIR` 存在时把 userData 指到 `<portable dir>/Sill-data`；`applyAutostart` 注册原始 portable exe，而不是临时解压路径 |
 | 打包态能跑 | 装完的 `Sill.exe --smoke` exit 0，截图写 `%APPDATA%\Sill\smoke.png`，画面与 dev 一致；托盘图标从 asar 外的 `resources\resources\` 加载（stderr 无「图标为空」） |
 | 真实数据能跑 | `collector.ps1` 独立运行每 2s 输出一行 JSON；应用内快照含 CPU/内存、GPU 30%、网络速率、TOP 进程、SMTC 媒体（张惠妹《忘记》），截图已核 |
 | 待办可写 | 临时 profile 下 `todo.json` 自动生成；通过 IPC add / toggle 后落盘为 `done: true` |
@@ -126,7 +130,7 @@
 
 代码能装、能构建、能跑。下面都是**未验证**，不是坏的。
 
-### 4.2 七条真实风险
+### 4.2 八条真实风险
 
 1. **透明窗口逐帧 `setContentBounds` 可能有闪烁/撕裂**（Windows 合成器行为不一）。如果滑入手感不好，
    备选方案：改成窗口不动、内容 `scale(0.985)` + 淡入（会牺牲"从屏幕边滑出来"的观感）。
@@ -147,6 +151,8 @@
 7. **天气依赖外部网络**：Open-Meteo 与 ipwho.is 都是直连；IP 定位只到城市级，VPN/代理会改变结果，
    失败时回退上海。没有系统定位权限、也没有高精度坐标；离线时保留最后一次缓存（`weather.json`），
    首次无缓存会显示「天气暂不可用」，30s 后重试。
+8. **绿色版每次启动都要解压到临时目录**（NSIS portable 包装），首启会慢一点；数据在 exe 旁的
+   `Sill-data`，所以 exe 必须放在可写目录，不能放 `Program Files`。它不写卸载项，删文件夹即可。
 
 ---
 
@@ -162,6 +168,7 @@
 > 并把中文从英文 8.5–10px 的小字里拆出来单独排版。
 > **v0.5.0 / 应用 v0.5.0（已发布）** 接真实天气、点外收起、TODO 过滤 / 编辑 / 撤销，
 > 并把组件 manifest / IR / sandbox 规范拆到 `Sill-Components`。
+> **v0.5.1 / 应用 v0.5.1（已发布）** 增加单文件绿色版（数据在 exe 旁），不改变功能路径。
 > 它不改变顺序；下一版才是 M1 的 IR 引擎——宿主只解决了「谁放在哪」，还没解决「组件怎么描述自己」。
 
 ### 第 1 步：把 M0 剩下五条跑一遍（约 30 分钟）
@@ -234,6 +241,7 @@ M1 的验收标准在 DEVPLAN §3.2，最关键那条是：**用一个没为它�
 | 点外收起 | 原决策 #4 只列热键 / Esc / 托盘 | v0.5.0 增加鼠标左键监视器；设置 / 布局编辑 / 托盘点击豁免 | 已写进 DEVPLAN §5.2 / 决策 #4 |
 | TODO 交互 | 只有增删勾选 + 原位动效 | v0.5.0 增加 Open / Closed / All、行内编辑、5 秒撤销、输入框 Esc 取消 | 已写进 DEVPLAN §5.2 / DEVELOPMENT §6.21 |
 | 组件规范位置 | 全部写在 DEVPLAN §6 | 规范 / 示例拆到独立 `Sill-Components` 仓库；Sill 只留宿主与内置组件 | 已写进 DEVPLAN §6.5 |
+| 绿色版 | 原发布通道只有 NSIS 安装包 | v0.5.1 增加 `portable` 单文件；数据在 exe 旁 `Sill-data`，开机自启注册原始 exe | 已写进 DEVELOPMENT §6.23 |
 
 ---
 
@@ -285,6 +293,8 @@ M1 的验收标准在 DEVPLAN §3.2，最关键那条是：**用一个没为它�
     行内编辑、5 秒撤销、输入框 Esc 取消；任务仍不重排、删除不 translateY
 27. 组件开发规范独立成 repo：Sill 只保留宿主的 `WidgetShell` / registry / 数据 provider；
     引擎、CLI、sandbox 以 `Sill-Components` 的 spec 为准
+28. 绿色版用 electron-builder `portable` 单文件目标；`PORTABLE_EXECUTABLE_DIR` 存在时
+    userData = `<exe dir>/Sill-data`；便携版开机自启注册原始 exe；不写安装目录/卸载项
 
 **还开着（等用户拍板）：**
 

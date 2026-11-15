@@ -4,7 +4,7 @@
 ![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
 ![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
-[![Release](https://img.shields.io/badge/release-v0.5.0-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+[![Release](https://img.shields.io/badge/release-v0.5.1-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
 
 Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用来承载可安装的组件——将来还要吃下 Rainmeter 皮肤。
 
@@ -47,10 +47,15 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
 
 ## 安装
 
-从 [Releases](https://github.com/Enkrid-Rao/sill/releases) 下载 `Sill-Setup-0.5.0.exe`。
+从 [Releases](https://github.com/Enkrid-Rao/sill/releases) 下载 `Sill-Setup-0.5.1.exe`，
+或直接用 `Sill-Portable-0.5.1.exe`：单文件免安装，数据保存在 exe 旁的 `Sill-data`。
 per-user 安装到 `%LOCALAPPDATA%\Programs\Sill`，不弹 UAC。安装包**未签名**，SmartScreen 会拦一次，
 点「更多信息 → 仍要运行」。
-源码当前是 **v0.5.0**（真实天气与自动/手动定位、点外收起、Open/Closed/All 待办与编辑撤销、组件宿主、可选独立设置窗口），这个版本已发布。
+
+**绿色版**是单文件：不写安装目录、不注册卸载项、不碰 Program Files。运行时解压到临时目录，
+`settings.json`、`todo.json`、`layout.json`、`weather.json` 都放在 exe 旁的 `Sill-data`。
+请放在可写目录（不要放 `Program Files`）；移动 exe 或整个文件夹时数据跟着走。
+源码当前是 **v0.5.1**（真实天气与自动/手动定位、点外收起、Open/Closed/All 待办与编辑撤销、绿色版、组件宿主、可选独立设置窗口），这个版本已发布。
 
 需要 Windows 10/11 x64。
 

@@ -2,7 +2,7 @@
 
 面向**动手改代码**的人。产品目标与架构规划在 [../DEVPLAN.md](../DEVPLAN.md)，进度与交接在 [HANDOFF.md](HANDOFF.md)。
 
-最后更新：2026-11-15（v0.5.0：真实天气、点外收起、TODO 过滤/编辑/撤销、中文排版）
+最后更新：2026-11-15（v0.5.1：真实天气、点外收起、TODO 过滤/编辑/撤销、绿色版）
 
 ---
 
@@ -26,7 +26,7 @@
 pnpm typecheck   # tsc 跑两套 tsconfig：main+preload / renderer
 pnpm build       # electron-vite build → apps/desktop/out/{main,preload,renderer}
 pnpm smoke       # electron . --smoke：起面板 → capturePage → 写 out/smoke.png → 退出
-pnpm dist        # 出 NSIS 安装包 → apps/desktop/dist/Sill-Setup-<version>.exe（约 2 分钟）
+pnpm dist        # 同时出 NSIS 安装包 + 单文件绿色版（约 2 分钟）
 pnpm dist:dir    # 只解包到 dist/win-unpacked，不压安装器（查打包问题用这个，快）
 ```
 
@@ -132,7 +132,7 @@ Sill/
       │  ├─ layout.ts           面板尺寸（连续宽高 / 预设 / 列数函数）与卡片布局
       │  └─ update.ts           更新检查的状态类型
       ├─ main/                  主进程
-      │  ├─ paths.ts            app 名称与 userData 路径（必须最先导入）
+      │  ├─ paths.ts            app 名称、userData 路径、便携模式检测（必须最先导入）
       │  ├─ settings.ts         设置类型、默认值、收敛、原子写（含主题、面板尺寸、设置窗口模式）
       │  ├─ data/               真实数据：collector（PS 常驻）、system（os）、todo（todo.json）、
       │  │                      media-control（SMTC + WASAPI 控制进程）
@@ -486,6 +486,20 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provider）与内置组件；
 **不要把组件规范再散落回 Sill 文档**，两边以链接和版本号对齐。
 
+### 6.23 绿色版 / Portable（v0.5.1）
+
+- `electron-builder.yml` 的 `win.target` 同时有 `nsis` 和 `portable`；产物分别是
+  `Sill-Setup-<version>.exe` / `Sill-Portable-<version>.exe`。
+- `paths.ts` 在 `PORTABLE_EXECUTABLE_DIR` 存在时把 userData 指到
+  `<PORTABLE_EXECUTABLE_DIR>/Sill-data`；这是单文件 portable 目标注入的环境变量。
+  目录版可以用 exe 旁的 `portable.flag` 走同一分支。
+- `SILL_USER_DATA` 仍然优先，测试不受影响。
+- portable 目标启动时解压到临时目录；资源路径仍走 `process.resourcesPath`，`mouse-watch.ps1` 等
+  extraResources 正常工作。
+- `applyAutostart` 在便携模式下注册 `PORTABLE_EXECUTABLE_FILE`（原始 exe），不能注册临时解压路径。
+- 便携版不写安装目录/卸载项；删除 exe 和 `Sill-data` 即完全卸载。
+- **不要把 portable 数据写到 `Program Files`**：settings 会失败；README 已注明放在可写目录。
+
 ## 7. 视觉规范
 
 字号与间距直接沿用 `docs/mockups/panel-forms.html` 的 C 场景（384 宽），改样式时以那份为准。
@@ -570,6 +584,8 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 | 面板突然收起 | 真实点击了外部，或 40ms 轮询把托盘点击误判 | 托盘 bounds 已排除；检查光标是否在面板外；需要调试时临时注释 `startMouseWatch` |
 | TODO 过滤后行不见了 | 当前过滤器是 Open/Closed，任务状态不匹配 | 切到 All；检查 `data-filtered` / `.is-filtered`；不要用 `display:none` 重排 |
 | TODO 撤销后顺序错 | `todo:restore` 的 index 用了过滤后的索引 | 必须用**原 items 数组**里的 index，不是可见列表 index |
+| 绿色版设置不保存 | exe 放在只读目录（如 `Program Files`） | 移到可写目录；确认 exe 旁生成了 `Sill-data` |
+| 绿色版开机自启指向临时目录 | `PORTABLE_EXECUTABLE_FILE` 没拿到，注册了 process.execPath | 检查 `applyAutostart` 的 portable 分支；单文件 portable 目标会注入该环境变量 |
 
 ---
 
@@ -601,6 +617,8 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
     失败回退上海，首次无缓存显示不可用，30s 重试。没有系统定位权限/高精度坐标。
 12. **点外收起依赖鼠标左键轮询**：面板可见时才有进程；不是全局钩子，不消费点击，但 40ms 轮询
     对极快点击有理论漏判；托盘/设置/布局编辑已豁免。
+13. **绿色版每次启动解压到临时目录**（NSIS portable 包装），首启略慢；数据在 exe 旁的
+    `Sill-data`，必须放在可写目录，不能放 `Program Files`。删文件夹即卸载。
 
 ## 10. 发布与自动更新（M0.5 进行中）
 
@@ -608,7 +626,8 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 `%LOCALAPPDATA%\Programs\Sill`，开始菜单有 Sill，打包态 `--smoke` 通过，托盘图标走 asar 外的
 `extraResources`（`resources\resources\tray.ico`）。
 **还没做**：`publish` 段、`src/main/updater.ts`、页脚/托盘更新提示、v0.1.0→v0.1.1 干跑。
-当前源码版本 **0.5.0**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.0.exe`，已发布到 GitHub Releases；
+当前源码版本 **0.5.1**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.1.exe`，绿色版输出
+`apps/desktop/dist/Sill-Portable-0.5.1.exe`，已发布到 GitHub Releases；
 `media-control.ps1` / `mouse-watch.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：
