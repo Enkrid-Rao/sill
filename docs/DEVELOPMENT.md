@@ -2,7 +2,7 @@
 
 面向**动手改代码**的人。产品目标与架构规划在 [../DEVPLAN.md](../DEVPLAN.md)，进度与交接在 [HANDOFF.md](HANDOFF.md)。
 
-最后更新：2026-11-14（v0.5.0：待办动效、设置比例、独立设置窗口、中文排版）
+最后更新：2026-11-15（v0.5.0：真实天气、点外收起、TODO 过滤/编辑/撤销、中文排版）
 
 ---
 
@@ -110,7 +110,7 @@ pnpm dist
 
 ```
 Sill/
-├─ DEVPLAN.md                 产品与架构规划（v0.4.3）
+├─ DEVPLAN.md                 产品与架构规划（v0.5.0）
 ├─ docs/
 │  ├─ DEVELOPMENT.md          本文
 │  ├─ HANDOFF.md              交接
@@ -121,13 +121,14 @@ Sill/
 └─ apps/desktop/
   ├─ electron.vite.config.ts  三段构建配置（main / preload / renderer）
    ├─ electron-builder.yml     安装包配置（NSIS per-user、无签名、图标走 extraResources）
-   ├─ resources/               collector.ps1 / media-control.ps1 + 托盘图标
+   ├─ resources/               collector.ps1 / media-control.ps1 / mouse-watch.ps1 + 托盘图标
    ├─ scripts/make-tray-icon.py 托盘图标生成器（Pillow，可重跑）
    └─ src/
       ├─ shared/
       │  ├─ theme.ts            主题类型、默认值、8 套预设、色珠表、normalizeTheme
       │  ├─ i18n.ts             中英文案、日期格式；主进程与渲染进程共用
       │  ├─ data.ts             面板快照、待办、媒体控制状态的类型
+      │  ├─ weather.ts          天气城市表、WMO 条件映射、WeatherSnapshot
       │  ├─ layout.ts           面板尺寸（连续宽高 / 预设 / 列数函数）与卡片布局
       │  └─ update.ts           更新检查的状态类型
       ├─ main/                  主进程
@@ -135,6 +136,8 @@ Sill/
       │  ├─ settings.ts         设置类型、默认值、收敛、原子写（含主题、面板尺寸、设置窗口模式）
       │  ├─ data/               真实数据：collector（PS 常驻）、system（os）、todo（todo.json）、
       │  │                      media-control（SMTC + WASAPI 控制进程）
+      │  ├─ weather.ts          天气 provider：ipwho.is 自动定位 + Open-Meteo + weather.json 缓存
+      │  ├─ mouse-watch.ts      面板可见时的外部左键监视器（PowerShell 子进程）
       │  ├─ updates.ts          查 GitHub Release 最新版本（只检查，不安装）
       │  ├─ panel.ts            面板窗口：几何、缩放、滑入动画、显隐、Esc 分层、崩溃重载
       │  ├─ settings-window.ts  独立设置窗口的创建 / 定位 / 关闭，以及面板置顶临时让位
@@ -161,12 +164,12 @@ Sill/
             │  ├─ ResizeHandles.tsx   内侧边 / 底边 / 内下角缩放把手 + HUD
             │  └─ widgets/
             │     ├─ MediaWidget.tsx  媒体信息、进度、传输键、音量
-            │     └─ TodoWidget.tsx   待办列表、原位淡出、收合删除
+            │     └─ TodoWidget.tsx   待办列表、Open/Closed/All、编辑、撤销、原位收合
             ├─ widgets/
             │  ├─ types.ts            WidgetContext / WidgetDefinition
             │  ├─ registry.tsx        WIDGETS + WIDGET_BY_ID
             │  ├─ WidgetShell.tsx     网格落位、拖拽、跨列工具
-            │  ├─ HeroWidget.tsx      日期 / 时钟 / 天气（天气仍占位）
+            │  ├─ HeroWidget.tsx      日期 / 时钟 / 真实天气 + WMO 图标
             │  ├─ SystemWidget.tsx    CPU / 内存 / GPU / 网络
             │  └─ ProcessesWidget.tsx TOP RAM / TOP GPU
             ├─ styles/
@@ -240,8 +243,10 @@ resizable:false, useContentSize:true, alwaysOnTop('screen-saver')`，创建一�
 ### 6.4 设置：默认值 + 收敛 + 原子写
 
 `updateSettings(patch)` 先 `coerce()`：类型不对回落默认、宽度夹在 320–1180、高度 0 或 420–2200、
-side 只认 right/left、`panelOffsetY` 夹在 ±2200、`settingsInWindow` 只认 true/false。
-旧文件里的 `panelShape` 会被读一次并迁移成宽高；旧文件没有 `settingsInWindow` 时按 false。
+side 只认 right/left、`panelOffsetY` 夹在 ±2200、`settingsInWindow` 只认 true/false、
+`weatherLocation` 只认 auto 或合法城市 id。
+旧文件里的 `panelShape` 会被读一次并迁移成宽高；旧文件没有 `settingsInWindow` 时按 false，
+没有 `weatherLocation` 时按 auto。
 写盘是「临时文件 + `renameSync`」，避免崩溃留下半个 json。读取失败（不存在/损坏）直接回落默认值，
 **绝不因为设置坏了起不来**。
 
@@ -319,14 +324,15 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 ### 6.11 更新检查（只查，不装）
 
 `updates.ts` 请求 `api.github.com/repos/Enkrid-Rao/sill/releases/latest`，与 `app.getVersion()` 比较。
-**不下载、不安装**；GitHub 仓库是私有的，未带 token 会返回 404，设置页显示「仓库未公开，无法检查」。
+**不下载、不安装**；仓库是公开的，v0.5.0 发布后返回 latest，设置页显示「已是最新」。
 真正的安装留给 M0.5 的 electron-updater。
 
 ### 6.12 自由尺寸与响应式列
 
 - 尺寸模型在 `src/shared/layout.ts`：`PANEL_PRESETS`（四个起点）、`PANEL_MIN/MAX_*`、
   `columnsForWidth()`、`matchPreset()`。**没有 `panelShape` 了**，别把离散形状加回来。
-- 设置字段：`panelWidth`（320–1180）、`panelHeight`（0 = 撑满工作区）、`panelOffsetY`（拖底边后的落点）。
+- 设置字段：`panelWidth`（320–1180）、`panelHeight`（0 = 撑满工作区）、`panelOffsetY`（拖底边后的落点）、
+  `weatherLocation`（auto 或城市 id）。
 - 主进程 `targetBounds()`：`resolveSize()` 按当前显示器的 workArea 夹住宽高，再按
   `centeredY + panelOffsetY` 落 y；宽 1180 上限 / 高 = workArea − 80（上下各 40）。
 - **几何一律用 content bounds**：Windows 会把 1px 边框算进 `getBounds()`，用外框尺寸会导致每次
@@ -428,6 +434,58 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
   时用 `maxHeight`（面板工作区上限），否则会把面板高度写成 824 之类的值。
 - 窗口位置：按面板当前停靠边，把设置窗放在面板旁边的剩余区域；放不下时夹在工作区内。
 
+### 6.19 真实天气（v0.5.0）
+
+- `shared/weather.ts`：28 个城市坐标、WMO code → 语义条件、`WeatherSnapshot`。
+- `main/weather.ts`：
+  - 手动城市：直接取城市坐标。
+  - 自动定位：`https://ipwho.is/` 取 IP 粗坐标，落在已知城市 90km 内就用本地化城市名，
+    否则保留 IP 返回的 cityName；失败回退上海。
+  - 天气：Open-Meteo `current=temperature_2m,weather_code` + `daily=temperature_2m_max/min`，
+    无 API key，超时 12s；失败重试一次，再失败保留旧值并 30s 后重试。
+  - 缓存 `%APPDATA%/Sill/weather.json`；面板显示时才刷新，15 分钟一次；隐藏不轮询。
+  - 设置 `weatherLocation` 改变时 IPC 立即 `refreshWeather()`，不等 15 分钟。
+- `PanelSnapshot.weather`；HeroWidget 用 `cityId` 本地化城市，按 WMO 条件画太阳/月亮/云/雨/雪/雷，
+  并显示当前温度、天气、最高/最低。未知/失败显示「天气暂不可用」。
+- 设置：通用 → 天气 → 地区下拉（自动 + 28 城市）；归属文案 Open-Meteo / ipwho.is。
+- 注意：这是 IP 粗定位，不是系统定位权限；VPN/代理会改变结果。
+
+### 6.20 点外收起（v0.5.0）
+
+- 面板不抢焦点，收不到 `blur`；`resources/mouse-watch.ps1` 用 `GetAsyncKeyState(VK_LBUTTON)` 40ms
+  轮询，只在按下那一帧输出 `click`，不安装全局钩子、不消费点击。
+- `main/mouse-watch.ts` 只在面板可见时启动，隐藏立即 kill；崩溃/退出按 1.5s 重启。
+- `panel.ts` 收到 click 后用 **Electron `screen.getCursorScreenPoint()`（DIP）** 判断，不把
+  PowerShell 的物理坐标混进多屏 / 高 DPI。以下情况不收起：
+  - 面板内（content bounds）；
+  - 托盘图标（`tray.getBounds()`）；
+  - 任何第二个 BrowserWindow（设置窗口 / DevTools）；
+  - `overlayOpen`（设置覆盖层 / 布局编辑）。
+- 点击任务栏其他区域、桌面、其他应用会收起；这是预期。
+- 副作用：面板可见时多一个 PowerShell 进程；已写进已知问题。
+
+### 6.21 TODO：Open / Closed / All + 编辑 + 撤销（v0.5.0）
+
+- 所有任务始终渲染在插入顺序里；`.task-row.is-filtered` 用 `grid-template-rows: 0fr` + margin 0
+  + 横向淡出收起，**不重排**。切换过滤器时行是展开/收合，不是 DOM 重排。
+- 标题行右侧 `.task-filter` 三段（Open / Closed / All）+ 计数 + 滑动 thumb（`--filter-index`）。
+- 勾选 / 取消后如果当前过滤器会隐藏它，先 `held` 360ms 让 check 动画播完，再收起；不产生上下跳变。
+- 编辑：行内 pencil → input，Enter 保存 / Esc 取消 / 失焦保存；主进程 `todo:update`。
+- 删除：280ms 收合后 `todo:remove`；成功后显示 5s toast（`todo-toast`，fixed 在面板底部），
+  `todo:restore` 按原 id / done / index 恢复；`todo.json` 顺序不变。
+- Esc：输入框聚焦时 renderer 调 `panel:typing(true)`，主进程把 Esc 发回 `panel:escape-input`，
+  由 TodoWidget 取消输入；`setTyping(false)` 后 Esc 才收面板。避免全局 Esc 吞掉输入框取消。
+- 空状态按过滤器显示：`todo.empty` / `emptyOpen` / `emptyClosed`。
+
+### 6.22 组件开发仓库（v0.5.0）
+
+`D:\Projects\Sill-Components` 是独立 git 仓库（[GitHub](https://github.com/Enkrid-Rao/sill-components)），
+包含 manifest / IR / runtime / script sandbox / security / testing / roadmap 文档、JSON Schema
+和 clock / counter 示例。
+
+Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provider）与内置组件；
+**不要把组件规范再散落回 Sill 文档**，两边以链接和版本号对齐。
+
 ## 7. 视觉规范
 
 字号与间距直接沿用 `docs/mockups/panel-forms.html` 的 C 场景（384 宽），改样式时以那份为准。
@@ -494,7 +552,7 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 | 面板数据一直是「—」 | `collector.ps1` 没起来 | 手工跑 `powershell.exe -File apps\desktop\resources\collector.ps1` 看是否有 JSON；再查进程里有没有 `collector.ps1` |
 | 中文歌名乱码 | PowerShell 输出编码不是 UTF-8 | 保留脚本开头的 `[Console]::OutputEncoding = UTF8` |
 | 面板宽度每次拖拽/重开都 +1px | 用了 `getBounds/setBounds`（Windows 把 1px 边框算进去） | 统一 `getContentBounds/setContentBounds` + `useContentSize: true`，见 §6.12 |
-| 媒体卡显示「未在播放」但系统里有歌 | SMTC 没有当前会话，或控制进程还没编译完 C# | 先看 `Get-Process powershell` 是否有两个；手工跑 `media-control.ps1` 输入 `get`；首次启动约 1–2s |
+| 媒体卡显示「未在播放」但系统里有歌 | SMTC 没有当前会话，或控制进程还没编译完 C# | 先看 `Get-Process powershell` 是否有 collector / media-control / mouse-watch 三个；手工跑 `media-control.ps1` 输入 `get`；首次启动约 1–2s |
 | 音量滑杆一开始是 0 | 控制进程还没回第一帧，`volume = -1` | 等 1–2s；重开面板会先用上一帧缓存值 |
 | 点播放后按钮又弹回暂停 | SMTC 的 `PlaybackStatus` 更新滞后，UI 拿到了旧状态 | v0.4.8 已改成乐观状态保持 2.6s；别把 `next.status` 写回 override |
 | 拖边缘没反应 | 会话锁屏（`LockApp` 盖住全屏）或指针不在窗口内 | 解锁后手动拖；自动化时用合成 PointerEvent（窗口移动后 clientX 会漂移，必须用 screenX） |
@@ -506,12 +564,18 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 | 中文发虚 / 层级糊成一片 | 中文还在吃英文的 9–10px + .17em 字距，或 `lang` 没切到 zh | 看 `<html lang>`；中文必须命中 `:root[lang='zh']` 覆盖，`.cap` 11.5、说明 ≥10.5、正文 13.5–14 |
 | 切语言后字号没变 | `document.documentElement.lang` 没跟随 settings.language | `useSillSettings` 的 language 变化要写 `document.documentElement.lang`，CSS 才能切覆盖 |
 | 中文在设置窗口又变小 | 独立窗口没跑同一个 `useSillSettings`，或 `lang` 没设置 | 设置窗口与面板共用 hook；检查窗口里的 `document.documentElement.lang` |
+| 天气一直显示「正在获取」 | 首次 ipwho.is / Open-Meteo 慢，或网络被拦 | 等 12s 超时 + 1.2s 重试；看主进程 `天气获取失败` 日志；用浏览器打开两个 API；失败会回退上海并 30s 重试 |
+| 天气城市不对 | 自动定位是 IP 粗判，VPN/代理会改变出口 | 设置 → 通用 → 天气 → 地区，手动选城市；或关掉代理再试 |
+| 点外不收面板 | mouse-watch.ps1 没启动 / 被杀 / 点在设置或托盘 | 看 `Get-Process powershell` 是否有 mouse-watch；设置/布局编辑/独立设置窗/托盘点击本来就豁免 |
+| 面板突然收起 | 真实点击了外部，或 40ms 轮询把托盘点击误判 | 托盘 bounds 已排除；检查光标是否在面板外；需要调试时临时注释 `startMouseWatch` |
+| TODO 过滤后行不见了 | 当前过滤器是 Open/Closed，任务状态不匹配 | 切到 All；检查 `data-filtered` / `.is-filtered`；不要用 `display:none` 重排 |
+| TODO 撤销后顺序错 | `todo:restore` 的 index 用了过滤后的索引 | 必须用**原 items 数组**里的 index，不是可见列表 index |
 
 ---
 
 ## 9. 已知问题
 
-1. **渲染产物约 750 kB 未压缩**。`electron-vite` 6 默认 `minify: false`（已在其 dist 源码中核实），
+1. **渲染产物约 774 kB 未压缩**。`electron-vite` 6 默认 `minify: false`（已在其 dist 源码中核实），
    产物里 dev/prod 两条 React 分支都在。M6 打包前给 renderer 开 `build.minify`。
 2. **不在 Alt+Tab 里隐藏**。`skipTaskbar` 只管任务栏；要从 Alt+Tab 消失需要 `WS_EX_TOOLWINDOW`，
    Electron 没有直接 API（要 `win.setSkipTaskbar` + 自定义样式或第三方模块），M0 没做。
@@ -522,15 +586,21 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 5. **多屏只按鼠标所在屏计算**，未做每块屏的独立记忆；`panelOffsetY` 是全局值。
 6. **只有组件宿主，没有组件引擎**。hero/system/processes/media/todo 已全部走 `WIDGETS` 注册表，
    但 registry 直接 import 组件、认识 `CardId`；IR / Validator / Compiler / Provider / 沙箱都还没写。
-   下一步是 `packages/engine`，别把宿主当引擎。
+   下一步是 `packages/engine`，别把宿主当引擎；组件契约在
+   [Sill-Components](https://github.com/Enkrid-Rao/sill-components)。
 7. **设置窗口是固定尺寸、不可缩放**（≤760×820）。面板本身可自由缩放；设置窗口只在工作区太小时
    夹小，靠内部滚动。
-8. **面板可见时有两个 PowerShell 进程**（collector + media-control），各占几十 MB；
-   隐藏面板后都会退出。若以后常驻组件变多，需要合并成一个采集/控制进程。
+8. **面板可见时有三个 PowerShell 进程**（collector + media-control + mouse-watch），各占几十 MB；
+   隐藏面板后都会退出。mouse-watch 是 40ms 轮询，不装全局钩子；极快点击可能漏判。
+   若以后常驻组件变多，需要合并采集/控制/点击监视。
 9. **真实鼠标拖拽未在解锁桌面上验证**。自动化跑的时候机会话锁屏，只用合成 PointerEvent
    验证了 `screenX` 逻辑；下次人肉拖内侧边 / 底边 / 内下角确认手感。
 10. **设置窗口打开期间面板会临时失去置顶**（避免盖住设置窗）；关闭后恢复。若使用者希望面板始终
     压在最上层，这条需要再权衡。
+11. **天气依赖外部网络**：Open-Meteo + ipwho.is 都是直连；IP 定位到城市级，VPN/代理会改变结果；
+    失败回退上海，首次无缓存显示不可用，30s 重试。没有系统定位权限/高精度坐标。
+12. **点外收起依赖鼠标左键轮询**：面板可见时才有进程；不是全局钩子，不消费点击，但 40ms 轮询
+    对极快点击有理论漏判；托盘/设置/布局编辑已豁免。
 
 ## 10. 发布与自动更新（M0.5 进行中）
 
@@ -538,7 +608,8 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 `%LOCALAPPDATA%\Programs\Sill`，开始菜单有 Sill，打包态 `--smoke` 通过，托盘图标走 asar 外的
 `extraResources`（`resources\resources\tray.ico`）。
 **还没做**：`publish` 段、`src/main/updater.ts`、页脚/托盘更新提示、v0.1.0→v0.1.1 干跑。
-当前源码版本 **0.4.0**，尚未出安装包；`media-control.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
+当前源码版本 **0.5.0**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.0.exe`，已发布到 GitHub Releases；
+`media-control.ps1` / `mouse-watch.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：
 
@@ -546,5 +617,6 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
   别在 dev 里调 electron-updater——它读不到 `latest.yml`，只会抛错
 - `pnpm dist` 走 electron-builder + NSIS，装到 `%LOCALAPPDATA%\Programs\Sill`；
   `%APPDATA%\Sill` 是数据目录，卸载不删、更新不碰
-- 主进程里**唯一允许碰网络的是 `src/main/updater.ts`**；渲染进程只消费 `window.sill.update.*` 的状态
+- 主进程里**允许碰网络的只有 `src/main/updater.ts` 和 `src/main/weather.ts`**；渲染进程只消费
+  `window.sill.update.*` / `snapshot.weather` 的状态。天气请求超时 12s、失败 30s 重试，不在渲染进程发请求
 - `package.json` 的 `version` 是 `latest.yml`、安装包文件名、面板页脚的唯一来源，发版前先核对它

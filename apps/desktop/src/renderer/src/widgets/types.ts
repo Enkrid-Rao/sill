@@ -22,6 +22,8 @@ export interface WidgetContext {
   ) => Promise<MediaControlState | null>
   onAddTodo: (text: string) => Promise<void>
   onToggleTodo: (id: string) => Promise<void>
+  onUpdateTodo: (id: string, text: string) => Promise<void>
+  onRestoreTodo: (item: TodoItem, index: number) => Promise<void>
   onRemoveTodo: (id: string) => Promise<void>
 }
 

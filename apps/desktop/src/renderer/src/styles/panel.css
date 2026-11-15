@@ -522,6 +522,12 @@ body {
   gap: 12px;
 }
 
+.weather__icon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+
 .media__now {
   display: flex;
   align-items: center;
@@ -869,6 +875,48 @@ body {
     opacity 0.15s ease,
     background 0.15s ease,
     color 0.15s ease;
+}
+
+.task__edit {
+  flex: none;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.task__edit svg {
+  width: 12px;
+  height: 12px;
+}
+
+.task__edit:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.task:hover .task__edit,
+.task__edit:focus-visible,
+.task:hover .task__remove,
+.task__remove:focus-visible {
+  opacity: 1;
+}
+
+.task.is-editing .task__edit,
+.task.is-editing .task__remove {
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .task:hover .task__remove {
@@ -1511,7 +1559,8 @@ body {
   animation: task-in 0.42s var(--ease-out) both;
   transition:
     grid-template-rows 0.28s var(--ease-out),
-    margin-bottom 0.28s var(--ease-out);
+    margin-bottom 0.28s var(--ease-out),
+    opacity 0.2s ease;
 }
 
 /* 不按 :last-child 去掉最后一行间距：删除最后一条时前一行会瞬间失去 margin，
@@ -1529,6 +1578,19 @@ body {
 .task-row.is-leaving {
   grid-template-rows: 0fr;
   margin-bottom: 0;
+}
+
+/* 被 Open / Closed 过滤掉：行高收合、横向淡出，任务本身不移动 */
+.task-row.is-filtered {
+  grid-template-rows: 0fr;
+  margin-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+  animation: none;
+}
+
+.task-row.is-filtered .task-row__inner {
+  transform: translateX(8px);
 }
 
 .task-row.is-leaving .task-row__inner {
@@ -1850,4 +1912,201 @@ body {
 
 :root[lang='zh'] .footer .cap {
   font-size: 10px;
+}
+
+/* =========================================================
+   TODO: Open / Closed / All + inline edit + undo toast
+   ========================================================= */
+
+.task-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.task-filter {
+  --filter-index: 0;
+  position: relative;
+  display: grid;
+  flex: none;
+  width: min(218px, calc(100% - 42px));
+  height: 27px;
+  padding: 3px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 999px;
+  background: rgba(4, 14, 10, 0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.task-filter__thumb {
+  position: absolute;
+  z-index: 0;
+  top: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3);
+  height: calc(100% - 6px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.035));
+  box-shadow:
+    0 4px 12px -5px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transform: translateX(calc(var(--filter-index) * 100%));
+  transition: transform 0.42s var(--ease-out);
+}
+
+.task-filter__btn {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 3px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-faint);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.task-filter__btn:hover {
+  color: var(--ink-dim);
+}
+
+.task-filter__btn.is-active {
+  color: rgba(250, 255, 252, 0.95);
+}
+
+.task-filter__btn b {
+  overflow: hidden;
+  font-size: 9.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.55;
+  text-overflow: ellipsis;
+}
+
+.task-filter__btn.is-active b {
+  opacity: 0.8;
+}
+
+.task__edit-input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid hsl(var(--accent-h) 82% 84% / 0.32);
+  border-radius: 7px;
+  outline: none;
+  background: rgba(4, 14, 10, 0.28);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.task__edit-input:focus {
+  border-color: hsl(var(--accent-h) 82% 84% / 0.5);
+  box-shadow: 0 0 0 2px hsl(var(--accent-h) 82% 84% / 0.1);
+}
+
+.task.is-editing .task__toggle {
+  flex: 0 0 auto;
+}
+
+.task.is-editing .task__text {
+  display: none;
+}
+
+.todo-toast {
+  position: fixed;
+  z-index: 9;
+  bottom: 44px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(318px, calc(100vw - 36px));
+  padding: 5px 6px 5px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 13px;
+  background: hsl(var(--hue) 28% 8% / 0.94);
+  box-shadow:
+    0 14px 32px -20px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transform: translateX(-50%);
+  animation: todo-toast-in 0.24s var(--ease-out) both;
+}
+
+.todo-toast__msg {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-dim);
+  font-size: 10.5px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-toast__undo {
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid hsl(var(--accent-h) 82% 84% / 0.18);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-pale);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.todo-toast__undo:hover {
+  border-color: hsl(var(--accent-h) 82% 84% / 0.32);
+  background: hsl(var(--accent-h) 82% 74% / 0.18);
+}
+
+@keyframes todo-toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+:root[lang='zh'] .task-filter__btn {
+  font-size: 11px;
+}
+
+:root[lang='zh'] .task-filter__btn b {
+  font-size: 10px;
+}
+
+:root[lang='zh'] .todo-toast__msg,
+:root[lang='zh'] .todo-toast__undo {
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-filter__thumb,
+  .todo-toast {
+    transition: none;
+    animation: none;
+  }
 }

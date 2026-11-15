@@ -119,6 +119,16 @@ export default function App(): React.JSX.Element {
     if (next) setTodos(next)
   }, [])
 
+  const updateTodo = useCallback(async (id: string, text: string) => {
+    const next = await window.sill?.updateTodo(id, text)
+    if (next) setTodos(next)
+  }, [])
+
+  const restoreTodo = useCallback(async (item: TodoItem, index: number) => {
+    const next = await window.sill?.restoreTodo(item, index)
+    if (next) setTodos(next)
+  }, [])
+
   const removeTodo = useCallback(async (id: string) => {
     const next = await window.sill?.removeTodo(id)
     if (next) setTodos(next)
@@ -255,6 +265,8 @@ export default function App(): React.JSX.Element {
     mediaCommand,
     onAddTodo: addTodo,
     onToggleTodo: toggleTodo,
+    onUpdateTodo: updateTodo,
+    onRestoreTodo: restoreTodo,
     onRemoveTodo: removeTodo
   }
 
@@ -367,6 +379,8 @@ export default function App(): React.JSX.Element {
           onLanguageChange={settings.changeLanguage}
           settingsInWindow={settings.settingsInWindow}
           onSettingsInWindowChange={settings.changeSettingsInWindow}
+          weatherLocation={settings.weatherLocation}
+          onWeatherLocationChange={settings.changeWeatherLocation}
           startAtLogin={settings.startAtLogin}
           onStartAtLoginChange={settings.changeStartAtLogin}
           autoUpdate={settings.autoUpdate}

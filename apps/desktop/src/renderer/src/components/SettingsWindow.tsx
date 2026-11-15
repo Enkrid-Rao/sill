@@ -60,6 +60,8 @@ export function SettingsWindow(): React.JSX.Element {
         onLanguageChange={settings.changeLanguage}
         settingsInWindow={settings.settingsInWindow}
         onSettingsInWindowChange={settings.changeSettingsInWindow}
+        weatherLocation={settings.weatherLocation}
+        onWeatherLocationChange={settings.changeWeatherLocation}
         startAtLogin={settings.startAtLogin}
         onStartAtLoginChange={settings.changeStartAtLogin}
         autoUpdate={settings.autoUpdate}

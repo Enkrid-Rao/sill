@@ -2,6 +2,7 @@ import type { PanelSnapshot } from '../../shared/data'
 import { getCollected, startCollector, stopCollector } from './collector'
 import { getMediaControlState, startMediaControl, stopMediaControl } from './media-control'
 import { resetCpu, sampleSystem } from './system'
+import { getWeather, startWeather, stopWeather } from '../weather'
 
 const TICK_MS = 1500
 
@@ -20,6 +21,7 @@ let snapshot: PanelSnapshot = {
   gpuTotal: null,
   procs: [],
   media: null,
+  weather: null,
   volume: -1,
   muted: false,
   at: 0
@@ -38,6 +40,7 @@ function tick(): void {
     gpuTotal: extra?.gpuTotal ?? null,
     procs: extra?.procs ?? [],
     media: extra?.media ?? null,
+    weather: getWeather(),
     volume: control.volume,
     muted: control.muted,
     at: Date.now()
@@ -50,6 +53,7 @@ export function startData(): void {
   resetCpu()
   startCollector()
   startMediaControl()
+  startWeather()
   tick()
   timer = setInterval(tick, TICK_MS)
 }
@@ -61,6 +65,7 @@ export function stopData(): void {
   }
   stopCollector()
   stopMediaControl()
+  stopWeather()
 }
 
 export function getSnapshot(): PanelSnapshot {

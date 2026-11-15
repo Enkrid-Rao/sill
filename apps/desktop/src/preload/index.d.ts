@@ -16,6 +16,7 @@ export interface SillSettings {
   startAtLogin: boolean
   autoUpdate: boolean
   settingsInWindow: boolean
+  weatherLocation: string
   theme: Theme
 }
 
@@ -36,6 +37,8 @@ export interface SillApi {
   listTodos: () => Promise<TodoItem[]>
   addTodo: (text: string) => Promise<TodoItem[]>
   toggleTodo: (id: string) => Promise<TodoItem[]>
+  updateTodo: (id: string, text: string) => Promise<TodoItem[]>
+  restoreTodo: (item: TodoItem, index: number) => Promise<TodoItem[]>
   removeTodo: (id: string) => Promise<TodoItem[]>
   getUpdateState: () => Promise<UpdateState>
   checkForUpdates: () => Promise<UpdateState>
@@ -46,6 +49,8 @@ export interface SillApi {
   onSettingsChanged: (callback: (settings: SillSettings) => void) => () => void
   onLayoutChanged: (callback: (layout: PanelLayout) => void) => () => void
   hidePanel: () => Promise<void>
+  setTyping: (active: boolean) => Promise<void>
+  onEscapeInput: (callback: () => void) => () => void
   togglePanel: () => Promise<void>
   isPanelVisible: () => Promise<boolean>
   setOverlayOpen: (open: boolean) => Promise<void>

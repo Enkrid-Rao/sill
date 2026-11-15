@@ -3,46 +3,58 @@
 写给**接手这个项目的人或下一个会话**。目标：读完这页，你知道现在到底有什么、什么是真的验证过的、
 下一条命令该敲什么。
 
-- 交接时间：2026-11-14（v0.5.0：待办动效、设置布局、独立设置窗口、中文排版之后更新）
+- 交接时间：2026-11-15（v0.5.0 发布：真实天气、点外收起、TODO 过滤 / 编辑 / 撤销之后更新）
 - 代码位置：`D:\Projects\Sill`（从旧的 `D:\Projects\Tide` 改名而来，旧路径已不存在）
 - 对应规划：[../DEVPLAN.md](../DEVPLAN.md) v0.5.0
 - 对应开发文档：[DEVELOPMENT.md](DEVELOPMENT.md)
-- 当前应用版本：**v0.4.0**（`package.json`，未提交）
+- 组件规范仓库：[Sill-Components](https://github.com/Enkrid-Rao/sill-components)
+- 当前应用版本：**v0.5.0**（`package.json`，已发布）
+- 上一提交：**42f1fc5** `feat: 组件宿主、独立设置窗口与中文排版 (v0.4.0)`
 
 ---
 
 ## 0. 30 秒速览
 
-- 版本 **v0.4.0**，未发 Release；已提交的是 v0.2.0，v0.3.0 / v0.4.0 都还在工作区
-- 已完成：M0 骨架、三页设置、真实数据（system / media / todo）、NSIS 安装包、
+- 版本 **v0.5.0**，已发 GitHub Release；源码与安装包都在
+  [Releases](https://github.com/Enkrid-Rao/sill/releases)
+- 已完成：M0 骨架、三页设置、真实数据（system / media / todo / **weather**）、NSIS 安装包、
   **面板连续自由缩放**、**媒体传输键与系统音量**、**待办原位动效**、
   **组件宿主（WidgetShell + 注册表）与逐组件显隐**、**独立设置窗口开关**、
-  **中文排版可读性（字号 / 字距 / 对比度）**、
+  **中文排版可读性**、**真实天气（自动 IP / 28 城市）**、**点外自动收起**、
+  **TODO Open / Closed / All + 编辑 + 撤销**、
   可编辑布局（拖动 / 箭头 / 跨列，落 `layout.json`）
-- 未完成：天气仍是占位；**M1 的 IR 引擎尚未开始**（宿主只是把写死的卡片剥出 App，不是引擎）
-- 下一步：`packages/engine` 的 IR + Validator + Compiler + Binder，然后拿一个无特例组件验收
+- 未完成：**M1 的 IR 引擎尚未开始**；组件 manifest / IR / sandbox 仍是规范，不是运行能力
+- 下一步：`packages/engine` 的 IR + Validator + Compiler + Binder，按
+  [Sill-Components](https://github.com/Enkrid-Rao/sill-components) 的 spec 验收
 - **真相以 §2 / §3 为准**，别把「代码写了」当成「验证过」
 
 ---
 
 ## 1. 一句话现状
 
-**M0、设置、真实数据、自由尺寸、媒体控制、组件宿主、独立设置窗口都已跑通；M1 的 IR 引擎一行都没写。**
+**M0、设置、真实数据、天气、自由尺寸、媒体控制、点外收起、TODO 过滤/编辑/撤销、组件宿主、独立设置窗口都已跑通；M1 的 IR 引擎一行都没写。**
 
 - 窗口：Electron 透明窗，宽高连续可调（内侧边 / 底边 / 内下角），预设为 Rail 384 / Compact 420×640 /
   Board 660×780 / Wide 920×900；`Alt+Q` 从屏幕外滑入，`Esc` 收起；置顶不可关（设置窗口打开期间临时降层）。
+  面板显示时用轻量左键监视器判断点外收起；设置 / 布局编辑 / 托盘点击豁免。
 - 设置：外观 / 行为 / 通用三页；热键录制、**面板尺寸（拖拽 + 预设 + 宽高滑杆 + 撑满高度）**、
-  停靠边、边缘距离、中英即时切换、自启、更新开关、**组件显隐**、**设置页使用独立窗口**。
-- 数据：CPU / 内存 / GPU / 网络 / 进程 / SMTC 媒体 / 可增删改的 `todo.json` 都是真的；**天气仍是占位**。
+  停靠边、边缘距离、中英即时切换、**天气地区（自动 / 28 城市）**、自启、更新开关、
+  **组件显隐**、**设置页使用独立窗口**。
+- 数据：CPU / 内存 / GPU / 网络 / 进程 / SMTC 媒体 / 真实天气 / 可增删改的 `todo.json` 都是真的。
+- 天气：Open-Meteo 温度 / WMO 天气 / 高低温；自动定位走 ipwho.is 的 IP 粗判，失败回退上海；
+  天气缓存 `weather.json`，失败保留旧值并 30s 重试。
 - 媒体：播放 / 暂停 / 上一首 / 下一首（SMTC）、系统音量与静音（WASAPI）；控制进程只在面板可见时存在。
 - 组件：`WidgetShell` + `WIDGETS` 注册表，App 只按 `layout.order` 查表渲染；hero/system/processes/media/todo
   各自是独立 definition，隐藏状态存 `layout.hidden`。
 - 待办：任务**留在插入位置**，勾选不换位；删除是横向淡出 + 行高收合，无 translateY；新增是模糊淡入。
+  **Open / Closed / All** 三段过滤器、行内编辑、5 秒撤销；输入框 Esc 取消不再误收面板。
 - 中文：`html[lang='zh']` 单独放大字号、收紧字距、提高对比度并恢复 Windows 次像素渲染；
   面板正文 13.5–14px、设置说明 10.5px，英文仍用 Instrument Sans 原字号。
 - 布局：列数由实际宽度推导（1 / 2 / 3 列）；卡片是 CSS grid 落格，头图横跨整行，三列时待办独占整行。
 - 布局编辑：编辑态下可拖动 / ↑↓ 换位、设跨列；顺序、跨列与隐藏存 `layout.json`，Esc 先退出编辑。
-- 发布：`pnpm dist` 出 NSIS 安装包；v0.1.3 是上一个已发布版本。
+- 组件规范：独立 `Sill-Components` 仓库（manifest / IR / runtime / sandbox / examples），
+  但引擎与 CLI 尚未实现。
+- 发布：`pnpm dist` 出 NSIS 安装包；**v0.5.0 是当前已发布版本**（上一发布是 v0.1.3）。
 
 ---
 
@@ -67,6 +79,7 @@
 第 10 条是新加的主题验收，已实跑。
 **v0.4.8 的自由尺寸、媒体控制、待办动效不在 M0 表里**，对应的验证见 §3。
 **v0.4.9 的组件宿主与显隐也不在 M0 表里**；它是 M1 的前置，不是 M1 完成。
+**v0.5.0 的天气 / 点外收起 / TODO 过滤编辑撤销同样不在 M0 表里**；见 §3 的对应行。
 
 ---
 
@@ -94,10 +107,15 @@
 | 置顶临时让位 | 设置窗口打开期间面板 `alwaysOnTop=false`，关闭后恢复 `screen-saver` 层；避免面板变宽后盖住设置窗口 |
 | 中文排版可读 | 用 `getComputedStyle` 在 zh/en 两种语言下核对：中文 `.cap` 11.5px/500/字距 .045em、`.task` 14px/20.3px 行高、`.sub` 13.5px、设置标签 10.5px、设置说明 10.5px、设置标题 24px；切回 en 后全部回到 10 / 13.5 / 9 / 8.5 / 25px 原值。384 宽中文面板截图无发虚，内容超出时按设计滚动 |
 | 中文窗口一致 | 独立设置窗口实测：`.cz-title` 24px、`.cz-tab` 12px、`.cz-setrow__name` 12.5px、`.cz-setrow__note` 10.5px、`.cz-foot` 10.5px；窗口标题为「Sill 设置」；与面板共用同一套 `html[lang='zh']` 覆盖 |
+| 真实天气可用 | Playwright 等首帧后读 `snapshot.weather`：自动定位返回深圳 26° / 局部多云 / 高 26° 低 19°（不同网络出口返回过西安 9° / 毛毛雨，说明 IP 定位确实在变）；设置里 `#cz-weather-location` 有 28 个选项，切北京后 10° / 阴 / 高 11° 低 4°，`cityId=beijing`；`weather.json` 写入成功 |
+| 点外收起可用 | OS 级 `mouse_event` 点击：点面板内部面板保持；打开设置覆盖层后点外部仍保持；关掉覆盖层再点外部面板收起；打开独立设置窗口点外部保持；17 秒不点击面板保持。点击监视器只在面板可见时存在，隐藏后进程退出 |
+| TODO 过滤/编辑/撤销 | Playwright + DOM 点击：Open 3 → 勾选后 2（留 360ms 再收起）→ Closed 1 → All 3；行内编辑保存为「编辑测试任务」；删除后 700ms 出现「待办已删除 / 撤销」toast，点撤销恢复 3 条；无页面报错 |
+| TODO 输入框 Esc | Playwright：addrow 输入 draft 后 Esc → 值清空、面板仍在；编辑输入后 Esc → 输入框消失、原文不变、面板仍在 |
+| 组件规范仓库 | `D:\Projects\Sill-Components` 已同步到 [GitHub](https://github.com/Enkrid-Rao/sill-components)，标签 `v0.1.0`；clock / counter 两个 manifest 通过 `spec/widget.schema.json` 校验 |
 | 打包态能跑 | 装完的 `Sill.exe --smoke` exit 0，截图写 `%APPDATA%\Sill\smoke.png`，画面与 dev 一致；托盘图标从 asar 外的 `resources\resources\` 加载（stderr 无「图标为空」） |
 | 真实数据能跑 | `collector.ps1` 独立运行每 2s 输出一行 JSON；应用内快照含 CPU/内存、GPU 30%、网络速率、TOP 进程、SMTC 媒体（张惠妹《忘记》），截图已核 |
 | 待办可写 | 临时 profile 下 `todo.json` 自动生成；通过 IPC add / toggle 后落盘为 `done: true` |
-| 更新检查 | 手动检查走 GitHub Release API；仓库私有（未带 token）返回 404，界面显示「仓库未公开，无法检查」 |
+| 更新检查 | 手动检查走公开 GitHub Release API；v0.5.0 发布后返回 latest，设置页显示「已是最新」；不下载、不安装 |
 
 ---
 
@@ -107,7 +125,7 @@
 
 代码能装、能构建、能跑。下面都是**未验证**，不是坏的。
 
-### 4.2 五条真实风险
+### 4.2 七条真实风险
 
 1. **透明窗口逐帧 `setContentBounds` 可能有闪烁/撕裂**（Windows 合成器行为不一）。如果滑入手感不好，
    备选方案：改成窗口不动、内容 `scale(0.985)` + 淡入（会牺牲"从屏幕边滑出来"的观感）。
@@ -122,6 +140,12 @@
    内侧边、底边和内下角，确认 pointer capture 与光标反馈。
 5. **独立设置窗口打开期间面板临时失去置顶**（否则面板变宽会盖住设置窗）。关闭设置窗后
    `restorePanelTop()` 恢复 `screen-saver`；如果用户希望面板始终压在最上层，这条需要重新权衡。
+6. **面板可见时最多三个 PowerShell 进程**：collector、media-control、mouse-watch。
+   mouse-watch 是 40ms 轮询 `GetAsyncKeyState`，不是全局钩子；极快的点击（<40ms）可能漏判，
+   但不消费用户的点击。进程都在面板隐藏后退出；如果以后常驻组件变多，需要合并采集/控制/点击监视。
+7. **天气依赖外部网络**：Open-Meteo 与 ipwho.is 都是直连；IP 定位只到城市级，VPN/代理会改变结果，
+   失败时回退上海。没有系统定位权限、也没有高精度坐标；离线时保留最后一次缓存（`weather.json`），
+   首次无缓存会显示「天气暂不可用」，30s 后重试。
 
 ---
 
@@ -135,6 +159,8 @@
 > **v0.4.9 / 应用 v0.3.0** 把写死的卡片换成 `WidgetShell` + 注册表，并加了逐组件显隐。
 > **v0.5.0 / 应用 v0.4.0** 修掉待办的垂直跳变、给设置布局加比例上限、加独立设置窗口，
 > 并把中文从英文 8.5–10px 的小字里拆出来单独排版。
+> **v0.5.0 / 应用 v0.5.0（当前工作区）** 接真实天气、点外收起、TODO 过滤 / 编辑 / 撤销，
+> 并把组件 manifest / IR / sandbox 规范拆到 `Sill-Components`。
 > 它不改变顺序；下一版才是 M1 的 IR 引擎——宿主只解决了「谁放在哪」，还没解决「组件怎么描述自己」。
 
 ### 第 1 步：把 M0 剩下五条跑一遍（约 30 分钟）
@@ -203,6 +229,10 @@ M1 的验收标准在 DEVPLAN §3.2，最关键那条是：**用一个没为它�
 | 设置窗口 | 只有面板内覆盖层 | v0.5.0 增加 `settingsInWindow`；独立窗口与面板共享设置状态，打开期间面板临时降层 | 已写进 DEVPLAN §5.8 |
 | 置顶不可关 | 面板恒在 `screen-saver` 层 | 独立设置窗口打开期间临时降层，关闭立即恢复；其余时间不变 | 已写进 DEVPLAN §5.8 / 决策 #11 |
 | 中文字号 | 中文沿用英文的 8.5–10px，发虚 | v0.5.0 增加 `html[lang='zh']` 覆盖：最小说明 10.5、正文 13.5–14；英文保持原字号 | 已写进 DEVPLAN §5.2 / DEVELOPMENT §7.1 |
+| 天气 provider | §4.4 计划 Nominatim + Open-Meteo | v0.5.0 用 ipwho.is 做 IP 粗定位 + 28 城市手动选择；Open-Meteo 取天气；不做系统定位权限 | 已写进 DEVPLAN §4.4 / 5.6 |
+| 点外收起 | 原决策 #4 只列热键 / Esc / 托盘 | v0.5.0 增加鼠标左键监视器；设置 / 布局编辑 / 托盘点击豁免 | 已写进 DEVPLAN §5.2 / 决策 #4 |
+| TODO 交互 | 只有增删勾选 + 原位动效 | v0.5.0 增加 Open / Closed / All、行内编辑、5 秒撤销、输入框 Esc 取消 | 已写进 DEVPLAN §5.2 / DEVELOPMENT §6.21 |
+| 组件规范位置 | 全部写在 DEVPLAN §6 | 规范 / 示例拆到独立 `Sill-Components` 仓库；Sill 只留宿主与内置组件 | 已写进 DEVPLAN §6.5 |
 
 ---
 
@@ -213,7 +243,7 @@ M1 的验收标准在 DEVPLAN §3.2，最关键那条是：**用一个没为它�
 1. 名字 **Sill**（理由见 DEVPLAN §2：能当动词、能当后缀、能当命名空间、不是材质词）
 2. 面板形态 **C 侧边廊**（对比页 `docs/mockups/panel-forms.html`，四选一后定的）
 3. 默认热键 **Alt+Q**（`Alt+W` 在编辑器里是关闭标签）
-4. 唤出**不抢焦点**；收起只有三个入口：热键 / Esc / 托盘
+4. 唤出**不抢焦点**；收起入口：热键 / Esc / 托盘 / **点击面板外部**（设置或布局编辑打开时除外）
 5. 面板 = 窗口，动窗口不动内容
 6. 玻璃只有**一种材质**（四层静态、无 `backdrop-filter`）；颜色、氛围、顶光、颗粒通过 7 个 token
    主题化，存在 `settings.theme` —— 可变的是配方参数，不是材质
@@ -225,7 +255,7 @@ M1 的验收标准在 DEVPLAN §3.2，最关键那条是：**用一个没为它�
     每个分区一张玻璃卡片（将来就是 widget 容器）
 11. **置顶不可关**：面板必须恒在 `screen-saver` 层，否则热键唤出会被其他窗口压住。
     唯一例外：独立设置窗口打开期间临时降层，关窗立即恢复（DEVPLAN §5.8）
-12. 真实数据的最小实现：system / media / todo 走主进程采集 + IPC；天气仍占位
+12. 真实数据的最小实现：system / media / todo / weather 走主进程采集 + IPC；天气不再是占位
 13. 更新只做「检查」：查 GitHub Release 并在设置里显示状态，不下载、不安装（安装留给 M0.5）
 14. **宽度不再是离散形状**：`panelWidth` 320–1180 连续可调，`panelHeight` 0 = 撑满工作区；
     Rail 384 / Compact 420×640 / Board 660×780 / Wide 920×900 只是四个起点
@@ -246,15 +276,22 @@ M1 的验收标准在 DEVPLAN §3.2，最关键那条是：**用一个没为它�
     预览用 16:9 / 16:10，不允许无限拉伸
 23. 中文排版不能沿用英文小字：`html[lang='zh']` 单独放大字号（最小说明 10.5px、正文 13.5–14px）、
     收紧字距、提高 `--ink-dim/faint` 对比度，并恢复 Windows 次像素渲染；英文保持原字号
+24. 天气：Open-Meteo 做数据，ipwho.is 做自动定位（IP 粗判，不用系统定位权限）；
+    手动地区是 28 城市下拉；缓存 + 失败保留 + 30s 重试；数据归属写进设置页
+25. 点外收起：用 40ms `GetAsyncKeyState` 轮询，不装全局钩子；用 Electron DIP 坐标判断；
+    设置 / 布局编辑 / 独立设置窗 / 托盘图标点击都豁免
+26. TODO 交互对齐 LiquidGlassTodo：Open / Closed / All 过滤（计数 + 滑动 thumb）、
+    行内编辑、5 秒撤销、输入框 Esc 取消；任务仍不重排、删除不 translateY
+27. 组件开发规范独立成 repo：Sill 只保留宿主的 `WidgetShell` / registry / 数据 provider；
+    引擎、CLI、sandbox 以 `Sill-Components` 的 spec 为准
 
 **还开着（等用户拍板）：**
 
 1. 侧边廊固定在右还是允许切左 —— **代码里已支持** `side: 'right' | 'left'`，托盘可切，默认右
 2. LiquidGlassTodo 合并成内置 `sill.todo` 还是保持独立
-3. 是否开源（影响包格式与许可）
-4. 「点空白收起」要不要一个全屏透明捕获窗
-5. 面板要不要「钉住」模式（不自动隐藏）
-6. 更新源放哪：公开 GitHub Releases 还是自建/OSS —— 和「是否开源」是同一个决定，决定 §11 的 `publish.url`
+3. 面板要不要「钉住」模式（不自动收起）
+4. 更新源放哪：公开 GitHub Releases 还是自建/OSS —— 现为公开 GitHub Releases
+5. 组件规范的版本策略：目前是 `v0.1.0` spec；引擎实现后再决定是否随 Sill 版本同步
 
 ---
 

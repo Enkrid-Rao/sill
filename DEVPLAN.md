@@ -1,6 +1,6 @@
 # Sill 开发文档
 
-v0.5.0 · 2026-11-14
+v0.5.0 · 2026-11-15
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
@@ -52,6 +52,10 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.5.0** 设置布局加比例约束 | 宽面板的内容列上限 560px；滑杆 420、快捷键 280、尺寸预设 420、预览网格 380；主题/氛围预览改 16:9 / 16:10，不再被拉成细条 |
 | **v0.5.0** 独立设置窗口 | `settings.settingsInWindow` 开关；设置页可在独立透明窗口中打开，与面板共享 `useSillSettings` + 主进程广播；窗口打开时暂时降下面板置顶，避免互相遮挡 |
 | **v0.5.0** 中文排版 | 中文不再沿用英文的 8.5–10px：面板 `.cap` 11.5、正文 13.5–14、设置说明 10.5、设置标签 10.5–12.5；字距 .17em→.045–.06em，`--ink-faint` .4→.52，中文启用次像素渲染；英文保持原字号 |
+| **v0.5.0** 真实天气 | Open-Meteo 当前温度 / WMO 天气 / 最高最低；ipwho.is 自动定位 + 28 城市下拉；天气缓存 `weather.json`，失败保留旧值并重试 |
+| **v0.5.0** 点外收起 | 面板可见时用轻量 PowerShell 左键监视器判断外部点击；设置 / 布局编辑 / 托盘点击豁免 |
+| **v0.5.0** TODO 对齐 Tide | Open / Closed / All 三段过滤器（计数 + 滑动 thumb）、行内编辑、5 秒撤销 toast、输入框 Esc 取消；勾选仍不重排 |
+| **v0.5.0** 组件规范拆分 | 组件 manifest / IR / runtime / sandbox 文档迁到独立 `Sill-Components` 仓库，Sill 只保留宿主实现 |
 
 ---
 
@@ -193,7 +197,7 @@ interface Provider<T> {
 | `system.cpu` `system.mem` `system.disk` `system.net` `system.battery` | 1500 | `systeminformation` |
 | `system.processes` | 2500 | `systeminformation.processes()` |
 | `system.gpu` | 2500 | `nvidia-smi --query-gpu=... --format=csv,noheader,nounits` |
-| `weather.current` | 20min | Open-Meteo + Nominatim |
+| `weather.current` | 15min（失败 30s 重试） | Open-Meteo + ipwho.is（自动定位） |
 | `todo.items` | 事件 | `fs.watch` `todo.json` |
 | `media.nowPlaying` | 1000 | Windows SMTC |
 | `media.transport` | 事件 | SMTC TryTogglePlayPause / SkipNext / SkipPrevious |
@@ -206,13 +210,15 @@ interface Provider<T> {
 > （常驻 `resources/collector.ps1`，2s 一行 JSON）、`todo.items`（`todo.json` + IPC）。
 > **v0.4.8** 追加 `media.transport` 与 `system.volume`：独立的 `resources/media-control.ps1`
 > 常驻进程（stdin 一行命令 / stdout 一行 JSON），只在面板显示期间存在。
-> 天气仍是占位常量，等 M1 的 Provider 接口统一收纳。
+> **v0.5.0** 把 `weather.current` 接成真实 provider：Open-Meteo + ipwho.is 自动定位 / 28 城市选择，
+> 缓存 `weather.json`，失败保留旧值并在 30s 后重试。
 
 ### 4.5 存储
 
 | 路径 | 内容 |
 |---|---|
-| `%APPDATA%/Sill/settings.json` | 主题、热键、面板宽高与垂直偏移、语言、停靠边与边缘距离、开机自启、自动检查更新、设置窗口模式 |
+| `%APPDATA%/Sill/settings.json` | 主题、热键、面板宽高与垂直偏移、语言、天气地区、停靠边与边缘距离、开机自启、自动检查更新、设置窗口模式 |
+| `%APPDATA%/Sill/weather.json` | 最近一次成功的天气快照（城市、温度、高低温、WMO code、时间戳） |
 | `%APPDATA%/Sill/todo.json` | 待办（`{id,text,done}`，原子写） |
 | `%APPDATA%/Sill/layout.json` | 卡片顺序、跨列与隐藏组件（`{version,order,spans,hidden}`，原子写） |
 | `%APPDATA%/Sill/widgets/<id>/` | 组件私有数据（配额 5MB） |
@@ -281,6 +287,8 @@ interface Provider<T> {
 - 中文不沿用英文的 8.5–10px：`html[lang='zh']` 下 `.cap` 11.5、正文 13.5–14、设置说明 10.5、
   设置标签 10.5–12.5；字距从 .17em 收到 .045–.06em，`--ink-faint` 从 .4 提到 .52。
   英文排版保持 Instrument Sans 原字号。详见 DEVELOPMENT.md §7.1
+- 天气在 Hero 卡：温度 / WMO 天气 / 高低温 / 城市；自动定位只做 IP 粗判（不回退系统定位权限），
+  手动地区在设置里选。天气数据由 Open-Meteo 提供。
 
 ### 5.3 唤出与收起
 
@@ -356,6 +364,8 @@ interface Provider<T> {
 
 不做固定宽度浮层：面板尺寸连续可变，直接按实际宽度切换 grid areas，比「居中的小卡片」更贴合空间。
 「行为 → 面板尺寸」里同时提供四个预设、宽高滑杆与「撑满高度」开关；拖动边缘是主路径，滑杆是精确落点。
+「通用 → 天气」提供地区下拉：自动定位（IP 粗判）或 28 个城市；切换后主进程立即重取天气，
+不等 15 分钟刷新周期。
 
 **比例约束**：内容列最大 560；滑杆 420、快捷键 280、尺寸预设 420、主题/氛围网格 380；
 预设预览用 16:9、氛围预览 16:10。面板再宽也不会把控件拉成细长条。
@@ -397,6 +407,10 @@ layout.json.order
 ---
 
 ## 6. 组件规范
+
+> **权威规范已拆到独立仓库 `Sill-Components`（<https://github.com/Enkrid-Rao/sill-components>）。**
+> 本节只保留 M1 需要的摘要；manifest 字段、IR 节点、runtime API、sandbox、安全和验收清单
+> 以该仓库的 `docs/` 与 `spec/widget.schema.json` 为准。Sill 主仓库只保留宿主实现。
 
 ### 6.1 包结构
 
@@ -496,6 +510,9 @@ export default {
 - iframe `sandbox="allow-scripts"`，无 `allow-same-origin`；CSP 禁外链脚本
 - 无 Node、无 `require`、无直接网络；网络走 `ctx.fetch`（域白名单 + 限速）
 - 崩溃只影响当前 iframe，可重载
+- 更完整的 manifest / IR / runtime / sandbox 规范在独立 `Sill-Components` 仓库
+  （<https://github.com/Enkrid-Rao/sill-components>；本地 `D:\Projects\Sill-Components`）；
+  Sill 仓库只保留宿主实现与内置组件
 
 ### 6.6 API
 
@@ -698,7 +715,7 @@ idle → checking → up-to-date
 
 ```
 apps/desktop/electron-builder.yml      appId com.sill.app、NSIS per-user、publish: generic
-apps/desktop/src/main/updater.ts       状态机 + electron-updater 封装（唯一碰网络的模块）
+apps/desktop/src/main/updater.ts       状态机 + electron-updater 封装（网络：更新检查）
 apps/desktop/src/main/ipc.ts           update:get / update:check / update:install
 apps/desktop/src/preload/index.ts      window.sill.update.*
 apps/desktop/src/renderer/…            页脚版本号与更新入口

@@ -30,6 +30,7 @@ export interface SillSettingsController {
   startAtLogin: boolean
   autoUpdate: boolean
   settingsInWindow: boolean
+  weatherLocation: string
   version: string
   update: UpdateState
   layout: PanelLayout
@@ -50,6 +51,7 @@ export interface SillSettingsController {
   changeStartAtLogin: (value: boolean) => void
   changeAutoUpdate: (value: boolean) => void
   changeSettingsInWindow: (value: boolean) => void
+  changeWeatherLocation: (value: string) => void
   checkUpdate: () => void
   setLayout: (next: PanelLayout) => void
   resetLayout: () => Promise<void>
@@ -74,6 +76,7 @@ export function useSillSettings(): SillSettingsController {
   const [startAtLogin, setStartAtLogin] = useState(false)
   const [autoUpdate, setAutoUpdate] = useState(true)
   const [settingsInWindow, setSettingsInWindow] = useState(false)
+  const [weatherLocation, setWeatherLocation] = useState('auto')
   const [version, setVersion] = useState('')
   const [update, setUpdate] = useState<UpdateState>(EMPTY_UPDATE)
   const [layout, setLayoutState] = useState<PanelLayout>(DEFAULT_LAYOUT)
@@ -92,6 +95,7 @@ export function useSillSettings(): SillSettingsController {
     setStartAtLogin(next.startAtLogin)
     setAutoUpdate(next.autoUpdate)
     setSettingsInWindow(next.settingsInWindow)
+    setWeatherLocation(next.weatherLocation)
   }, [])
 
   // 读一次全量状态，然后一直订阅主进程广播
@@ -247,6 +251,11 @@ export function useSillSettings(): SillSettingsController {
     void window.sill?.updateSettings({ settingsInWindow: value })
   }, [])
 
+  const changeWeatherLocation = useCallback((value: string) => {
+    setWeatherLocation(value)
+    void window.sill?.updateSettings({ weatherLocation: value })
+  }, [])
+
   const checkUpdate = useCallback(() => {
     setUpdate({ status: 'checking' })
     void window.sill?.checkForUpdates().then((next) => {
@@ -308,6 +317,7 @@ export function useSillSettings(): SillSettingsController {
     startAtLogin,
     autoUpdate,
     settingsInWindow,
+    weatherLocation,
     version,
     update,
     layout,
@@ -328,6 +338,7 @@ export function useSillSettings(): SillSettingsController {
     changeStartAtLogin,
     changeAutoUpdate,
     changeSettingsInWindow,
+    changeWeatherLocation,
     checkUpdate,
     setLayout,
     resetLayout,

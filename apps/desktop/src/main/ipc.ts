@@ -2,7 +2,7 @@ import { app, ipcMain } from 'electron'
 import { broadcast } from './broadcast'
 import { getSnapshot } from './data'
 import { mediaCommand } from './data/media-control'
-import { addTodo, listTodos, removeTodo, toggleTodo } from './data/todo'
+import { addTodo, listTodos, removeTodo, restoreTodo, toggleTodo, updateTodo } from './data/todo'
 import { getLayout, resetLayout, setLayout } from './layout'
 import {
   commitPanelSize,
@@ -12,12 +12,14 @@ import {
   isPanelVisible,
   resizePanel,
   setOverlayOpen,
+  setTyping,
   showPanel,
   togglePanel
 } from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
 import { closeSettingsWindow, hasSettingsWindow, openSettingsWindow } from './settings-window'
 import { checkForUpdates, getUpdateState } from './updates'
+import { refreshWeather } from './weather'
 
 export interface IpcDeps {
   /** 设置变更后需要重新贴到系统上的副作用（自启、置顶、停靠边、托盘菜单） */
@@ -32,6 +34,8 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle('settings:update', (_event, patch: Partial<Settings>) => {
     const next = updateSettings(patch ?? {})
     deps.apply(next, patch ?? {})
+    // 换城市 / 切回自动定位：不等 15 分钟，立刻重新取一次天气
+    if ('weatherLocation' in (patch ?? {})) void refreshWeather()
     // 设置窗口和面板共用一份状态：谁改的都广播出去
     broadcast('settings:changed', next)
     return next
@@ -76,6 +80,10 @@ export function registerIpc(deps: IpcDeps): void {
     setOverlayOpen(open === true)
   })
 
+  ipcMain.handle('panel:typing', (_event, active: unknown) => {
+    setTyping(active === true)
+  })
+
   // 拖拽把手：实时改窗口尺寸（不写盘），松手后再 commit 一次
   ipcMain.handle('panel:resize', (_event, width: unknown, height: unknown) =>
     resizePanel(width, height)
@@ -101,6 +109,12 @@ export function registerIpc(deps: IpcDeps): void {
   )
   ipcMain.handle('todo:toggle', (_event, id: unknown) =>
     typeof id === 'string' ? toggleTodo(id) : listTodos()
+  )
+  ipcMain.handle('todo:update', (_event, id: unknown, text: unknown) =>
+    typeof id === 'string' && typeof text === 'string' ? updateTodo(id, text) : listTodos()
+  )
+  ipcMain.handle('todo:restore', (_event, item: unknown, index: unknown) =>
+    restoreTodo(item, index)
   )
   ipcMain.handle('todo:remove', (_event, id: unknown) =>
     typeof id === 'string' ? removeTodo(id) : listTodos()

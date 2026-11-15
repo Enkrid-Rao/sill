@@ -67,6 +67,33 @@ export function toggleTodo(id: string): TodoItem[] {
   return cache
 }
 
+export function updateTodo(id: string, text: string): TodoItem[] {
+  const next = text.trim().slice(0, 200)
+  if (!next) return load()
+  cache = load().map((item) => (item.id === id ? { ...item, text: next } : item))
+  persist(cache)
+  return cache
+}
+
+/** 删除后的撤销：保留原 id / done / 顺序位置，不重新生成 */
+export function restoreTodo(item: unknown, index: unknown): TodoItem[] {
+  const raw = item && typeof item === 'object' ? (item as Record<string, unknown>) : null
+  const id = typeof raw?.id === 'string' ? raw.id : ''
+  const text = typeof raw?.text === 'string' ? raw.text.trim().slice(0, 200) : ''
+  if (!id || !text) return load()
+  const current = load()
+  if (current.some((entry) => entry.id === id)) return current
+
+  const insertAt = Number.isFinite(Number(index))
+    ? Math.max(0, Math.min(current.length, Math.round(Number(index))))
+    : current.length
+  const next = [...current]
+  next.splice(insertAt, 0, { id, text, done: raw?.done === true })
+  cache = next
+  persist(cache)
+  return cache
+}
+
 export function removeTodo(id: string): TodoItem[] {
   cache = load().filter((item) => item.id !== id)
   persist(cache)

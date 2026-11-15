@@ -19,7 +19,13 @@ export const WIDGETS: readonly WidgetDefinition[] = [
     nameKey: 'widget.hero',
     className: 'card--hero',
     spanFor: () => 3,
-    render: (context) => <HeroWidget now={context.now} language={context.language} />
+    render: (context) => (
+      <HeroWidget
+        now={context.now}
+        language={context.language}
+        weather={context.snapshot?.weather ?? null}
+      />
+    )
   },
   {
     id: 'system',
@@ -65,6 +71,8 @@ export const WIDGETS: readonly WidgetDefinition[] = [
         language={context.language}
         onAdd={context.onAddTodo}
         onToggle={context.onToggleTodo}
+        onUpdate={context.onUpdateTodo}
+        onRestore={context.onRestoreTodo}
         onRemove={context.onRemoveTodo}
       />
     )

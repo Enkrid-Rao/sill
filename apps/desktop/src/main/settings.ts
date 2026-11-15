@@ -10,6 +10,7 @@ import {
   PANEL_MIN_WIDTH
 } from '../shared/layout'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../shared/theme'
+import { isWeatherCityId } from '../shared/weather'
 import { SETTINGS_FILE } from './paths'
 
 export type Side = 'right' | 'left'
@@ -35,6 +36,8 @@ export interface Settings {
   autoUpdate: boolean
   /** 设置页是否在独立窗口打开（下一位生效） */
   settingsInWindow: boolean
+  /** 天气地区：auto 或 WEATHER_CITIES 的 id */
+  weatherLocation: string
   /** 玻璃主题：颜色、氛围、光晕、颗粒 */
   theme: Theme
 }
@@ -50,6 +53,7 @@ export const DEFAULTS: Settings = {
   startAtLogin: false,
   autoUpdate: true,
   settingsInWindow: false,
+  weatherLocation: 'auto',
   theme: DEFAULT_THEME
 }
 
@@ -85,6 +89,11 @@ function coerce(raw: unknown): Settings {
       : clamp(Math.round(heightRaw), PANEL_MIN_HEIGHT, PANEL_MAX_HEIGHT)
     : legacy.height
   const offsetRaw = Number(src.panelOffsetY)
+  const weatherLocation =
+    src.weatherLocation === 'auto' ||
+    (typeof src.weatherLocation === 'string' && isWeatherCityId(src.weatherLocation))
+      ? src.weatherLocation
+      : 'auto'
 
   return {
     hotkey: typeof src.hotkey === 'string' && src.hotkey.trim() ? src.hotkey.trim() : DEFAULTS.hotkey,
@@ -99,6 +108,7 @@ function coerce(raw: unknown): Settings {
     startAtLogin: src.startAtLogin === true,
     autoUpdate: src.autoUpdate !== false,
     settingsInWindow: src.settingsInWindow === true,
+    weatherLocation,
     theme: normalizeTheme(src.theme)
   }
 }

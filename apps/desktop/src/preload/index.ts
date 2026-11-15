@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { TodoItem } from '../shared/data'
 
 /**
  * 渲染进程只能看到这一层 API。
@@ -14,6 +15,8 @@ const api = {
   listTodos: () => ipcRenderer.invoke('todo:list'),
   addTodo: (text: string) => ipcRenderer.invoke('todo:add', text),
   toggleTodo: (id: string) => ipcRenderer.invoke('todo:toggle', id),
+  updateTodo: (id: string, text: string) => ipcRenderer.invoke('todo:update', id, text),
+  restoreTodo: (item: TodoItem, index: number) => ipcRenderer.invoke('todo:restore', item, index),
   removeTodo: (id: string) => ipcRenderer.invoke('todo:remove', id),
   getUpdateState: () => ipcRenderer.invoke('update:get'),
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
@@ -37,6 +40,12 @@ const api = {
     return () => ipcRenderer.removeListener('update:state', listener)
   },
   hidePanel: () => ipcRenderer.invoke('panel:hide'),
+  setTyping: (active: boolean) => ipcRenderer.invoke('panel:typing', active),
+  onEscapeInput: (callback: () => void) => {
+    const listener = (): void => callback()
+    ipcRenderer.on('panel:escape-input', listener)
+    return () => ipcRenderer.removeListener('panel:escape-input', listener)
+  },
   togglePanel: () => ipcRenderer.invoke('panel:toggle'),
   isPanelVisible: () => ipcRenderer.invoke('panel:visible'),
   setOverlayOpen: (open: boolean) => ipcRenderer.invoke('panel:overlay', Boolean(open)),

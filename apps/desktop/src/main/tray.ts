@@ -62,6 +62,12 @@ export function refreshTray(): void {
   rebuild()
 }
 
+/** 托盘图标在屏幕上的矩形；外部点击监视器用它排除托盘点击 */
+export function getTrayBounds(): Electron.Rectangle | null {
+  if (!tray || tray.isDestroyed()) return null
+  return tray.getBounds()
+}
+
 export function destroyTray(): void {
   tray?.destroy()
   tray = null

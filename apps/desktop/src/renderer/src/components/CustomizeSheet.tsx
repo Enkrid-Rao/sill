@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { LANGUAGES, t, type Language } from '../../../shared/i18n'
 import {
+  getWeatherCity,
+  WEATHER_CITIES,
+  weatherCityName
+} from '../../../shared/weather'
+import {
   matchPreset,
   PANEL_MIN_HEIGHT,
   PANEL_MIN_WIDTH,
@@ -43,6 +48,8 @@ interface Props {
   onLanguageChange: (language: Language) => void
   settingsInWindow: boolean
   onSettingsInWindowChange: (value: boolean) => void
+  weatherLocation: string
+  onWeatherLocationChange: (value: string) => void
   startAtLogin: boolean
   onStartAtLoginChange: (value: boolean) => void
   autoUpdate: boolean
@@ -301,6 +308,8 @@ export function CustomizeSheet({
   onLanguageChange,
   settingsInWindow,
   onSettingsInWindowChange,
+  weatherLocation,
+  onWeatherLocationChange,
   startAtLogin,
   onStartAtLoginChange,
   autoUpdate,
@@ -318,6 +327,7 @@ export function CustomizeSheet({
   const [tab, setTab] = useState<Tab>('appearance')
   const activePreset = matchThemePreset(theme)
   const activeSize = matchPreset(panelWidth, panelHeight)
+  const weatherCity = weatherLocation === 'auto' ? null : getWeatherCity(weatherLocation)
   // 独立窗口默认用左侧导航；窗口窄到放不下 152 + 可用表单时退回顶部 tab
   const wide = standalone ? window.innerWidth >= 600 : panelWidth >= 620
 
@@ -706,6 +716,37 @@ export function CustomizeSheet({
               checked={settingsInWindow}
               onChange={onSettingsInWindowChange}
             />
+
+            <p className="cz-group">{t(language, 'weather.group')}</p>
+            <div className="cz-field cz-field--select">
+              <div className="cz-field__head">
+                <label className="cz-field__name" htmlFor="cz-weather-location">
+                  {t(language, 'weather.location')}
+                </label>
+                <span className="cz-field__value">
+                  {weatherCity ? weatherCityName(weatherCity, language) : t(language, 'weather.auto')}
+                </span>
+              </div>
+              <select
+                id="cz-weather-location"
+                className="cz-select"
+                value={weatherLocation}
+                onChange={(event) => onWeatherLocationChange(event.currentTarget.value)}
+              >
+                <option value="auto">{t(language, 'weather.auto')}</option>
+                {WEATHER_CITIES.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {weatherCityName(city, language)}
+                  </option>
+                ))}
+              </select>
+              <p className="cz-note">
+                {weatherLocation === 'auto'
+                  ? t(language, 'weather.autoNote')
+                  : t(language, 'weather.locationNote')}
+              </p>
+              <p className="cz-note">{t(language, 'weather.credit')}</p>
+            </div>
 
             <p className="cz-group">{t(language, 'general.updates')}</p>
             <Switch

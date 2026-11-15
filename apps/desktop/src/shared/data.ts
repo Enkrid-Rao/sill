@@ -1,5 +1,7 @@
 /** 主进程采集、渲染进程消费的面板数据。 */
 
+import type { WeatherSnapshot } from './weather'
+
 export interface ProcessSample {
   name: string
   mb: number
@@ -34,6 +36,7 @@ export interface PanelSnapshot {
   gpuTotal: number | null
   procs: ProcessSample[]
   media: MediaSample | null
+  weather: WeatherSnapshot | null
   /** 系统主音量 0–100；-1 = 还没读上来 */
   volume: number
   muted: boolean

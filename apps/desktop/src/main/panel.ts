@@ -2,6 +2,8 @@ import { join } from 'node:path'
 import { BrowserWindow, screen, shell } from 'electron'
 import { bindEscape, unbindEscape } from './hotkey'
 import { startData, stopData } from './data'
+import { startMouseWatch, stopMouseWatch } from './mouse-watch'
+import { getTrayBounds } from './tray'
 import { loadSettings, updateSettings, type Settings } from './settings'
 import {
   PANEL_MAX_WIDTH,
@@ -21,6 +23,8 @@ let visible = false
 let ticker: NodeJS.Timeout | null = null
 /** 面板里是否盖着一层自绘表面（Customize / 布局编辑）；此时 Esc 先交给它关自己 */
 let overlayOpen = false
+/** 面板里有文本输入框聚焦：Esc 先交给输入框取消，不收起面板 */
+let typing = false
 /** 主进程级的 Esc 拦截（例如独立设置窗口开着时先关它） */
 let escapeInterceptor: (() => boolean) | null = null
 
@@ -200,6 +204,15 @@ export function isPanelVisible(): boolean {
   return visible
 }
 
+function contains(bounds: Electron.Rectangle, x: number, y: number): boolean {
+  return x >= bounds.x && x < bounds.x + bounds.width && y >= bounds.y && y < bounds.y + bounds.height
+}
+
+/** 独立设置窗口 / DevTools 等任何第二个窗口存在时，外部点击不收起面板 */
+function hasOtherWindow(): boolean {
+  return BrowserWindow.getAllWindows().some((win) => win !== panel && !win.isDestroyed())
+}
+
 export function showPanel(): void {
   const win = createPanel()
   if (visible) return
@@ -213,12 +226,28 @@ export function showPanel(): void {
   if (!win.isVisible()) win.showInactive()
   visible = true
   overlayOpen = false
+  typing = false
   startData()
   win.webContents.send('panel:state', true)
+  // 面板不抢焦点，收不到 blur；用一个轻量全局左键监视器判断“点了 Sill 外面”。
+  // 设置 / 布局编辑打开时不收；托盘图标点击也不收（托盘自己会 toggle）。
+  startMouseWatch(() => {
+    if (!visible || overlayOpen || !panel || panel.isDestroyed()) return
+    if (hasOtherWindow()) return
+    const point = screen.getCursorScreenPoint()
+    const tray = getTrayBounds()
+    if (tray && contains(tray, point.x, point.y)) return
+    if (contains(panel.getContentBounds(), point.x, point.y)) return
+    hidePanel()
+  })
   // 面板不抢焦点，Esc 只能靠全局临时接管；收起时立刻解绑。
   // 面板里盖着设置面板时，Esc 先关那一层，再按一次才收面板。
   bindEscape(() => {
     if (escapeInterceptor?.()) return
+    if (typing) {
+      panel?.webContents.send('panel:escape-input')
+      return
+    }
     if (overlayOpen) panel?.webContents.send('panel:escape')
     else hidePanel()
   })
@@ -230,6 +259,11 @@ export function setOverlayOpen(open: boolean): void {
   overlayOpen = Boolean(open)
 }
 
+/** 文本输入框聚焦时由 renderer 调用：Esc 先取消输入，不收起面板 */
+export function setTyping(active: boolean): void {
+  typing = Boolean(active)
+}
+
 /** 主进程注册一个优先于面板覆盖层的 Esc 处理（返回 true 表示已消费） */
 export function setEscapeInterceptor(handler: (() => boolean) | null): void {
   escapeInterceptor = handler
@@ -237,6 +271,7 @@ export function setEscapeInterceptor(handler: (() => boolean) | null): void {
 
 export function hidePanel(done?: () => void): void {
   const win = panel
+  stopMouseWatch()
   if (!win || !visible) {
     stopData()
     done?.()
@@ -249,6 +284,7 @@ export function hidePanel(done?: () => void): void {
   unbindEscape()
   visible = false
   overlayOpen = false
+  typing = false
   win.webContents.send('panel:state', false)
   slideTo(current.x, { ...current, x: to }, SLIDE_OUT_MS, () => {
     if (win.isDestroyed()) return
