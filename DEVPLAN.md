@@ -1,12 +1,12 @@
 # Sill 开发文档
 
-v0.5.1 · 2026-11-15
+v0.5.0 · 2026-11-15
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
 ---
 
-## 0. 变更记录（v0.3 → v0.5.1）
+## 0. 变更记录（v0.3 → v0.5.0）
 
 | 变更 | 原因 |
 |---|---|
@@ -56,7 +56,7 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.5.0** 点外收起 | 面板可见时用轻量 PowerShell 左键监视器判断外部点击；设置 / 布局编辑 / 托盘点击豁免 |
 | **v0.5.0** TODO 对齐 Tide | Open / Closed / All 三段过滤器（计数 + 滑动 thumb）、行内编辑、5 秒撤销 toast、输入框 Esc 取消；勾选仍不重排 |
 | **v0.5.0** 组件规范拆分 | 组件 manifest / IR / runtime / sandbox 文档迁到独立 `Sill-Components` 仓库，Sill 只保留宿主实现 |
-| **v0.5.1** 绿色版 | electron-builder `portable` 目标出单文件 `Sill-Portable`；`PORTABLE_EXECUTABLE_DIR` 下数据落 `Sill-data`，不写安装目录/卸载项；开机自启注册原始 exe |
+| **v0.5.0** 绿色版 ZIP | 普通 `win-unpacked` + `portable.flag` 打成 `Sill-<version>-portable-win64.zip`；解压即用，数据落 `Sill-data`，不写安装目录/卸载项 |
 
 ---
 
@@ -665,7 +665,7 @@ Electron + TypeScript + Vite + React + Zustand；测试 Vitest + Playwright；�
 
 | 项 | 取值 | 理由 |
 |---|---|---|
-| 打包 | electron-builder + NSIS + portable | 生态最稳；NSIS 支持 per-user 安装，不需要 UAC；portable 出单文件绿色版 |
+| 打包 | electron-builder + NSIS + 绿色 ZIP | 生态最稳；NSIS 支持 per-user 安装，不需要 UAC；绿色版用普通文件夹 ZIP |
 | 更新库 | electron-updater | 直接读 electron-builder 产出的 `latest.yml` |
 | 更新源 | generic provider，URL 构建期注入 | 公开 GitHub Releases、私有 OSS、自建静态站共用一套代码 |
 | 安装位置 | `%LOCALAPPDATA%\Programs\Sill`（per-user） | 不弹 UAC；与数据目录 `%APPDATA%\Sill` 分开，卸载不丢主题 |
@@ -704,7 +704,7 @@ idle → checking → up-to-date
 
 ### 11.6 验收标准（M0.5 不算完成，直到）
 
-# 绿色版：单文件 portable，数据在 exe 旁 Sill-data；不写安装目录/卸载项。详见 DEVELOPMENT §6.23
+# 绿色版：普通文件夹 ZIP（win-unpacked + portable.flag），数据在 exe 旁 Sill-data；不写安装目录/卸载项。详见 DEVELOPMENT §6.23
 
 1. `pnpm dist` 产出 `Sill-Setup-0.1.0.exe`；双击装到 `%LOCALAPPDATA%\Programs\Sill`，
    开始菜单有快捷方式，托盘 / 面板 / 热键全部正常

@@ -2,7 +2,7 @@
 
 面向**动手改代码**的人。产品目标与架构规划在 [../DEVPLAN.md](../DEVPLAN.md)，进度与交接在 [HANDOFF.md](HANDOFF.md)。
 
-最后更新：2026-11-15（v0.5.1：真实天气、点外收起、TODO 过滤/编辑/撤销、绿色版）
+最后更新：2026-11-15（v0.5.0：真实天气、点外收起、TODO 过滤/编辑/撤销、绿色版）
 
 ---
 
@@ -26,7 +26,8 @@
 pnpm typecheck   # tsc 跑两套 tsconfig：main+preload / renderer
 pnpm build       # electron-vite build → apps/desktop/out/{main,preload,renderer}
 pnpm smoke       # electron . --smoke：起面板 → capturePage → 写 out/smoke.png → 退出
-pnpm dist        # 同时出 NSIS 安装包 + 单文件绿色版（约 2 分钟）
+pnpm dist        # NSIS 安装包（约 2 分钟）
+pnpm dist:portable # 解包 + 生成绿色 ZIP
 pnpm dist:dir    # 只解包到 dist/win-unpacked，不压安装器（查打包问题用这个，快）
 ```
 
@@ -110,7 +111,7 @@ pnpm dist
 
 ```
 Sill/
-├─ DEVPLAN.md                 产品与架构规划（v0.5.1）
+├─ DEVPLAN.md                 产品与架构规划（v0.5.0）
 ├─ docs/
 │  ├─ DEVELOPMENT.md          本文
 │  ├─ HANDOFF.md              交接
@@ -324,7 +325,7 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 ### 6.11 更新检查（只查，不装）
 
 `updates.ts` 请求 `api.github.com/repos/Enkrid-Rao/sill/releases/latest`，与 `app.getVersion()` 比较。
-**不下载、不安装**；仓库是公开的，v0.5.1 发布后返回 latest，设置页显示「已是最新」。
+**不下载、不安装**；仓库是公开的，v0.5.0 发布后返回 latest，设置页显示「已是最新」。
 真正的安装留给 M0.5 的 electron-updater。
 
 ### 6.12 自由尺寸与响应式列
@@ -486,19 +487,23 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provider）与内置组件；
 **不要把组件规范再散落回 Sill 文档**，两边以链接和版本号对齐。
 
-### 6.23 绿色版 / Portable（v0.5.1）
+### 6.23 绿色版 / Portable ZIP（v0.5.0）
 
-- `electron-builder.yml` 的 `win.target` 同时有 `nsis` 和 `portable`；产物分别是
-  `Sill-Setup-<version>.exe` / `Sill-Portable-<version>.exe`。
-- `paths.ts` 在 `PORTABLE_EXECUTABLE_DIR` 存在时把 userData 指到
-  `<PORTABLE_EXECUTABLE_DIR>/Sill-data`；这是单文件 portable 目标注入的环境变量。
-  目录版可以用 exe 旁的 `portable.flag` 走同一分支。
+- **不要用 electron-builder 的 `portable` target**：它产出的是自解压 exe，不是绿色文件夹版；
+  本项目用普通 ZIP 文件夹。
+- `electron-builder.yml` 的 `win.target` 只有 `nsis`，安装包是 `Sill-Setup-<version>.exe`。
+- `pnpm dist:portable`：
+  1. `dist:dir` 生成 `dist/win-unpacked`；
+  2. `scripts/make-portable-zip.ps1` 复制成临时 `Sill/` 文件夹；
+  3. 在 exe 旁写 `portable.flag` 和 `README.txt`；
+  4. `Compress-Archive` 出 `Sill-<version>-portable-win64.zip`。
+- `paths.ts` 在 `app.isPackaged` 且 exe 旁存在 `portable.flag` 时，把 userData 指到
+  `<exe dir>/Sill-data`；ZIP 解压后直接运行 `Sill/Sill.exe`，不会解压到临时目录。
 - `SILL_USER_DATA` 仍然优先，测试不受影响。
-- portable 目标启动时解压到临时目录；资源路径仍走 `process.resourcesPath`，`mouse-watch.ps1` 等
-  extraResources 正常工作。
-- `applyAutostart` 在便携模式下注册 `PORTABLE_EXECUTABLE_FILE`（原始 exe），不能注册临时解压路径。
-- 便携版不写安装目录/卸载项；删除 exe 和 `Sill-data` 即完全卸载。
+- `applyAutostart` 在便携模式下注册 `process.execPath`（绿色文件夹里的 `Sill.exe`）。
+- 便携版不写安装目录/卸载项；删除整个文件夹即完全卸载。
 - **不要把 portable 数据写到 `Program Files`**：settings 会失败；README 已注明放在可写目录。
+- 脚本文件必须保存为 **UTF-8 with BOM**，否则 Windows PowerShell 5.1 会把中文脚本按 ANSI 解析。
 
 ## 7. 视觉规范
 
@@ -585,7 +590,8 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 | TODO 过滤后行不见了 | 当前过滤器是 Open/Closed，任务状态不匹配 | 切到 All；检查 `data-filtered` / `.is-filtered`；不要用 `display:none` 重排 |
 | TODO 撤销后顺序错 | `todo:restore` 的 index 用了过滤后的索引 | 必须用**原 items 数组**里的 index，不是可见列表 index |
 | 绿色版设置不保存 | exe 放在只读目录（如 `Program Files`） | 移到可写目录；确认 exe 旁生成了 `Sill-data` |
-| 绿色版开机自启指向临时目录 | `PORTABLE_EXECUTABLE_FILE` 没拿到，注册了 process.execPath | 检查 `applyAutostart` 的 portable 分支；单文件 portable 目标会注入该环境变量 |
+| 绿色版数据跑到 AppData | ZIP 里缺 `portable.flag`，`paths.ts` 没进便携分支 | 用 `pnpm dist:portable` 生成的 ZIP；检查 `Sill/portable.flag` 是否在 `Sill.exe` 旁 |
+| `dist:portable` 脚本中文解析报错 | Windows PowerShell 5.1 按 ANSI 读无 BOM 的 UTF-8 脚本 | 脚本保存为 UTF-8 with BOM；或改用 ASCII 文案 |
 
 ---
 
@@ -617,8 +623,8 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
     失败回退上海，首次无缓存显示不可用，30s 重试。没有系统定位权限/高精度坐标。
 12. **点外收起依赖鼠标左键轮询**：面板可见时才有进程；不是全局钩子，不消费点击，但 40ms 轮询
     对极快点击有理论漏判；托盘/设置/布局编辑已豁免。
-13. **绿色版每次启动解压到临时目录**（NSIS portable 包装），首启略慢；数据在 exe 旁的
-    `Sill-data`，必须放在可写目录，不能放 `Program Files`。删文件夹即卸载。
+13. **绿色版数据在 exe 旁的 `Sill-data`**，文件夹必须可写，不能放 `Program Files`；
+    删整个文件夹即卸载。ZIP 版不会解压到临时目录，启动速度和安装版接近。
 
 ## 10. 发布与自动更新（M0.5 进行中）
 
@@ -626,8 +632,8 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 `%LOCALAPPDATA%\Programs\Sill`，开始菜单有 Sill，打包态 `--smoke` 通过，托盘图标走 asar 外的
 `extraResources`（`resources\resources\tray.ico`）。
 **还没做**：`publish` 段、`src/main/updater.ts`、页脚/托盘更新提示、v0.1.0→v0.1.1 干跑。
-当前源码版本 **0.5.1**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.1.exe`，绿色版输出
-`apps/desktop/dist/Sill-Portable-0.5.1.exe`，已发布到 GitHub Releases；
+当前源码版本 **0.5.0**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.0.exe`，绿色版输出
+`apps/desktop/dist/Sill-0.5.0-portable-win64.zip`，已发布到 GitHub Releases；
 `media-control.ps1` / `mouse-watch.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：

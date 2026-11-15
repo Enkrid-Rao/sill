@@ -4,7 +4,7 @@
 ![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
 ![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
-[![Release](https://img.shields.io/badge/release-v0.5.1-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+[![Release](https://img.shields.io/badge/release-v0.5.0-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
 
 A glass side rail for the Windows desktop: summon it with a hotkey, docked to the edge of the screen,
 built to host installable widgets — and eventually to eat Rainmeter skins.
@@ -52,17 +52,17 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
 
 ## Install
 
-Grab `Sill-Setup-0.5.1.exe` from [Releases](https://github.com/Enkrid-Rao/sill/releases), or use
-`Sill-Portable-0.5.1.exe` — a single-file, no-install build that keeps its data in `Sill-data`
-next to the executable.
+Grab `Sill-Setup-0.5.0.exe` or the portable ZIP `Sill-0.5.0-portable-win64.zip`
+from [Releases](https://github.com/Enkrid-Rao/sill/releases).
 It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
 so SmartScreen warns once — choose “More info → Run anyway”.
 
-The **portable** build is a single executable: no installer, no registry uninstall entry, and no
-Program Files. It unpacks to a temp folder at launch and keeps `settings.json`, `todo.json`,
-`layout.json` and `weather.json` in a visible `Sill-data` folder next to the executable. Put it in a
-writable folder (not `Program Files`) so it can save data; moving the exe/folder keeps the data with it.
-The source is currently at **v0.5.1** (real weather with auto/manual location, click-outside
+The **portable** build is a normal folder in a ZIP: extract the `Sill` folder to any writable
+location, then run `Sill.exe`. No installer, no uninstall entry, no Program Files, and no temporary
+extraction. It keeps `settings.json`, `todo.json`, `layout.json` and `weather.json` in a visible
+`Sill-data` folder next to `Sill.exe`; moving the folder keeps the data with it. Do not put it in
+`Program Files` (it may be read-only).
+The source is currently at **v0.5.0** (real weather with auto/manual location, click-outside
 dismissal, Open/Closed/All todo with edit and undo, portable build, widget host, optional standalone
 Settings window); this release is published.
 

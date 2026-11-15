@@ -38,8 +38,6 @@ win:
   target:
     - target: nsis
       arch: [x64]
-    - target: portable
-      arch: [x64]
   # 256×256，由 scripts/make-tray-icon.py 生成，和托盘图标同源
   icon: resources/app-icon.png
 
@@ -55,7 +53,3 @@ nsis:
   uninstallDisplayName: Sill
   deleteAppDataOnUninstall: false     # %APPDATA%\Sill 存主题与设置，卸载不删
   runAfterFinish: true
-
-# 单文件绿色版：不写安装目录，运行时数据在 exe 旁的 Sill-data。
-portable:
-  artifactName: Sill-Portable-${version}.${ext}
