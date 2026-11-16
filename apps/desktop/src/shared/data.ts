@@ -2,6 +2,18 @@
 
 import type { WeatherSnapshot } from './weather'
 
+/** 可选的系统监测刷新间隔（毫秒）。 */
+export const MONITOR_INTERVALS = [1000, 2000, 3000, 5000] as const
+
+export type MonitorInterval = (typeof MONITOR_INTERVALS)[number]
+
+export const DEFAULT_MONITOR_INTERVAL: MonitorInterval = 2000
+
+export function normalizeMonitorInterval(value: unknown): MonitorInterval {
+  const numeric = Number(value)
+  return MONITOR_INTERVALS.find((interval) => interval === numeric) ?? DEFAULT_MONITOR_INTERVAL
+}
+
 export interface ProcessSample {
   name: string
   mb: number

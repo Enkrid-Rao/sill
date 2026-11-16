@@ -1,5 +1,6 @@
 import type { PanelSnapshot } from '../../../shared/data'
 import { t, type Language } from '../../../shared/i18n'
+import { useSmoothNumber } from '../lib/useSmoothNumber'
 
 export function formatRate(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B/s'
@@ -37,9 +38,14 @@ interface Props {
   language: Language
 }
 
-/** CPU / 内存 / GPU / 网络。数据来自主进程 1.5s 一次的快照。 */
+/** CPU / 内存 / GPU / 网络。数据来自主进程按设置间隔推来的快照。 */
 export function SystemWidget({ snapshot, language }: Props): React.JSX.Element {
-  const gpuValue = snapshot?.gpu != null ? `${snapshot.gpu}%` : '—'
+  const cpu = useSmoothNumber(snapshot?.cpu ?? 0)
+  const memPct = useSmoothNumber(snapshot?.memPct ?? 0)
+  const memUsed = useSmoothNumber(snapshot?.memUsed ?? 0)
+  const gpu = useSmoothNumber(snapshot?.gpu ?? 0)
+  const down = useSmoothNumber(snapshot?.down ?? 0)
+  const gpuValue = snapshot?.gpu != null ? `${Math.round(gpu)}%` : '—'
 
   return (
     <>
@@ -52,19 +58,24 @@ export function SystemWidget({ snapshot, language }: Props): React.JSX.Element {
       <div className="system__bars">
         <Bar
           label={t(language, 'metric.cpu')}
-          value={snapshot ? `${snapshot.cpu}%` : '—'}
-          pct={snapshot?.cpu ?? 0}
+          value={snapshot ? `${Math.round(cpu)}%` : '—'}
+          pct={snapshot ? cpu : 0}
         />
         <Bar
           label={t(language, 'metric.memory')}
-          value={snapshot ? `${snapshot.memPct}% · ${snapshot.memUsed.toFixed(1)} GB` : '—'}
-          pct={snapshot?.memPct ?? 0}
+          value={snapshot ? `${Math.round(memPct)}% · ${memUsed.toFixed(1)} GB` : '—'}
+          pct={snapshot ? memPct : 0}
         />
-        <Bar label={t(language, 'metric.gpu')} value={gpuValue} pct={snapshot?.gpu ?? 0} warm />
+        <Bar
+          label={t(language, 'metric.gpu')}
+          value={gpuValue}
+          pct={snapshot?.gpu != null ? gpu : 0}
+          warm
+        />
         <Bar
           label={t(language, 'metric.network')}
-          value={snapshot ? `↓ ${formatRate(snapshot.down)}` : '—'}
-          pct={snapshot ? Math.min(100, (snapshot.down / (1024 ** 2)) * 20) : 0}
+          value={snapshot ? `↓ ${formatRate(down)}` : '—'}
+          pct={snapshot ? Math.min(100, (down / (1024 ** 2)) * 20) : 0}
         />
       </div>
     </>

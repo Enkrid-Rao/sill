@@ -31,6 +31,7 @@ export interface SillSettingsController {
   autoUpdate: boolean
   settingsInWindow: boolean
   weatherLocation: string
+  monitorIntervalMs: number
   version: string
   update: UpdateState
   layout: PanelLayout
@@ -52,6 +53,7 @@ export interface SillSettingsController {
   changeAutoUpdate: (value: boolean) => void
   changeSettingsInWindow: (value: boolean) => void
   changeWeatherLocation: (value: string) => void
+  changeMonitorIntervalMs: (value: number) => void
   checkUpdate: () => void
   setLayout: (next: PanelLayout) => void
   resetLayout: () => Promise<void>
@@ -77,6 +79,7 @@ export function useSillSettings(): SillSettingsController {
   const [autoUpdate, setAutoUpdate] = useState(true)
   const [settingsInWindow, setSettingsInWindow] = useState(false)
   const [weatherLocation, setWeatherLocation] = useState('auto')
+  const [monitorIntervalMs, setMonitorIntervalMs] = useState(2000)
   const [version, setVersion] = useState('')
   const [update, setUpdate] = useState<UpdateState>(EMPTY_UPDATE)
   const [layout, setLayoutState] = useState<PanelLayout>(DEFAULT_LAYOUT)
@@ -96,6 +99,7 @@ export function useSillSettings(): SillSettingsController {
     setAutoUpdate(next.autoUpdate)
     setSettingsInWindow(next.settingsInWindow)
     setWeatherLocation(next.weatherLocation)
+    setMonitorIntervalMs(next.monitorIntervalMs)
   }, [])
 
   // 读一次全量状态，然后一直订阅主进程广播
@@ -256,6 +260,11 @@ export function useSillSettings(): SillSettingsController {
     void window.sill?.updateSettings({ weatherLocation: value })
   }, [])
 
+  const changeMonitorIntervalMs = useCallback((value: number) => {
+    setMonitorIntervalMs(value)
+    void window.sill?.updateSettings({ monitorIntervalMs: value })
+  }, [])
+
   const checkUpdate = useCallback(() => {
     setUpdate({ status: 'checking' })
     void window.sill?.checkForUpdates().then((next) => {
@@ -318,6 +327,7 @@ export function useSillSettings(): SillSettingsController {
     autoUpdate,
     settingsInWindow,
     weatherLocation,
+    monitorIntervalMs,
     version,
     update,
     layout,
@@ -339,6 +349,7 @@ export function useSillSettings(): SillSettingsController {
     changeAutoUpdate,
     changeSettingsInWindow,
     changeWeatherLocation,
+    changeMonitorIntervalMs,
     checkUpdate,
     setLayout,
     resetLayout,

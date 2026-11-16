@@ -2,7 +2,7 @@
 
 面向**动手改代码**的人。产品目标与架构规划在 [../DEVPLAN.md](../DEVPLAN.md)，进度与交接在 [HANDOFF.md](HANDOFF.md)。
 
-最后更新：2026-11-15（v0.5.0：真实天气、点外收起、TODO 过滤/编辑/撤销、绿色版）
+最后更新：2026-11-16（v0.5.1：可调监测刷新、首帧推送、平滑读数）
 
 ---
 
@@ -111,7 +111,7 @@ pnpm dist
 
 ```
 Sill/
-├─ DEVPLAN.md                 产品与架构规划（v0.5.0）
+├─ DEVPLAN.md                 产品与架构规划（v0.5.1）
 ├─ docs/
 │  ├─ DEVELOPMENT.md          本文
 │  ├─ HANDOFF.md              交接
@@ -313,7 +313,7 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 ### 6.10 真实数据：Node + 一个常驻 PowerShell
 
 - **CPU / 内存**：主进程 `os.cpus()` 差分、`os.totalmem/freemem`，不依赖外部进程
-- **网络 / GPU / 进程 / 媒体**：`resources/collector.ps1` 常驻，每 2s 输出一行 JSON
+- **网络 / GPU / 进程 / 媒体**：`resources/collector.ps1` 常驻，按 `monitorIntervalMs`（默认 2s）输出一行 JSON
   - 媒体走 Windows SMTC（WinRT），必须用 **Windows PowerShell 5.1**（`powershell.exe`）跑，
     pwsh 7 的 WinRT 投影不可靠
   - 脚本开头设 `[Console]::OutputEncoding = UTF8`，否则中文歌名到 Node 会变乱码
@@ -325,7 +325,7 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
 ### 6.11 更新检查（只查，不装）
 
 `updates.ts` 请求 `api.github.com/repos/Enkrid-Rao/sill/releases/latest`，与 `app.getVersion()` 比较。
-**不下载、不安装**；仓库是公开的，v0.5.0 发布后返回 latest，设置页显示「已是最新」。
+**不下载、不安装**；仓库是公开的，v0.5.1 发布后返回 latest，设置页显示「已是最新」。
 真正的安装留给 M0.5 的 electron-updater。
 
 ### 6.12 自由尺寸与响应式列
@@ -505,6 +505,21 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 - **不要把 portable 数据写到 `Program Files`**：settings 会失败；README 已注明放在可写目录。
 - 脚本文件必须保存为 **UTF-8 with BOM**，否则 Windows PowerShell 5.1 会把中文脚本按 ANSI 解析。
 
+### 6.24 监测推送与刷新频率（v0.5.1）
+
+- 主进程按 `settings.monitorIntervalMs`（1 / 2 / 3 / 5s）采样，并通过 `data:changed` 主动推给面板；
+  渲染进程不再用 `setInterval` 拉快照。
+- 面板 `backgroundThrottling: false`：隐藏/重新唤出时渲染进程不被冻结，否则 `panel:state`
+  和首帧数据会排队到点击面板后才处理（表现为“唤出后必须先点一下才刷新”）。
+- 显示后先等 250ms 再采第一帧 CPU，避免把 reset 后的 0ms 差值显示成 0%；采集进程同时重启，
+  旧会话的网络 / GPU / 进程样本不会被当成新数据。
+- `collector.ps1` 接受 `-IntervalMs`；设置变更时 `refreshDataCadence()` 换节拍并重启采集。
+- `getCollected()` 有陈旧阈值（2 × 间隔，至少 4s）；采集卡住时显示 —，不无限展示旧值。
+- `SystemWidget` 用 `useSmoothNumber` 对 CPU / 内存 / GPU / 网络做 560ms easeOutCubic 插值；
+  `prefers-reduced-motion` 下直接落值。柱宽和读数走同一份插值值。
+- 相关：`shared/data.ts` 的 `MONITOR_INTERVALS` / `normalizeMonitorInterval`，
+  `main/data/index.ts`、`main/data/collector.ts`、`renderer/lib/useSmoothNumber.ts`。
+
 ## 7. 视觉规范
 
 字号与间距直接沿用 `docs/mockups/panel-forms.html` 的 C 场景（384 宽），改样式时以那份为准。
@@ -632,8 +647,8 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 `%LOCALAPPDATA%\Programs\Sill`，开始菜单有 Sill，打包态 `--smoke` 通过，托盘图标走 asar 外的
 `extraResources`（`resources\resources\tray.ico`）。
 **还没做**：`publish` 段、`src/main/updater.ts`、页脚/托盘更新提示、v0.1.0→v0.1.1 干跑。
-当前源码版本 **0.5.0**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.0.exe`，绿色版输出
-`apps/desktop/dist/Sill-0.5.0-portable-win64.zip`，已发布到 GitHub Releases；
+当前源码版本 **0.5.1**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.1.exe`，绿色版输出
+`apps/desktop/dist/Sill-0.5.1-portable-win64.zip`，已发布到 GitHub Releases；
 `media-control.ps1` / `mouse-watch.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：

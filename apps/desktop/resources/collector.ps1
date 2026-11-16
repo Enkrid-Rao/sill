@@ -1,10 +1,13 @@
 # Sill data collector.
-# Runs as a long-lived process; prints one compact JSON line every ~2s.
+# Runs as a long-lived process; prints one compact JSON line every IntervalMs.
 # CPU and memory are sampled in Node (os module), so this script only covers
 # what Node cannot see: network throughput, GPU, processes and SMTC media.
 
+param([int]$IntervalMs = 2000)
+
 $ErrorActionPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$IntervalMs = [math]::Min(10000, [math]::Max(500, $IntervalMs))
 
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
@@ -112,5 +115,5 @@ while ($true) {
   } | ConvertTo-Json -Compress -Depth 4
 
   [Console]::Out.Flush()
-  Start-Sleep -Milliseconds 2000
+  Start-Sleep -Milliseconds $IntervalMs
 }

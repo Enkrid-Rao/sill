@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { MONITOR_INTERVALS } from '../../../shared/data'
 import { LANGUAGES, t, type Language } from '../../../shared/i18n'
 import {
   getWeatherCity,
@@ -50,6 +51,8 @@ interface Props {
   onSettingsInWindowChange: (value: boolean) => void
   weatherLocation: string
   onWeatherLocationChange: (value: string) => void
+  monitorIntervalMs: number
+  onMonitorIntervalChange: (value: number) => void
   startAtLogin: boolean
   onStartAtLoginChange: (value: boolean) => void
   autoUpdate: boolean
@@ -310,6 +313,8 @@ export function CustomizeSheet({
   onSettingsInWindowChange,
   weatherLocation,
   onWeatherLocationChange,
+  monitorIntervalMs,
+  onMonitorIntervalChange,
   startAtLogin,
   onStartAtLoginChange,
   autoUpdate,
@@ -716,6 +721,31 @@ export function CustomizeSheet({
               checked={settingsInWindow}
               onChange={onSettingsInWindowChange}
             />
+
+            <p className="cz-group">{t(language, 'general.monitoring')}</p>
+            <div className="cz-setrow cz-setrow--stack">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'general.refresh')}</span>
+                <span className="cz-setrow__note">{t(language, 'general.refreshNote')}</span>
+              </div>
+              <div
+                className="cz-seg cz-seg--four"
+                role="group"
+                aria-label={t(language, 'general.refresh')}
+              >
+                {MONITOR_INTERVALS.map((interval) => (
+                  <button
+                    key={interval}
+                    type="button"
+                    aria-pressed={monitorIntervalMs === interval}
+                    onClick={() => onMonitorIntervalChange(interval)}
+                  >
+                    {interval / 1000}s
+                  </button>
+                ))}
+              </div>
+              <p className="cz-note">{t(language, 'general.refreshHint')}</p>
+            </div>
 
             <p className="cz-group">{t(language, 'weather.group')}</p>
             <div className="cz-field cz-field--select">

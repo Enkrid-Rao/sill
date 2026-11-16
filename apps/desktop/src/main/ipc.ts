@@ -1,6 +1,6 @@
 import { app, ipcMain } from 'electron'
 import { broadcast } from './broadcast'
-import { getSnapshot } from './data'
+import { getSnapshot, refreshDataCadence } from './data'
 import { mediaCommand } from './data/media-control'
 import { addTodo, listTodos, removeTodo, restoreTodo, toggleTodo, updateTodo } from './data/todo'
 import { getLayout, resetLayout, setLayout } from './layout'
@@ -36,6 +36,8 @@ export function registerIpc(deps: IpcDeps): void {
     deps.apply(next, patch ?? {})
     // 换城市 / 切回自动定位：不等 15 分钟，立刻重新取一次天气
     if ('weatherLocation' in (patch ?? {})) void refreshWeather()
+    // 监测间隔变了：当前可见的采样器立即换节拍
+    if ('monitorIntervalMs' in (patch ?? {})) refreshDataCadence()
     // 设置窗口和面板共用一份状态：谁改的都广播出去
     broadcast('settings:changed', next)
     return next

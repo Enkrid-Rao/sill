@@ -156,7 +156,9 @@ export function createPanel(): BrowserWindow {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: false,
-      backgroundThrottling: true
+      // 面板隐藏/重新唤出时不冻结渲染进程：否则 panel:state 和首帧数据
+      // 会排队到用户点击面板才处理，表现为“唤出后必须先点一下才刷新”。
+      backgroundThrottling: false
     }
   })
 
@@ -227,7 +229,9 @@ export function showPanel(): void {
   visible = true
   overlayOpen = false
   typing = false
-  startData()
+  startData((next) => {
+    if (!win.isDestroyed()) win.webContents.send('data:changed', next)
+  })
   win.webContents.send('panel:state', true)
   // 面板不抢焦点，收不到 blur；用一个轻量全局左键监视器判断“点了 Sill 外面”。
   // 设置 / 布局编辑打开时不收；托盘图标点击也不收（托盘自己会 toggle）。

@@ -62,6 +62,8 @@ export function SettingsWindow(): React.JSX.Element {
         onSettingsInWindowChange={settings.changeSettingsInWindow}
         weatherLocation={settings.weatherLocation}
         onWeatherLocationChange={settings.changeWeatherLocation}
+        monitorIntervalMs={settings.monitorIntervalMs}
+        onMonitorIntervalChange={settings.changeMonitorIntervalMs}
         startAtLogin={settings.startAtLogin}
         onStartAtLoginChange={settings.changeStartAtLogin}
         autoUpdate={settings.autoUpdate}

@@ -17,6 +17,7 @@ export interface SillSettings {
   autoUpdate: boolean
   settingsInWindow: boolean
   weatherLocation: string
+  monitorIntervalMs: number
   theme: Theme
 }
 
@@ -33,6 +34,7 @@ export interface SillApi {
   setHotkey: (accel: string) => Promise<{ ok: boolean; hotkey: string }>
   getVersion: () => Promise<string>
   getSnapshot: () => Promise<PanelSnapshot>
+  onSnapshot: (callback: (snapshot: PanelSnapshot) => void) => () => void
   mediaCommand: (action: string, value?: number) => Promise<MediaControlState | null>
   listTodos: () => Promise<TodoItem[]>
   addTodo: (text: string) => Promise<TodoItem[]>

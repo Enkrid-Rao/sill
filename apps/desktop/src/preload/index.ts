@@ -11,6 +11,12 @@ const api = {
   setHotkey: (accel: string) => ipcRenderer.invoke('hotkey:set', accel),
   getVersion: () => ipcRenderer.invoke('app:version'),
   getSnapshot: () => ipcRenderer.invoke('data:snapshot'),
+  onSnapshot: (callback: (snapshot: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, snapshot: unknown): void =>
+      callback(snapshot)
+    ipcRenderer.on('data:changed', listener)
+    return () => ipcRenderer.removeListener('data:changed', listener)
+  },
   mediaCommand: (action: string, value?: number) => ipcRenderer.invoke('media:command', action, value),
   listTodos: () => ipcRenderer.invoke('todo:list'),
   addTodo: (text: string) => ipcRenderer.invoke('todo:add', text),

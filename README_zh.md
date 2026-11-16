@@ -4,7 +4,7 @@
 ![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
 ![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
-[![Release](https://img.shields.io/badge/release-v0.5.0-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+[![Release](https://img.shields.io/badge/release-v0.5.1-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
 
 Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用来承载可安装的组件——将来还要吃下 Rainmeter 皮肤。
 
@@ -26,7 +26,7 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
   宽到一定程度内容自动从一列变两列、三列。
 - **设置——已落地。** 外观 / 行为 / 通用三页，8 套主题预设、强调色、热键录制、自由面板尺寸
   （拖拽 / 滑杆 / 预设 / 撑满高度）、停靠边、边缘距离、中英切换、天气地区（自动或 28 个城市）、
-  每个组件的显隐，以及「设置页使用独立窗口」开关。
+  监测刷新频率、每个组件的显隐，以及「设置页使用独立窗口」开关。
 - **布局——可编辑。** 把一张卡拖到另一张上即可换位，也可以用箭头；每张卡还能设跨几列。
   顺序、跨列与隐藏状态存在 `layout.json`。
 - **组件宿主——已落地。** 卡片从注册表（`WidgetShell` + `WIDGETS`）渲染，新增内置组件不再改
@@ -34,7 +34,8 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
 - **真实数据——已接入。** CPU、内存、GPU、网络、TOP 进程、Windows SMTC 正在播放（含播放 / 暂停、
   上一首 / 下一首、系统音量）、真实天气（Open-Meteo），以及可编辑的待办（存在 `todo.json`）。
   勾选后任务留在原位，删除只做横向淡出与行高收合，不会上下跳动。待办卡支持
-  **Open / Closed / All（未完成 / 已完成 / 全部）**、行内编辑和 5 秒撤销。
+  **Open / Closed / All（未完成 / 已完成 / 全部）**、行内编辑和 5 秒撤销。系统监测支持
+  **1 / 2 / 3 / 5 秒** 可调刷新，读数会在两次采样之间平滑过渡，不再突然跳变。
 - **天气——已接真实数据。** 自动按 IP 粗略定位，或在设置里从 28 个城市中选择；Hero 卡显示
   当前温度、WMO 天气、最高/最低与城市。最后一次成功数据会缓存，网络失败自动重试。
   数据来源：Open-Meteo；自动定位：ipwho.is。
@@ -47,8 +48,8 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
 
 ## 安装
 
-从 [Releases](https://github.com/Enkrid-Rao/sill/releases) 下载 `Sill-Setup-0.5.0.exe`，
-或绿色版 ZIP `Sill-0.5.0-portable-win64.zip`。
+从 [Releases](https://github.com/Enkrid-Rao/sill/releases) 下载 `Sill-Setup-0.5.1.exe`，
+或绿色版 ZIP `Sill-0.5.1-portable-win64.zip`。
 per-user 安装到 `%LOCALAPPDATA%\Programs\Sill`，不弹 UAC。安装包**未签名**，SmartScreen 会拦一次，
 点「更多信息 → 仍要运行」。
 
@@ -56,7 +57,7 @@ per-user 安装到 `%LOCALAPPDATA%\Programs\Sill`，不弹 UAC。安装包**未�
 没有安装程序、没有卸载项、不碰 Program Files，也不会每次启动解压到临时目录。
 `settings.json`、`todo.json`、`layout.json`、`weather.json` 都放在 `Sill.exe` 旁的 `Sill-data`；
 移动整个文件夹时数据跟着走。不要放在 `Program Files`（可能只读）。
-源码当前是 **v0.5.0**（真实天气与自动/手动定位、点外收起、Open/Closed/All 待办与编辑撤销、绿色版、组件宿主、可选独立设置窗口），这个版本已发布。
+源码当前是 **v0.5.1**（真实天气与自动/手动定位、点外收起、Open/Closed/All 待办与编辑撤销、绿色版、1–5 秒可调监测刷新与平滑读数、组件宿主、可选独立设置窗口），这个版本已发布。
 
 需要 Windows 10/11 x64。
 

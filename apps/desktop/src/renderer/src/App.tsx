@@ -10,12 +10,14 @@ import { WIDGET_BY_ID } from './widgets/registry'
 import type { WidgetContext } from './widgets/types'
 import { WidgetShell } from './widgets/WidgetShell'
 
-function useClock(): Date {
+function useClock(active: boolean): Date {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
+    if (!active) return
+    setNow(new Date())
     const id = window.setInterval(() => setNow(new Date()), 1000)
     return () => window.clearInterval(id)
-  }, [])
+  }, [active])
   return now
 }
 
@@ -53,9 +55,9 @@ function SlidersIcon(): React.JSX.Element {
 }
 
 export default function App(): React.JSX.Element {
-  const now = useClock()
   const settings = useSillSettings()
   const [visible, setVisible] = useState(false)
+  const now = useClock(visible)
   const [customizing, setCustomizing] = useState(false)
   const [columns, setColumns] = useState<1 | 2 | 3>(() => columnsForWidth(window.innerWidth))
   const [snapshot, setSnapshot] = useState<PanelSnapshot | null>(null)
@@ -83,12 +85,15 @@ export default function App(): React.JSX.Element {
     if (next) setSnapshot(next)
   }, [])
 
-  // 面板可见时才拉快照；隐藏时主进程也停采样
+  // 主进程在面板可见时主动推快照，渲染进程不再轮询；隐藏时主进程停采样
   useEffect(() => {
-    if (!visible) return
-    void pullSnapshot()
-    const id = window.setInterval(() => void pullSnapshot(), 1500)
-    return () => window.clearInterval(id)
+    const off = window.sill?.onSnapshot((next) => setSnapshot(next))
+    return () => off?.()
+  }, [])
+
+  // 第一次显示 / 重新显示时补一次，防止 push 发生在监听器挂上之前
+  useEffect(() => {
+    if (visible) void pullSnapshot()
   }, [visible, pullSnapshot])
 
   // 待办由 hook 之外的面板数据层持有：启动时读一次，之后靠 add/toggle/remove 的返回值同步
@@ -102,12 +107,12 @@ export default function App(): React.JSX.Element {
     }
   }, [])
 
-  // 播放中的进度每秒推进一次，避免 1.5s 一跳
+  // 播放中的进度每秒推进一次，避免只按采样间隔跳；面板隐藏时不需要更新
   useEffect(() => {
-    if (snapshot?.media?.status !== 'Playing') return
+    if (!visible || snapshot?.media?.status !== 'Playing') return
     const id = window.setInterval(() => setTick((value) => value + 1), 1000)
     return () => window.clearInterval(id)
-  }, [snapshot?.media?.status])
+  }, [visible, snapshot?.media?.status])
 
   const addTodo = useCallback(async (text: string) => {
     const next = await window.sill?.addTodo(text)
@@ -381,6 +386,8 @@ export default function App(): React.JSX.Element {
           onSettingsInWindowChange={settings.changeSettingsInWindow}
           weatherLocation={settings.weatherLocation}
           onWeatherLocationChange={settings.changeWeatherLocation}
+          monitorIntervalMs={settings.monitorIntervalMs}
+          onMonitorIntervalChange={settings.changeMonitorIntervalMs}
           startAtLogin={settings.startAtLogin}
           onStartAtLoginChange={settings.changeStartAtLogin}
           autoUpdate={settings.autoUpdate}
