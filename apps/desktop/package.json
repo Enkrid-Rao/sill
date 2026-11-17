@@ -1,6 +1,6 @@
 {
   "name": "@sill/desktop",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "private": true,
   "description": "Sill desktop shell — main process, panel window, renderer",
   "author": "raoxi",
@@ -15,7 +15,9 @@
     "dist:dir": "electron-vite build && electron-builder --dir --publish never",
     "dist:portable": "pnpm dist:dir && powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/make-portable-zip.ps1"
   },
-  "dependencies": {},
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
   "devDependencies": {
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.0",

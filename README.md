@@ -4,7 +4,7 @@
 ![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
 ![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
-[![Release](https://img.shields.io/badge/release-v0.5.2-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+[![Release](https://img.shields.io/badge/release-v0.5.3-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
 
 A glass side rail for the Windows desktop: summon it with a hotkey, docked to the edge of the screen,
 built to host installable widgets — and eventually to eat Rainmeter skins.
@@ -26,10 +26,10 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
   `Alt+Q`, dismissed with `Esc` or a click outside. **Resize it like an iPad panel**: drag the inner edge, the bottom edge
   or the bottom corner; four presets (rail / compact / board / wide) are just starting points.
   The content reflows from one to three columns as it widens.
-- **Settings — in.** Three tabs (Appearance / Behavior / General), 8 theme presets, accent colours,
-  hotkey recorder, free panel size (drag, sliders, presets, fill-height), dock side, edge distance,
-  zh/en switch, weather location (auto or 28 cities), per-widget visibility, and an option to open
-  Settings in its own window.
+- **Settings — in.** Five sections (Appearance / Panel / Data / System / General), 8 theme presets,
+  accent colours, hotkey recorder, free panel size (drag, sliders, presets, fill-height), dock side,
+  edge distance, zh/en switch, weather location (auto or 28 cities), monitor refresh, per-widget
+  visibility, an option to open Settings in its own window, and automatic updates.
 - **Layout — editable.** Drag a card onto another to swap, or use the arrows, and set how many columns
   each card spans. The arrangement lives in `layout.json`; hidden widgets keep their slot.
 - **Widget host — in.** Cards render from a registry (`WidgetShell` + `WIDGETS`), so adding a built-in
@@ -50,12 +50,13 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
 - **Chinese type — tuned.** Chinese no longer inherits the 9–10px English caption sizes: it gets a
   YaHei fallback, 11.5–14px body/caption sizes, tighter tracking, higher faint-text contrast and
   subpixel rendering; English keeps Instrument Sans.
-- **M0.5 — installer done.** `pnpm dist` builds an NSIS per-user installer; the app has an
-  auto/manual release check. Auto-update installation is not wired yet.
+- **M0.5 — installer done.** `pnpm dist` builds an NSIS per-user installer. Installed builds use
+  electron-updater for automatic background download and install-on-quit/restart; portable ZIPs
+  update by replacing the folder manually.
 
 ## Install
 
-Grab `Sill-Setup-0.5.2.exe` or the portable ZIP `Sill-0.5.2-portable-win64.zip`
+Grab `Sill-Setup-0.5.3.exe` or the portable ZIP `Sill-0.5.3-portable-win64.zip`
 from [Releases](https://github.com/Enkrid-Rao/sill/releases).
 It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
 so SmartScreen warns once — choose “More info → Run anyway”.
@@ -65,9 +66,10 @@ location, then run `Sill.exe`. No installer, no uninstall entry, no Program File
 extraction. It keeps `settings.json`, `todo.json`, `layout.json` and `weather.json` in a visible
 `Sill-data` folder next to `Sill.exe`; moving the folder keeps the data with it. Do not put it in
 `Program Files` (it may be read-only).
-The source is currently at **v0.5.2** (real weather with auto/manual location, click-outside
+The source is currently at **v0.5.3** (real weather with auto/manual location, click-outside
 dismissal, Open/Closed/All todo with edit and undo, portable build, adjustable 1–5s monitor
-refresh with a warm collector and smooth readings, widget host, optional standalone Settings
+refresh with a warm collector and smooth readings, five-section Settings, automatic
+download/install updates for the installed build, widget host, optional standalone Settings
 window); this release is published.
 
 Requires Windows 10/11 x64.

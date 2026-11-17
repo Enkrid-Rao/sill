@@ -1,12 +1,12 @@
 # Sill 开发文档
 
-v0.5.2 · 2026-11-17
+v0.5.3 · 2026-11-17
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
 ---
 
-## 0. 变更记录（v0.3 → v0.5.2）
+## 0. 变更记录（v0.3 → v0.5.3）
 
 | 变更 | 原因 |
 |---|---|
@@ -59,6 +59,7 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.5.0** 绿色版 ZIP | 普通 `win-unpacked` + `portable.flag` 打成 `Sill-<version>-portable-win64.zip`；解压即用，数据落 `Sill-data`，不写安装目录/卸载项 |
 | **v0.5.1** 监测刷新 | 主进程按 1/2/3/5s 设置推送快照，快捷键唤出无需点击即可刷新；collector 常驻预热，首帧即有 GPU/网速/进程；丢弃陈旧样本；CPU/内存/GPU/网络读数 560ms 平滑过渡 |
 | **v0.5.2** 常驻采集 | collector 启动即预热、面板隐藏不停；网络计数先预热 250ms；唤出后 0.4s 内 GPU/网速/进程即有值，避免每次显示都空一截 |
+| **v0.5.3** 设置与自动更新 | 设置页拆成外观 / 面板 / 数据 / 系统 / 通用五段；安装版接 electron-updater，后台下载、重启安装、退出时自动安装；绿色版手动更新 |
 
 ---
 
@@ -220,7 +221,7 @@ interface Provider<T> {
 
 | 路径 | 内容 |
 |---|---|
-| `%APPDATA%/Sill/settings.json` | 主题、热键、面板宽高与垂直偏移、语言、天气地区、停靠边与边缘距离、开机自启、自动检查更新、设置窗口模式 |
+| `%APPDATA%/Sill/settings.json` | 主题、热键、面板宽高与垂直偏移、语言、天气地区、停靠边与边缘距离、开机自启、自动更新、设置窗口模式 |
 | `%APPDATA%/Sill/weather.json` | 最近一次成功的天气快照（城市、温度、高低温、WMO code、时间戳） |
 | `%APPDATA%/Sill/todo.json` | 待办（`{id,text,done}`，原子写） |
 | `%APPDATA%/Sill/layout.json` | 卡片顺序、跨列与隐藏组件（`{version,order,spans,hidden}`，原子写） |
@@ -658,10 +659,9 @@ Electron + TypeScript + Vite + React + Zustand；测试 Vitest + Playwright；�
 分支、托盘与页脚的提示位、失败回滚路径。这些一旦被 M1–M5 的代码假定，改起来就是全线返工。
 趁现在只有一个窗口、两千多行代码，把「装 v0.1.0 → 发 v0.1.1 → 自己更新上来」跑通，成本最低。
 
-> **现状（v0.4.5）**：Settings 里的「自动检查更新」只是查 GitHub Release
-> （`api.github.com/repos/Enkrid-Rao/sill/releases/latest`），发现新版本只显示版本号，不下载、不安装。
-> 仓库目前是**私有**的，未带 token 的请求会拿到 404 —— 要么把仓库改为公开，要么在 M0.5 换成 generic feed。
-> 真正的下载安装仍由 electron-updater 在 M0.5 负责。
+> **现状（v0.5.3）**：安装版用 electron-updater + GitHub provider；`pnpm dist` 生成 `latest.yml` /
+> blockmap，release 一起上传。开启自动更新时后台下载，下载完成后可重启安装，退出时也会自动安装；
+> 关闭时只手动检查、手动下载。绿色 ZIP 不参与自动更新。
 
 ### 11.2 选型
 
@@ -669,7 +669,7 @@ Electron + TypeScript + Vite + React + Zustand；测试 Vitest + Playwright；�
 |---|---|---|
 | 打包 | electron-builder + NSIS + 绿色 ZIP | 生态最稳；NSIS 支持 per-user 安装，不需要 UAC；绿色版用普通文件夹 ZIP |
 | 更新库 | electron-updater | 直接读 electron-builder 产出的 `latest.yml` |
-| 更新源 | generic provider，URL 构建期注入 | 公开 GitHub Releases、私有 OSS、自建静态站共用一套代码 |
+| 更新源 | GitHub provider | 公开仓库直接用 Releases；setup / `latest.yml` / blockmap 同源 |
 | 安装位置 | `%LOCALAPPDATA%\Programs\Sill`（per-user） | 不弹 UAC；与数据目录 `%APPDATA%\Sill` 分开，卸载不丢主题 |
 | 版本 | `package.json` 单一来源 | 构建时注入；页脚与托盘显示 `app.getVersion()` |
 | 签名 | M0.5 先不签，M6 前定 | 未签名只会被 SmartScreen 拦一次；证书要买，不该拖住通道验证 |

@@ -70,6 +70,8 @@ export function SettingsWindow(): React.JSX.Element {
         onAutoUpdateChange={settings.changeAutoUpdate}
         update={settings.update}
         onCheckUpdate={settings.checkUpdate}
+        onDownloadUpdate={settings.downloadUpdate}
+        onInstallUpdate={settings.installUpdate}
         onEditLayout={() => void window.sill?.editLayout()}
         widgets={settings.widgets}
         onToggleWidget={settings.toggleWidget}

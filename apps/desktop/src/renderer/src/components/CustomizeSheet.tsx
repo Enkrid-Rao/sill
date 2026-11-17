@@ -24,7 +24,7 @@ import {
 } from '../../../shared/theme'
 import { formatHotkey } from '../lib/hotkey'
 
-type Tab = 'appearance' | 'behavior' | 'general'
+type Tab = 'appearance' | 'panel' | 'data' | 'system' | 'general'
 
 interface Props {
   theme: Theme
@@ -59,6 +59,8 @@ interface Props {
   onAutoUpdateChange: (value: boolean) => void
   update: UpdateState
   onCheckUpdate: () => void
+  onDownloadUpdate: () => void
+  onInstallUpdate: () => void
   onEditLayout: () => void
   widgets: readonly { id: CardId; label: string; hidden: boolean }[]
   onToggleWidget: (id: CardId, shown: boolean) => void
@@ -321,6 +323,8 @@ export function CustomizeSheet({
   onAutoUpdateChange,
   update,
   onCheckUpdate,
+  onDownloadUpdate,
+  onInstallUpdate,
   onEditLayout,
   widgets,
   onToggleWidget,
@@ -344,14 +348,42 @@ export function CustomizeSheet({
         return t(language, 'general.upToDate')
       case 'available':
         return `${t(language, 'general.updateAvailable')} v${update.version ?? ''}`
+      case 'downloading':
+        return `${t(language, 'general.downloading')} v${update.version ?? ''} · ${update.progress ?? 0}%`
+      case 'downloaded':
+        return `${t(language, 'general.updateReady')} v${update.version ?? ''}`
+      case 'unsupported':
+        return update.reason === 'portable'
+          ? t(language, 'general.updatePortable')
+          : t(language, 'general.updateDev')
       case 'error':
-        return update.reason === 'private'
-          ? t(language, 'general.updatePrivate')
+        if (update.reason === 'portable') return t(language, 'general.updatePortable')
+        if (update.reason === 'dev') return t(language, 'general.updateDev')
+        return update.reason === 'signature'
+          ? t(language, 'general.updateSignature')
           : t(language, 'general.updateFailed')
       default:
         return ''
     }
   })()
+
+  const updateBusy = update.status === 'checking' || update.status === 'downloading'
+  const updateAction =
+    update.status === 'downloaded'
+      ? onInstallUpdate
+      : update.status === 'available'
+        ? onDownloadUpdate
+        : onCheckUpdate
+  const updateActionText =
+    update.status === 'downloaded'
+      ? t(language, 'general.restartUpdate')
+      : update.status === 'available'
+        ? t(language, 'general.download')
+        : update.status === 'checking'
+          ? t(language, 'general.checking')
+          : update.status === 'downloading'
+            ? `${update.progress ?? 0}%`
+            : t(language, 'general.checkNow')
 
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true })
@@ -392,7 +424,7 @@ export function CustomizeSheet({
       </header>
 
       <div className="cz-tabs" role="tablist" aria-label={t(language, 'settings.title')}>
-        {(['appearance', 'behavior', 'general'] as const).map((id) => (
+        {(['appearance', 'panel', 'data', 'system', 'general'] as const).map((id) => (
           <button
             key={id}
             className="cz-tab"
@@ -548,7 +580,7 @@ export function CustomizeSheet({
           </>
         ) : null}
 
-        {tab === 'behavior' ? (
+        {tab === 'panel' ? (
           <>
             <p className="cz-group">{t(language, 'behavior.panel')}</p>
             <HotkeyRow hotkey={hotkey} language={language} onChange={onHotkeyChange} />
@@ -680,48 +712,11 @@ export function CustomizeSheet({
                 />
               ))}
             </Details>
-
-            <p className="cz-group">{t(language, 'behavior.system')}</p>
-            <Switch
-              id="cz-autostart"
-              label={t(language, 'behavior.startup')}
-              note={t(language, 'behavior.startupNote')}
-              checked={startAtLogin}
-              onChange={onStartAtLoginChange}
-            />
           </>
         ) : null}
 
-        {tab === 'general' ? (
+        {tab === 'data' ? (
           <>
-            <p className="cz-group">{t(language, 'general.interface')}</p>
-            <div className="cz-setrow">
-              <div className="cz-setrow__copy">
-                <span className="cz-setrow__name">{t(language, 'general.language')}</span>
-                <span className="cz-setrow__note">{t(language, 'general.languageNote')}</span>
-              </div>
-              <div className="cz-seg" role="group" aria-label={t(language, 'general.language')}>
-                {LANGUAGES.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-pressed={language === item.id}
-                    onClick={() => onLanguageChange(item.id)}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <Switch
-              id="cz-settings-window"
-              label={t(language, 'general.settingsWindow')}
-              note={t(language, 'general.settingsWindowNote')}
-              checked={settingsInWindow}
-              onChange={onSettingsInWindowChange}
-            />
-
             <p className="cz-group">{t(language, 'general.monitoring')}</p>
             <div className="cz-setrow cz-setrow--stack">
               <div className="cz-setrow__copy">
@@ -777,6 +772,19 @@ export function CustomizeSheet({
               </p>
               <p className="cz-note">{t(language, 'weather.credit')}</p>
             </div>
+          </>
+        ) : null}
+
+        {tab === 'system' ? (
+          <>
+            <p className="cz-group">{t(language, 'behavior.system')}</p>
+            <Switch
+              id="cz-autostart"
+              label={t(language, 'behavior.startup')}
+              note={t(language, 'behavior.startupNote')}
+              checked={startAtLogin}
+              onChange={onStartAtLoginChange}
+            />
 
             <p className="cz-group">{t(language, 'general.updates')}</p>
             <Switch
@@ -794,14 +802,47 @@ export function CustomizeSheet({
               <button
                 className="cz-action"
                 type="button"
-                onClick={onCheckUpdate}
-                disabled={update.status === 'checking'}
+                onClick={updateAction}
+                disabled={updateBusy || update.status === 'unsupported'}
               >
-                {update.status === 'checking'
-                  ? t(language, 'general.checking')
-                  : t(language, 'general.checkNow')}
+                {update.status === 'unsupported'
+                  ? t(language, 'general.unavailable')
+                  : updateActionText}
               </button>
             </div>
+            <p className="cz-note">{t(language, 'general.updateHint')}</p>
+          </>
+        ) : null}
+
+        {tab === 'general' ? (
+          <>
+            <p className="cz-group">{t(language, 'general.interface')}</p>
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'general.language')}</span>
+                <span className="cz-setrow__note">{t(language, 'general.languageNote')}</span>
+              </div>
+              <div className="cz-seg" role="group" aria-label={t(language, 'general.language')}>
+                {LANGUAGES.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={language === item.id}
+                    onClick={() => onLanguageChange(item.id)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Switch
+              id="cz-settings-window"
+              label={t(language, 'general.settingsWindow')}
+              note={t(language, 'general.settingsWindowNote')}
+              checked={settingsInWindow}
+              onChange={onSettingsInWindowChange}
+            />
 
             <p className="cz-group">{t(language, 'general.about')}</p>
             <div className="cz-setrow">

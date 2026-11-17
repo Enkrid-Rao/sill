@@ -55,6 +55,8 @@ export interface SillSettingsController {
   changeWeatherLocation: (value: string) => void
   changeMonitorIntervalMs: (value: number) => void
   checkUpdate: () => void
+  downloadUpdate: () => void
+  installUpdate: () => void
   setLayout: (next: PanelLayout) => void
   resetLayout: () => Promise<void>
   toggleWidget: (id: CardId, shown: boolean) => void
@@ -272,6 +274,17 @@ export function useSillSettings(): SillSettingsController {
     })
   }, [])
 
+  const downloadUpdate = useCallback(() => {
+    setUpdate((current) => ({ ...current, status: 'downloading', progress: 0 }))
+    void window.sill?.downloadUpdate().then((next) => {
+      if (next) setUpdate(next)
+    })
+  }, [])
+
+  const installUpdate = useCallback(() => {
+    void window.sill?.installUpdate()
+  }, [])
+
   const setLayout = useCallback((next: PanelLayout) => {
     setLayoutState(next)
     void window.sill?.setLayout(next)
@@ -351,6 +364,8 @@ export function useSillSettings(): SillSettingsController {
     changeWeatherLocation,
     changeMonitorIntervalMs,
     checkUpdate,
+    downloadUpdate,
+    installUpdate,
     setLayout,
     resetLayout,
     toggleWidget

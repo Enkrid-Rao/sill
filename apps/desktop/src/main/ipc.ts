@@ -18,7 +18,7 @@ import {
 } from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
 import { closeSettingsWindow, hasSettingsWindow, openSettingsWindow } from './settings-window'
-import { checkForUpdates, getUpdateState } from './updates'
+import { checkForUpdates, downloadUpdate, getUpdateState, installUpdate } from './updates'
 import { refreshWeather } from './weather'
 
 export interface IpcDeps {
@@ -128,6 +128,12 @@ export function registerIpc(deps: IpcDeps): void {
     broadcast('update:state', next)
     return next
   })
+  ipcMain.handle('update:download', async () => {
+    const next = await downloadUpdate()
+    broadcast('update:state', next)
+    return next
+  })
+  ipcMain.handle('update:install', () => installUpdate())
 
   ipcMain.handle('layout:get', () => getLayout())
   ipcMain.handle('layout:set', (_event, layout: unknown) => {

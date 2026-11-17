@@ -1,9 +1,15 @@
 # Sill 安装包 / 绿色版配置。规格与验收见 DEVPLAN §11。
-# 当前只负责「能装」；`publish` 段在接 electron-updater 时再补（M0.5 第二步）。
+# 自动更新用 electron-updater：NSIS 安装版走 GitHub Releases；
+# 绿色 ZIP 不参与自动更新，见 paths.ts 的 IS_PORTABLE。
 
 appId: com.sill.app
 productName: Sill
 copyright: Copyright © 2026 raoxi
+
+publish:
+  provider: github
+  owner: Enkrid-Rao
+  repo: sill
 
 directories:
   output: dist

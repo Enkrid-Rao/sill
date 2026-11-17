@@ -1,57 +1,155 @@
-import { app, net } from 'electron'
+import { app } from 'electron'
+import { autoUpdater, type ProgressInfo, type UpdateInfo } from 'electron-updater'
 import type { UpdateState } from '../shared/update'
+import { broadcast } from './broadcast'
+import { IS_PORTABLE } from './paths'
+import { loadSettings } from './settings'
 
 export type { UpdateState, UpdateStatus } from '../shared/update'
 
-const RELEASES_API = 'https://api.github.com/repos/Enkrid-Rao/sill/releases/latest'
+const RELEASE_URL = 'https://github.com/Enkrid-Rao/sill/releases/latest'
 
 let state: UpdateState = { status: 'idle' }
-let inflight: Promise<UpdateState> | null = null
+let initialized = false
+let checking: Promise<UpdateState> | null = null
+let downloading: Promise<UpdateState> | null = null
+
+function publish(next: UpdateState): UpdateState {
+  state = next
+  broadcast('update:state', next)
+  return next
+}
+
+function errorReason(error: unknown): UpdateState['reason'] {
+  const text = String(error)
+  return /signature|code signing|publisher/i.test(text) ? 'signature' : 'network'
+}
+
+function init(): void {
+  if (initialized) return
+  initialized = true
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.allowDowngrade = false
+  autoUpdater.allowPrerelease = false
+
+  autoUpdater.on('checking-for-update', () => {
+    publish({ status: 'checking' })
+  })
+
+  autoUpdater.on('update-available', (info: UpdateInfo) => {
+    publish({
+      status: 'available',
+      version: info.version,
+      url: RELEASE_URL,
+      checkedAt: Date.now()
+    })
+    // autoUpdate 的真义是“自动下载并安装”，不是只弹一个可用提示。
+    if (loadSettings().autoUpdate) void downloadUpdate()
+  })
+
+  autoUpdater.on('update-not-available', () => {
+    publish({ status: 'latest', version: app.getVersion(), checkedAt: Date.now() })
+  })
+
+  autoUpdater.on('download-progress', (progress: ProgressInfo) => {
+    publish({
+      status: 'downloading',
+      version: state.version,
+      progress: Math.max(0, Math.min(100, Math.round(progress.percent))),
+      url: state.url,
+      checkedAt: state.checkedAt
+    })
+  })
+
+  autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
+    publish({
+      status: 'downloaded',
+      version: info.version,
+      progress: 100,
+      url: RELEASE_URL,
+      checkedAt: Date.now()
+    })
+  })
+
+  autoUpdater.on('error', (error: Error) => {
+    console.error('[sill] 自动更新失败：', error)
+    publish({ status: 'error', reason: errorReason(error), checkedAt: Date.now() })
+  })
+}
 
 export function getUpdateState(): UpdateState {
   return state
 }
 
-/** 简单的数字段比较：1.2.10 > 1.2.9 */
-function isNewer(remote: string, local: string): boolean {
-  const a = remote.split('.').map((part) => Number.parseInt(part, 10) || 0)
-  const b = local.split('.').map((part) => Number.parseInt(part, 10) || 0)
-  const length = Math.max(a.length, b.length)
-  for (let index = 0; index < length; index += 1) {
-    const left = a[index] ?? 0
-    const right = b[index] ?? 0
-    if (left !== right) return left > right
-  }
-  return false
-}
-
 export function checkForUpdates(): Promise<UpdateState> {
-  if (inflight) return inflight
-  state = { status: 'checking' }
-  inflight = (async (): Promise<UpdateState> => {
+  if (IS_PORTABLE) {
+    return Promise.resolve(publish({ status: 'unsupported', reason: 'portable' }))
+  }
+  if (!app.isPackaged) {
+    return Promise.resolve(publish({ status: 'unsupported', reason: 'dev' }))
+  }
+
+  init()
+  if (checking) return checking
+
+  publish({ status: 'checking' })
+  checking = (async (): Promise<UpdateState> => {
     try {
-      const response = await net.fetch(RELEASES_API, {
-        headers: { Accept: 'application/vnd.github+json' }
-      })
-      if (response.status === 404) {
-        // 私有仓库未带 token 时 GitHub 返回 404
-        state = { status: 'error', reason: 'private', checkedAt: Date.now() }
-        return state
+      const result = await autoUpdater.checkForUpdates()
+      if (result && !result.isUpdateAvailable && state.status === 'checking') {
+        publish({ status: 'latest', version: app.getVersion(), checkedAt: Date.now() })
       }
-      if (!response.ok) throw new Error(`GitHub HTTP ${response.status}`)
-      const data = (await response.json()) as { tag_name?: string; html_url?: string }
-      const latest = String(data.tag_name ?? '').replace(/^v/i, '')
-      const current = app.getVersion()
-      state = latest && isNewer(latest, current)
-        ? { status: 'available', version: latest, url: data.html_url, checkedAt: Date.now() }
-        : { status: 'latest', version: current, checkedAt: Date.now() }
     } catch (error) {
       console.error('[sill] 检查更新失败：', error)
-      state = { status: 'error', reason: 'network', checkedAt: Date.now() }
+      publish({ status: 'error', reason: errorReason(error), checkedAt: Date.now() })
     } finally {
-      inflight = null
+      checking = null
     }
     return state
   })()
-  return inflight
+  return checking
+}
+
+export function downloadUpdate(): Promise<UpdateState> {
+  if (IS_PORTABLE) {
+    return Promise.resolve(publish({ status: 'unsupported', reason: 'portable' }))
+  }
+  if (!app.isPackaged) {
+    return Promise.resolve(publish({ status: 'unsupported', reason: 'dev' }))
+  }
+  if (downloading) return downloading
+  if (state.status === 'downloaded') return Promise.resolve(state)
+  if (state.status !== 'available' && state.status !== 'downloading') {
+    return Promise.resolve(state)
+  }
+
+  init()
+  publish({ ...state, status: 'downloading', progress: 0 })
+  downloading = (async (): Promise<UpdateState> => {
+    try {
+      await autoUpdater.downloadUpdate()
+    } catch (error) {
+      console.error('[sill] 下载更新失败：', error)
+      publish({ status: 'error', reason: errorReason(error), checkedAt: Date.now() })
+    } finally {
+      downloading = null
+    }
+    return state
+  })()
+  return downloading
+}
+
+export function installUpdate(): boolean {
+  if (state.status !== 'downloaded') return false
+  // 让 IPC 先返回，再走 electron-updater 的“退出并安装”流程
+  setTimeout(() => {
+    try {
+      autoUpdater.quitAndInstall(false, true)
+    } catch (error) {
+      console.error('[sill] 安装更新失败：', error)
+      publish({ status: 'error', reason: errorReason(error), checkedAt: Date.now() })
+    }
+  }, 120)
+  return true
 }

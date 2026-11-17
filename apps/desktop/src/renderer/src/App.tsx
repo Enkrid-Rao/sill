@@ -394,6 +394,8 @@ export default function App(): React.JSX.Element {
           onAutoUpdateChange={settings.changeAutoUpdate}
           update={settings.update}
           onCheckUpdate={settings.checkUpdate}
+          onDownloadUpdate={settings.downloadUpdate}
+          onInstallUpdate={settings.installUpdate}
           onEditLayout={() => {
             setCustomizing(false)
             setEditing(true)

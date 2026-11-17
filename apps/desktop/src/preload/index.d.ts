@@ -44,6 +44,8 @@ export interface SillApi {
   removeTodo: (id: string) => Promise<TodoItem[]>
   getUpdateState: () => Promise<UpdateState>
   checkForUpdates: () => Promise<UpdateState>
+  downloadUpdate: () => Promise<UpdateState>
+  installUpdate: () => Promise<boolean>
   onUpdateState: (callback: (state: UpdateState) => void) => () => void
   getLayout: () => Promise<PanelLayout>
   setLayout: (layout: PanelLayout) => Promise<PanelLayout>

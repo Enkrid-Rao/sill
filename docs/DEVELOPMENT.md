@@ -2,7 +2,7 @@
 
 面向**动手改代码**的人。产品目标与架构规划在 [../DEVPLAN.md](../DEVPLAN.md)，进度与交接在 [HANDOFF.md](HANDOFF.md)。
 
-最后更新：2026-11-17（v0.5.2：collector 常驻预热，唤出即有 GPU / 网速 / 进程）
+最后更新：2026-11-17（v0.5.3：五段式设置、electron-updater 自动更新）
 
 ---
 
@@ -111,7 +111,7 @@ pnpm dist
 
 ```
 Sill/
-├─ DEVPLAN.md                 产品与架构规划（v0.5.2）
+├─ DEVPLAN.md                 产品与架构规划（v0.5.3）
 ├─ docs/
 │  ├─ DEVELOPMENT.md          本文
 │  ├─ HANDOFF.md              交接
@@ -139,7 +139,7 @@ Sill/
       │  │                      media-control（SMTC + WASAPI 控制进程）
       │  ├─ weather.ts          天气 provider：ipwho.is 自动定位 + Open-Meteo + weather.json 缓存
       │  ├─ mouse-watch.ts      面板可见时的外部左键监视器（PowerShell 子进程）
-      │  ├─ updates.ts          查 GitHub Release 最新版本（只检查，不安装）
+      │  ├─ updates.ts          electron-updater 检查 / 下载 / 安装状态机
       │  ├─ panel.ts            面板窗口：几何、缩放、滑入动画、显隐、Esc 分层、崩溃重载
       │  ├─ settings-window.ts  独立设置窗口的创建 / 定位 / 关闭，以及面板置顶临时让位
       │  ├─ broadcast.ts        settings/layout/update 变更广播给所有渲染窗口
@@ -160,7 +160,7 @@ Sill/
             ├─ lib/useSillSettings.ts 面板与设置窗口共享的设置状态 + 广播订阅
             ├─ lib/hotkey.ts    accelerator → 显示用文案（Alt + Q）
             ├─ components/
-            │  ├─ CustomizeSheet.tsx  Settings 表面（外观 / 行为 / 通用三页）
+            │  ├─ CustomizeSheet.tsx  Settings 表面（外观 / 面板 / 数据 / 系统 / 通用五段）
             │  ├─ SettingsWindow.tsx  独立设置窗口根
             │  ├─ ResizeHandles.tsx   内侧边 / 底边 / 内下角缩放把手 + HUD
             │  └─ widgets/
@@ -318,15 +318,22 @@ DEVPLAN §3.1 第 8 条要求的"连续两次崩溃降级为纯色面板"**尚�
     pwsh 7 的 WinRT 投影不可靠
   - 脚本开头设 `[Console]::OutputEncoding = UTF8`，否则中文歌名到 Node 会变乱码
   - GPU 读 `nvidia-smi`；没有 N 卡时字段为 null，UI 显示「—」
-- **只在面板显示时采样**：`showPanel()` → `startData()`，`hidePanel()` 动画结束 → `stopData()`
-- 采集结果缓存；再次唤出先用上一帧，避免先闪一段「—」
+- **只在面板显示时组装/推送快照**：`showPanel()` → `startData()`，`hidePanel()` 动画结束 → `stopData()`；
+  collector 本身常驻预热，隐藏时继续更新最新样本
+- 采集结果缓存；再次唤出先用最新一帧，避免先闪一段「—」
 - **待办**：`%APPDATA%\Sill\todo.json`，原子写；第一次运行用当前语言的示例任务初始化
 
-### 6.11 更新检查（只查，不装）
+### 6.11 自动更新（electron-updater）
 
-`updates.ts` 请求 `api.github.com/repos/Enkrid-Rao/sill/releases/latest`，与 `app.getVersion()` 比较。
-**不下载、不安装**；仓库是公开的，v0.5.2 发布后返回 latest，设置页显示「已是最新」。
-真正的安装留给 M0.5 的 electron-updater。
+`updates.ts` 用 `electron-updater` + GitHub provider 读取 `latest.yml`，完成检查、后台下载和安装：
+
+- `autoUpdate` 开启：启动 15 秒后检查，之后每 6 小时一次；发现新版本自动下载。
+- 下载完成：`update-downloaded` → 设置页显示「重启更新」；`autoInstallOnAppQuit = true`，
+  正常退出时也会安装。
+- `autoUpdate` 关闭：只手动检查；发现版本后用户点「下载」，下载完成再点「重启更新」。
+- 安装版才启用；绿色版（`paths.ts` 的 `IS_PORTABLE`）和 dev 构建显示不支持，不调用 updater。
+- 发布物必须同时上传 setup、`latest.yml`、`.blockmap`；setup 缺一不可。
+- NSIS 保持 per-user，安装目录 `%LOCALAPPDATA%\Programs\Sill`；更新不碰 `%APPDATA%\Sill`。
 
 ### 6.12 自由尺寸与响应式列
 
@@ -650,17 +657,21 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 **已跑通（2026-11-13）**：`pnpm dist` 出 `Sill-Setup-0.1.0.exe`（约 116 MB），静默装到
 `%LOCALAPPDATA%\Programs\Sill`，开始菜单有 Sill，打包态 `--smoke` 通过，托盘图标走 asar 外的
 `extraResources`（`resources\resources\tray.ico`）。
-**还没做**：`publish` 段、`src/main/updater.ts`、页脚/托盘更新提示、v0.1.0→v0.1.1 干跑。
-当前源码版本 **0.5.2**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.2.exe`，绿色版输出
-`apps/desktop/dist/Sill-0.5.2-portable-win64.zip`，已发布到 GitHub Releases；
+**v0.5.3**：安装版接入 electron-updater；`pnpm dist` 额外生成 `latest.yml` + blockmap，
+release 需要一起上传；绿色 ZIP 不参与自动更新。
+当前源码版本 **0.5.3**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.3.exe`，绿色版输出
+`apps/desktop/dist/Sill-0.5.3-portable-win64.zip`，已发布到 GitHub Releases；
 `media-control.ps1` / `mouse-watch.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：
 
-- 更新器**只在打包态生效**：`app.isPackaged` 为假（`pnpm dev` / `--smoke`）时模块直接返回。
-  别在 dev 里调 electron-updater——它读不到 `latest.yml`，只会抛错
+- 更新器**只在打包态且非 portable 时生效**：`app.isPackaged` 为假（`pnpm dev` / `--smoke`）或
+  `IS_PORTABLE` 为真时直接返回 `unsupported`。
+- `autoUpdater.autoDownload = false`；是否自动下载由 `settings.autoUpdate` 决定。
+- `autoUpdater.autoInstallOnAppQuit = true`；`installUpdate()` 调用
+  `quitAndInstall(false, true)`，不要强制静默重启。
 - `pnpm dist` 走 electron-builder + NSIS，装到 `%LOCALAPPDATA%\Programs\Sill`；
   `%APPDATA%\Sill` 是数据目录，卸载不删、更新不碰
-- 主进程里**允许碰网络的只有 `src/main/updater.ts` 和 `src/main/weather.ts`**；渲染进程只消费
+- 主进程里**允许碰网络的只有 `updates.ts` 和 `weather.ts`**；渲染进程只消费
   `window.sill.update.*` / `snapshot.weather` 的状态。天气请求超时 12s、失败 30s 重试，不在渲染进程发请求
 - `package.json` 的 `version` 是 `latest.yml`、安装包文件名、面板页脚的唯一来源，发版前先核对它
