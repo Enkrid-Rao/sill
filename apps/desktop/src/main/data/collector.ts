@@ -120,9 +120,6 @@ export function startCollector(nextIntervalMs = 2000): void {
     }
   }
   if (child) return
-  // 重新打开面板时不沿用上一次会话的采样；否则网络 / GPU / 进程会先显示旧值。
-  latest = null
-  latestAt = 0
   spawnCollector()
 }
 

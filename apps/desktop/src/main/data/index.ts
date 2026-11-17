@@ -1,6 +1,6 @@
 import type { PanelSnapshot } from '../../shared/data'
 import { loadSettings } from '../settings'
-import { getCollected, startCollector, stopCollector } from './collector'
+import { getCollected, startCollector } from './collector'
 import { getMediaControlState, startMediaControl, stopMediaControl } from './media-control'
 import { resetCpu, sampleSystem } from './system'
 import { getWeather, startWeather, stopWeather } from '../weather'
@@ -57,9 +57,8 @@ function tick(): void {
 }
 
 /**
- * 面板显示时开始采样；隐藏时停掉，不在后台空转。
- * 数据由主进程主动推给面板，不再依赖渲染进程轮询——这样快捷键唤出后不需要
- * 先点一下面板才能收到新数据。
+ * 面板显示时开始组装/推送快照；隐藏时停掉推送和媒体/天气，
+ * 但保留 collector 常驻，这样下次唤出时 GPU / 网络已经是热的。
  */
 export function startData(onSnapshot?: SnapshotListener): void {
   if (onSnapshot) listener = onSnapshot
@@ -97,12 +96,19 @@ export function refreshDataCadence(): void {
   const nextInterval = loadSettings().monitorIntervalMs
   if (nextInterval === intervalMs) return
   intervalMs = nextInterval
+  // 即使面板当前隐藏，也要让常驻 collector 换到新节拍。
+  startCollector(intervalMs)
   // 还在等第一帧：prime 回调会读新的 intervalMs。
   if (primeTimer || !timer) return
   clearInterval(timer)
-  startCollector(intervalMs)
   tick()
   timer = setInterval(tick, intervalMs)
+}
+
+/** 应用启动时先把 collector 拉起来，第一次快捷键唤出时就有 GPU / 网速可显示。 */
+export function warmCollector(): void {
+  intervalMs = loadSettings().monitorIntervalMs
+  startCollector(intervalMs)
 }
 
 export function stopData(): void {
@@ -115,7 +121,8 @@ export function stopData(): void {
     timer = null
   }
   listener = null
-  stopCollector()
+  // collector 故意不停：常驻采样是“唤出即有网速 / GPU”的前提。
+  // 应用退出时由 main/index.ts 调 stopCollector()。
   stopMediaControl()
   stopWeather()
 }

@@ -35,6 +35,16 @@ $prevRx = $null
 $prevTx = $null
 $prevAt = Get-Date
 
+# Prime the NIC counters so the first emitted line has a real rate instead of 0 B/s.
+$prevRx = 0
+$prevTx = 0
+foreach ($adapter in @(Get-NetAdapterStatistics)) {
+  $prevRx += $adapter.ReceivedBytes
+  $prevTx += $adapter.SentBytes
+}
+$prevAt = Get-Date
+Start-Sleep -Milliseconds 250
+
 while ($true) {
   $now = Get-Date
   $dt = ($now - $prevAt).TotalSeconds

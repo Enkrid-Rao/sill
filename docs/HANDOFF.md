@@ -3,21 +3,21 @@
 写给**接手这个项目的人或下一个会话**。目标：读完这页，你知道现在到底有什么、什么是真的验证过的、
 下一条命令该敲什么。
 
-- 交接时间：2026-11-16（v0.5.1：可调监测刷新、首帧推送与平滑读数）
+- 交接时间：2026-11-17（v0.5.2：collector 常驻预热，唤出即有 GPU/网速/进程）
 - 代码位置：`D:\Projects\Sill`（从旧的 `D:\Projects\Tide` 改名而来，旧路径已不存在）
-- 对应规划：[../DEVPLAN.md](../DEVPLAN.md) v0.5.1
+- 对应规划：[../DEVPLAN.md](../DEVPLAN.md) v0.5.2
 - 对应开发文档：[DEVELOPMENT.md](DEVELOPMENT.md)
 - 组件规范仓库：[Sill-Components](https://github.com/Enkrid-Rao/sill-components)
-- 当前应用版本：**v0.5.1**（`package.json`，已发布）
-- 上一发布：v0.5.0
+- 当前应用版本：**v0.5.2**（`package.json`，已发布）
+- 上一发布：v0.5.1
 
 ---
 
 ## 0. 30 秒速览
 
-- 版本 **v0.5.1**，已发 GitHub Release；安装版 + **绿色版**都在
+- 版本 **v0.5.2**，已发 GitHub Release；安装版 + **绿色版**都在
   [Releases](https://github.com/Enkrid-Rao/sill/releases)
-- 绿色版 `Sill-0.5.1-portable-win64.zip`：解压整个 `Sill` 文件夹即用；不写安装目录 / 注册表卸载项 / Program Files；
+- 绿色版 `Sill-0.5.2-portable-win64.zip`：解压整个 `Sill` 文件夹即用；不写安装目录 / 注册表卸载项 / Program Files；
   数据在同目录 `Sill-data`，可随文件夹移动；不会每次解压到临时目录
 - 已完成：M0 骨架、三页设置、真实数据（system / media / todo / **weather**）、NSIS 安装包、
   **面板连续自由缩放**、**媒体传输键与系统音量**、**待办原位动效**、
@@ -57,7 +57,7 @@
 - 组件规范：独立 `Sill-Components` 仓库（manifest / IR / runtime / sandbox / examples），
   但引擎与 CLI 尚未实现。
 - 发布：`pnpm dist` 出 NSIS 安装包；`pnpm dist:portable` 解包并生成绿色 ZIP；
-  **v0.5.1 是当前已发布版本**（上一发布是 v0.5.0）。
+  **v0.5.2 是当前已发布版本**（上一发布是 v0.5.1）。
 
 ---
 
@@ -115,14 +115,15 @@
 | TODO 过滤/编辑/撤销 | Playwright + DOM 点击：Open 3 → 勾选后 2（留 360ms 再收起）→ Closed 1 → All 3；行内编辑保存为「编辑测试任务」；删除后 700ms 出现「待办已删除 / 撤销」toast，点撤销恢复 3 条；无页面报错 |
 | TODO 输入框 Esc | Playwright：addrow 输入 draft 后 Esc → 值清空、面板仍在；编辑输入后 Esc → 输入框消失、原文不变、面板仍在 |
 | 组件规范仓库 | `D:\Projects\Sill-Components` 已同步到 [GitHub](https://github.com/Enkrid-Rao/sill-components)，标签 `v0.1.0`；clock / counter 两个 manifest 通过 `spec/widget.schema.json` 校验 |
-| 绿色版可用 | 解压 `Sill-0.5.1-portable-win64.zip` → `Sill\Sill.exe --smoke` exit 0；同目录生成 `Sill-data`，`layout.json` / `todo.json` / `weather.json` / `smoke.png` 都落在里面；外层只有 `Sill` 文件夹 |
+| 绿色版可用 | 解压 `Sill-0.5.2-portable-win64.zip` → `Sill\Sill.exe --smoke` exit 0；同目录生成 `Sill-data`，`layout.json` / `todo.json` / `weather.json` / `smoke.png` 都落在里面；外层只有 `Sill` 文件夹 |
 | 监测刷新 | 快捷键唤出后不点击面板，1.2s 内 CPU 已从 — 变成真实值，3.4s 内 `snapshot.at` 继续前进；设置切 1s 后两次快照间隔约 1.0s。首帧由主进程 `data:changed` 推送，渲染进程不再轮询 |
+| 唤出即有扫描值 | 应用启动后 collector 在后台预热；隐藏 2.6s 再唤出，0.4s 内 `gpu=23`、`down=18382`、3 个进程已可读；再次隐藏 2.6s 后仍在。媒体 / 点外监视器仍只在面板可见时运行，collector 故意常驻 |
 | 监测设置 | 设置 → 通用 → 监测 → 刷新频率，1 / 2 / 3 / 5s；点击 1s 后 `getSettings().monitorIntervalMs` 为 1000 |
 | 便携路径 | `paths.ts` 检测 exe 旁的 `portable.flag`，把 userData 指到 `<exe dir>/Sill-data`；`applyAutostart` 注册 `process.execPath`（绿色文件夹里的 exe） |
 | 打包态能跑 | 装完的 `Sill.exe --smoke` exit 0，截图写 `%APPDATA%\Sill\smoke.png`，画面与 dev 一致；托盘图标从 asar 外的 `resources\resources\` 加载（stderr 无「图标为空」） |
 | 真实数据能跑 | `collector.ps1` 独立运行默认每 2s 输出一行 JSON；应用内快照含 CPU/内存、GPU 30%、网络速率、TOP 进程、SMTC 媒体（张惠妹《忘记》），截图已核 |
 | 待办可写 | 临时 profile 下 `todo.json` 自动生成；通过 IPC add / toggle 后落盘为 `done: true` |
-| 更新检查 | 手动检查走公开 GitHub Release API；v0.5.1 发布后返回 latest，设置页显示「已是最新」；不下载、不安装 |
+| 更新检查 | 手动检查走公开 GitHub Release API；v0.5.2 发布后返回 latest，设置页显示「已是最新」；不下载、不安装 |
 
 ---
 
@@ -149,7 +150,9 @@
    `restorePanelTop()` 恢复 `screen-saver`；如果用户希望面板始终压在最上层，这条需要重新权衡。
 6. **面板可见时最多三个 PowerShell 进程**：collector、media-control、mouse-watch。
    mouse-watch 是 40ms 轮询 `GetAsyncKeyState`，不是全局钩子；极快的点击（<40ms）可能漏判，
-   但不消费用户的点击。进程都在面板隐藏后退出；如果以后常驻组件变多，需要合并采集/控制/点击监视。
+   但不消费用户的点击。media-control / mouse-watch 在面板隐藏后退出；**collector 故意常驻**
+   （应用启动即预热，否则每次唤出都要重新等 GPU / 网速），所以隐藏时仍有一个 PowerShell 进程。
+   如果以后常驻组件变多，需要合并采集/控制/点击监视。
 7. **天气依赖外部网络**：Open-Meteo 与 ipwho.is 都是直连；IP 定位只到城市级，VPN/代理会改变结果，
    失败时回退上海。没有系统定位权限、也没有高精度坐标；离线时保留最后一次缓存（`weather.json`），
    首次无缓存会显示「天气暂不可用」，30s 后重试。
@@ -173,6 +176,8 @@
 > 不新增版本）。
 > **v0.5.1 / 应用 v0.5.1（已发布）** 主进程推送首帧、1–5s 可调监测刷新、陈旧样本丢弃与读数平滑；
 > 同时把绿色 ZIP 升到 v0.5.1。
+> **v0.5.2 / 应用 v0.5.2（已发布）** collector 启动预热并常驻，面板隐藏时不停采集；唤出后
+> 0.4s 内 GPU / 网速 / 进程即有值，不再每次显示都空一截。
 > 它不改变顺序；下一版才是 M1 的 IR 引擎——宿主只解决了「谁放在哪」，还没解决「组件怎么描述自己」。
 
 ### 第 1 步：把 M0 剩下五条跑一遍（约 30 分钟）
@@ -245,7 +250,7 @@ M1 的验收标准在 DEVPLAN §3.2，最关键那条是：**用一个没为它�
 | 点外收起 | 原决策 #4 只列热键 / Esc / 托盘 | v0.5.0 增加鼠标左键监视器；设置 / 布局编辑 / 托盘点击豁免 | 已写进 DEVPLAN §5.2 / 决策 #4 |
 | TODO 交互 | 只有增删勾选 + 原位动效 | v0.5.0 增加 Open / Closed / All、行内编辑、5 秒撤销、输入框 Esc 取消 | 已写进 DEVPLAN §5.2 / DEVELOPMENT §6.21 |
 | 组件规范位置 | 全部写在 DEVPLAN §6 | 规范 / 示例拆到独立 `Sill-Components` 仓库；Sill 只留宿主与内置组件 | 已写进 DEVPLAN §6.5 |
-| 绿色版 | 原发布通道只有 NSIS 安装包 | v0.5.1 资产追加绿色 ZIP；`portable.flag` + `Sill-data`，无安装器/卸载项 | 已写进 DEVELOPMENT §6.23 |
+| 绿色版 | 原发布通道只有 NSIS 安装包 | v0.5.2 资产追加绿色 ZIP；`portable.flag` + `Sill-data`，无安装器/卸载项 | 已写进 DEVELOPMENT §6.23 |
 
 ---
 

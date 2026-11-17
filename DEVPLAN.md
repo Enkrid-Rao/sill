@@ -1,12 +1,12 @@
 # Sill 开发文档
 
-v0.5.1 · 2026-11-16
+v0.5.2 · 2026-11-17
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
 ---
 
-## 0. 变更记录（v0.3 → v0.5.1）
+## 0. 变更记录（v0.3 → v0.5.2）
 
 | 变更 | 原因 |
 |---|---|
@@ -57,7 +57,8 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.5.0** TODO 对齐 Tide | Open / Closed / All 三段过滤器（计数 + 滑动 thumb）、行内编辑、5 秒撤销 toast、输入框 Esc 取消；勾选仍不重排 |
 | **v0.5.0** 组件规范拆分 | 组件 manifest / IR / runtime / sandbox 文档迁到独立 `Sill-Components` 仓库，Sill 只保留宿主实现 |
 | **v0.5.0** 绿色版 ZIP | 普通 `win-unpacked` + `portable.flag` 打成 `Sill-<version>-portable-win64.zip`；解压即用，数据落 `Sill-data`，不写安装目录/卸载项 |
-| **v0.5.1** 监测刷新 | 主进程按 1/2/3/5s 设置推送快照，快捷键唤出无需点击即可刷新；首帧 250ms 预热、丢弃陈旧采集样本；CPU/内存/GPU/网络读数 560ms 平滑过渡 |
+| **v0.5.1** 监测刷新 | 主进程按 1/2/3/5s 设置推送快照，快捷键唤出无需点击即可刷新；collector 常驻预热，首帧即有 GPU/网速/进程；丢弃陈旧样本；CPU/内存/GPU/网络读数 560ms 平滑过渡 |
+| **v0.5.2** 常驻采集 | collector 启动即预热、面板隐藏不停；网络计数先预热 250ms；唤出后 0.4s 内 GPU/网速/进程即有值，避免每次显示都空一截 |
 
 ---
 

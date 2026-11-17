@@ -4,6 +4,8 @@ import { join } from 'node:path'
 import { Menu, app } from 'electron'
 import { applyAutostart } from './autostart'
 import { broadcast } from './broadcast'
+import { stopData, warmCollector } from './data'
+import { stopCollector } from './data/collector'
 import { bindHotkey, disposeHotkeys } from './hotkey'
 import { registerIpc } from './ipc'
 import {
@@ -42,6 +44,8 @@ if (!singleInstance) {
 app.on('window-all-closed', () => {})
 
 app.on('before-quit', () => {
+  stopData()
+  stopCollector()
   disposeHotkeys()
   destroyTray()
 })
@@ -106,6 +110,8 @@ async function boot(): Promise<void> {
     return true
   })
   createPanel()
+  // 常驻采样：第一次唤出 / 快速隐藏再唤出时，GPU、网速和进程不需要重新等 PowerShell。
+  warmCollector()
 
   if (!SMOKE) {
     bindHotkey(settings.hotkey, onToggle)

@@ -4,7 +4,7 @@
 ![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
 ![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
-[![Release](https://img.shields.io/badge/release-v0.5.1-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+[![Release](https://img.shields.io/badge/release-v0.5.2-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
 
 A glass side rail for the Windows desktop: summon it with a hotkey, docked to the edge of the screen,
 built to host installable widgets — and eventually to eat Rainmeter skins.
@@ -39,7 +39,9 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
   stored in `todo.json`. Completed tasks stay in place; deletes fade horizontally while the row
   height collapses, so nothing jumps up or down. The todo card has **Open / Closed / All**, inline
   edit, and a 5-second undo. The system monitor refreshes at a configurable **1 / 2 / 3 / 5 s**
-  interval, and its readings ease between samples instead of snapping.
+  interval, and its readings ease between samples instead of snapping. The collector stays warm
+  while the panel is hidden, so GPU, network and process fields are already populated on the
+  first frame after summoning the rail.
 - **Weather — real.** Auto-locate by coarse IP, or pick one of 28 cities in Settings. The hero card
   shows the current temperature, WMO condition, high/low and city; last good data is cached and
   retried after a network failure. Attribution: Open-Meteo / ipwho.is.
@@ -53,7 +55,7 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
 
 ## Install
 
-Grab `Sill-Setup-0.5.1.exe` or the portable ZIP `Sill-0.5.1-portable-win64.zip`
+Grab `Sill-Setup-0.5.2.exe` or the portable ZIP `Sill-0.5.2-portable-win64.zip`
 from [Releases](https://github.com/Enkrid-Rao/sill/releases).
 It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
 so SmartScreen warns once — choose “More info → Run anyway”.
@@ -63,10 +65,10 @@ location, then run `Sill.exe`. No installer, no uninstall entry, no Program File
 extraction. It keeps `settings.json`, `todo.json`, `layout.json` and `weather.json` in a visible
 `Sill-data` folder next to `Sill.exe`; moving the folder keeps the data with it. Do not put it in
 `Program Files` (it may be read-only).
-The source is currently at **v0.5.1** (real weather with auto/manual location, click-outside
+The source is currently at **v0.5.2** (real weather with auto/manual location, click-outside
 dismissal, Open/Closed/All todo with edit and undo, portable build, adjustable 1–5s monitor
-refresh with smooth readings, widget host, optional standalone Settings window); this release is
-published.
+refresh with a warm collector and smooth readings, widget host, optional standalone Settings
+window); this release is published.
 
 Requires Windows 10/11 x64.
 
