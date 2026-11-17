@@ -57,5 +57,5 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: Sill
   uninstallDisplayName: Sill
-  deleteAppDataOnUninstall: false     # %APPDATA%\Sill 存主题与设置，卸载不删
+  deleteAppDataOnUninstall: false     # 默认保留 %APPDATA%\Sill；设置内卸载可带 --delete-app-data
   runAfterFinish: true

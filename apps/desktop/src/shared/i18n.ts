@@ -189,6 +189,28 @@ const en = {
   'general.updateFailed': 'Check failed',
   'general.updatePrivate': 'Repository is private — cannot check',
 
+  'general.dataUninstall': 'Data & uninstall',
+  'general.dataFolder': 'User data',
+  'general.dataFolderNote': 'Settings, to-dos, layout and caches',
+  'general.openDataFolder': 'Open folder',
+  'general.uninstall': 'Uninstall',
+  'general.uninstallNoteInstalled': 'Removes Sill, its Start menu shortcut and auto-start entry',
+  'general.uninstallNotePortable': 'Deletes this folder, including Sill-data',
+  'general.uninstallNoteUnsupported': 'Development or unpacked build — no uninstaller',
+  'general.uninstallButton': 'Uninstall Sill…',
+  'general.uninstallTitle': 'Uninstall Sill?',
+  'general.uninstallBodyInstalled':
+    'Sill will quit first, then the standard uninstaller opens. Your data stays unless you delete it below.',
+  'general.uninstallBodyPortable':
+    'Sill will quit first. This folder — including Sill-data and everything in it — is then deleted. This cannot be undone.',
+  'general.uninstallDeleteData': 'Also delete my data',
+  'general.uninstallDeleteDataNote': 'Settings, to-dos, layout and weather cache',
+  'general.uninstallCancel': 'Cancel',
+  'general.uninstallConfirm': 'Uninstall',
+  'general.uninstalling': 'Sill is closing…',
+  'general.uninstallFailed':
+    'Could not start the uninstaller. Try again, or uninstall from Windows Settings → Apps.',
+
   'footer.appearance': 'Changes save locally',
   'footer.behavior': 'Behaviour changes apply immediately',
   'footer.panel': 'Panel changes apply immediately',
@@ -384,6 +406,28 @@ const zh: Record<Key, string> = {
   'general.unavailable': '不可用',
   'general.updateFailed': '检查失败',
   'general.updatePrivate': '仓库未公开，无法检查',
+
+  'general.dataUninstall': '数据与卸载',
+  'general.dataFolder': '用户数据',
+  'general.dataFolderNote': '设置、待办、布局与缓存',
+  'general.openDataFolder': '打开文件夹',
+  'general.uninstall': '卸载',
+  'general.uninstallNoteInstalled': '删除 Sill、开始菜单快捷方式与开机自启项',
+  'general.uninstallNotePortable': '删除整个文件夹，包括里面的 Sill-data',
+  'general.uninstallNoteUnsupported': '开发 / 解包构建没有卸载程序',
+  'general.uninstallButton': '卸载 Sill…',
+  'general.uninstallTitle': '确定卸载 Sill？',
+  'general.uninstallBodyInstalled':
+    'Sill 会先退出，然后打开标准卸载程序。用户数据默认保留，可在下面勾选一并删除。',
+  'general.uninstallBodyPortable':
+    'Sill 会先退出，然后删除整个文件夹——包括 Sill-data 和里面的全部数据。此操作不可撤销。',
+  'general.uninstallDeleteData': '同时删除用户数据',
+  'general.uninstallDeleteDataNote': '设置、待办、布局与天气缓存',
+  'general.uninstallCancel': '取消',
+  'general.uninstallConfirm': '卸载',
+  'general.uninstalling': 'Sill 正在退出…',
+  'general.uninstallFailed':
+    '无法启动卸载程序。可以重试，或从 Windows 设置 → 应用里卸载。',
 
   'footer.appearance': '改动保存在本地',
   'footer.behavior': '行为设置立即生效',

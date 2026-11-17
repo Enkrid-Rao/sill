@@ -14,6 +14,7 @@ import {
   type CardId
 } from '../../../shared/layout'
 import type { UpdateState } from '../../../shared/update'
+import type { UninstallInfo } from '../../../shared/uninstall'
 import {
   ACCENT_SWATCHES,
   ATMO_STYLES,
@@ -157,6 +158,132 @@ function Switch({
         <span className="cz-switch" aria-hidden="true" />
       </span>
     </label>
+  )
+}
+
+/** 数据位置 + 卸载入口。两种发布形态的行为不同，全部由主进程的 UninstallInfo 决定。 */
+function UninstallSection({ language }: { language: Language }): React.JSX.Element {
+  const [info, setInfo] = useState<UninstallInfo | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const [deleteData, setDeleteData] = useState(false)
+  const [starting, setStarting] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    void window.sill?.getUninstallInfo().then((next) => {
+      if (alive) setInfo(next)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const mode = info?.mode ?? 'unsupported'
+  const note =
+    mode === 'installed'
+      ? t(language, 'general.uninstallNoteInstalled')
+      : mode === 'portable'
+        ? t(language, 'general.uninstallNotePortable')
+        : t(language, 'general.uninstallNoteUnsupported')
+
+  const run = (): void => {
+    setFailed(false)
+    setStarting(true)
+    void window.sill
+      ?.uninstall(deleteData)
+      .then((result) => {
+        if (!result?.ok) {
+          setStarting(false)
+          setFailed(true)
+        }
+      })
+      .catch(() => {
+        setStarting(false)
+        setFailed(true)
+      })
+  }
+
+  return (
+    <>
+      <p className="cz-group">{t(language, 'general.dataUninstall')}</p>
+
+      <div className="cz-setrow">
+        <div className="cz-setrow__copy">
+          <span className="cz-setrow__name">{t(language, 'general.dataFolder')}</span>
+          <span className="cz-setrow__note cz-path" title={info?.dataDir ?? ''}>
+            {info?.dataDir ?? '—'}
+          </span>
+          <span className="cz-setrow__note">{t(language, 'general.dataFolderNote')}</span>
+        </div>
+        <button
+          className="cz-action"
+          type="button"
+          disabled={!info}
+          onClick={() => void window.sill?.openDataFolder()}
+        >
+          {t(language, 'general.openDataFolder')}
+        </button>
+      </div>
+
+      <div className="cz-setrow">
+        <div className="cz-setrow__copy">
+          <span className="cz-setrow__name">{t(language, 'general.uninstall')}</span>
+          <span className="cz-setrow__note">{note}</span>
+        </div>
+        <button
+          className="cz-action cz-action--danger"
+          type="button"
+          disabled={!info?.canUninstall || starting || confirming}
+          onClick={() => {
+            setDeleteData(false)
+            setFailed(false)
+            setConfirming(true)
+          }}
+        >
+          {t(language, 'general.uninstallButton')}
+        </button>
+      </div>
+
+      {confirming ? (
+        <div
+          className="cz-confirm"
+          role="alertdialog"
+          aria-label={t(language, 'general.uninstallTitle')}
+        >
+          <p className="cz-confirm__title">{t(language, 'general.uninstallTitle')}</p>
+          <p className="cz-confirm__body">
+            {mode === 'portable'
+              ? t(language, 'general.uninstallBodyPortable')
+              : t(language, 'general.uninstallBodyInstalled')}
+          </p>
+          {mode === 'installed' ? (
+            <Switch
+              id="cz-uninstall-delete-data"
+              label={t(language, 'general.uninstallDeleteData')}
+              note={t(language, 'general.uninstallDeleteDataNote')}
+              checked={deleteData}
+              onChange={setDeleteData}
+            />
+          ) : null}
+          {failed ? <p className="cz-error">{t(language, 'general.uninstallFailed')}</p> : null}
+          {starting ? (
+            <p className="cz-confirm__pending" role="status">
+              {t(language, 'general.uninstalling')}
+            </p>
+          ) : (
+            <div className="cz-confirm__actions">
+              <button className="cz-action" type="button" onClick={() => setConfirming(false)}>
+                {t(language, 'general.uninstallCancel')}
+              </button>
+              <button className="cz-action cz-action--danger" type="button" onClick={run}>
+                {t(language, 'general.uninstallConfirm')}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+    </>
   )
 }
 
@@ -852,6 +979,8 @@ export function CustomizeSheet({
               </div>
               <span className="cz-version">{version || '0.1.0'}</span>
             </div>
+
+            <UninstallSection language={language} />
           </>
         ) : null}
       </div>

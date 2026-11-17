@@ -2,6 +2,7 @@ import type { MediaControlState, PanelSnapshot, TodoItem } from '../shared/data'
 import type { Language } from '../shared/i18n'
 import type { PanelLayout } from '../shared/layout'
 import type { Theme } from '../shared/theme'
+import type { UninstallInfo, UninstallResult } from '../shared/uninstall'
 import type { UpdateState } from '../shared/update'
 
 export interface SillSettings {
@@ -33,6 +34,9 @@ export interface SillApi {
   updateSettings: (patch: Partial<SillSettings>) => Promise<SillSettings>
   setHotkey: (accel: string) => Promise<{ ok: boolean; hotkey: string }>
   getVersion: () => Promise<string>
+  getUninstallInfo: () => Promise<UninstallInfo>
+  openDataFolder: () => Promise<string>
+  uninstall: (deleteData: boolean) => Promise<UninstallResult>
   getSnapshot: () => Promise<PanelSnapshot>
   onSnapshot: (callback: (snapshot: PanelSnapshot) => void) => () => void
   mediaCommand: (action: string, value?: number) => Promise<MediaControlState | null>

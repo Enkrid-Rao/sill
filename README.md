@@ -53,24 +53,29 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
 - **M0.5 — installer done.** `pnpm dist` builds an NSIS per-user installer. Installed builds use
   electron-updater for automatic background download and install-on-quit/restart; portable ZIPs
   update by replacing the folder manually.
+- **Uninstall — in Settings.** General → Data & uninstall shows where your data lives and offers
+  *Open folder* and *Uninstall Sill*. Installed builds launch the official NSIS uninstaller, with an
+  optional checkbox to clear `%APPDATA%\Sill` too; portable builds quit and delete the whole folder,
+  including `Sill-data`.
 
 ## Install
 
 Grab `Sill-Setup-0.5.3.exe` or the portable ZIP `Sill-0.5.3-portable-win64.zip`
-from [Releases](https://github.com/Enkrid-Rao/sill/releases).
+from [Releases](https://github.com/Enkrid-Rao/sill/releases) (latest published release; v0.5.4 is
+built locally but not published yet).
 It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
 so SmartScreen warns once — choose “More info → Run anyway”.
 
 The **portable** build is a normal folder in a ZIP: extract the `Sill` folder to any writable
-location, then run `Sill.exe`. No installer, no uninstall entry, no Program Files, and no temporary
-extraction. It keeps `settings.json`, `todo.json`, `layout.json` and `weather.json` in a visible
-`Sill-data` folder next to `Sill.exe`; moving the folder keeps the data with it. Do not put it in
-`Program Files` (it may be read-only).
-The source is currently at **v0.5.3** (real weather with auto/manual location, click-outside
-dismissal, Open/Closed/All todo with edit and undo, portable build, adjustable 1–5s monitor
-refresh with a warm collector and smooth readings, five-section Settings, automatic
-download/install updates for the installed build, widget host, optional standalone Settings
-window); this release is published.
+location, then run `Sill.exe`. No installer, no uninstall registry entry, no Program Files, and no
+temporary extraction. It keeps `settings.json`, `todo.json`, `layout.json` and `weather.json` in a
+visible `Sill-data` folder next to `Sill.exe`; moving the folder keeps the data with it. To remove it,
+use Settings → General → Data & uninstall (quits, then deletes the whole folder) or simply delete the
+folder after quitting. Do not put it in `Program Files` (it may be read-only).
+The source is currently at **v0.5.4** (adds the Settings uninstall entry on top of v0.5.3's real
+weather, click-outside dismissal, todo filters/edit/undo, portable build, adjustable monitor refresh,
+five-section Settings and installed-build auto-updates); **v0.5.4 is not published yet**, the latest
+Release is v0.5.3.
 
 Requires Windows 10/11 x64.
 

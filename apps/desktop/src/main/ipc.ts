@@ -18,6 +18,7 @@ import {
 } from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
 import { closeSettingsWindow, hasSettingsWindow, openSettingsWindow } from './settings-window'
+import { getUninstallInfo, openDataFolder, startUninstall } from './uninstall'
 import { checkForUpdates, downloadUpdate, getUpdateState, installUpdate } from './updates'
 import { refreshWeather } from './weather'
 
@@ -102,6 +103,17 @@ export function registerIpc(deps: IpcDeps): void {
   )
 
   ipcMain.handle('app:version', () => app.getVersion())
+
+  ipcMain.handle('app:uninstall-info', () => getUninstallInfo())
+
+  ipcMain.handle('app:open-data-folder', () => openDataFolder())
+
+  // 卸载会退出应用：先把 IPC 结果送回去，再让 helper 在退出后动手
+  ipcMain.handle('app:uninstall', (_event, deleteData: unknown) => {
+    const result = startUninstall(deleteData === true)
+    if (result.ok) setTimeout(() => app.quit(), 900)
+    return result
+  })
 
   ipcMain.handle('data:snapshot', () => getSnapshot())
 

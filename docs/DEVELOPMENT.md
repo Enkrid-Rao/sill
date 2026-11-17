@@ -2,7 +2,7 @@
 
 面向**动手改代码**的人。产品目标与架构规划在 [../DEVPLAN.md](../DEVPLAN.md)，进度与交接在 [HANDOFF.md](HANDOFF.md)。
 
-最后更新：2026-11-17（v0.5.3：五段式设置、electron-updater 自动更新）
+最后更新：2026-11-17（v0.5.4：设置内卸载、数据目录可见；v0.5.3：五段式设置、electron-updater 自动更新）
 
 ---
 
@@ -111,7 +111,7 @@ pnpm dist
 
 ```
 Sill/
-├─ DEVPLAN.md                 产品与架构规划（v0.5.3）
+├─ DEVPLAN.md                 产品与架构规划（v0.5.4）
 ├─ docs/
 │  ├─ DEVELOPMENT.md          本文
 │  ├─ HANDOFF.md              交接
@@ -508,7 +508,7 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
   `<exe dir>/Sill-data`；ZIP 解压后直接运行 `Sill/Sill.exe`，不会解压到临时目录。
 - `SILL_USER_DATA` 仍然优先，测试不受影响。
 - `applyAutostart` 在便携模式下注册 `process.execPath`（绿色文件夹里的 `Sill.exe`）。
-- 便携版不写安装目录/卸载项；删除整个文件夹即完全卸载。
+- 便携版不写注册表卸载项；卸载 = 退出后删整个文件夹（含 `Sill-data`），设置页里的入口见 §6.25。
 - **不要把 portable 数据写到 `Program Files`**：settings 会失败；README 已注明放在可写目录。
 - 脚本文件必须保存为 **UTF-8 with BOM**，否则 Windows PowerShell 5.1 会把中文脚本按 ANSI 解析。
 
@@ -530,6 +530,21 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
   `prefers-reduced-motion` 下直接落值。柱宽和读数走同一份插值值。
 - 相关：`shared/data.ts` 的 `MONITOR_INTERVALS` / `normalizeMonitorInterval`，
   `main/data/index.ts`、`main/data/collector.ts`、`renderer/lib/useSmoothNumber.ts`。
+
+### 6.25 卸载与用户数据（v0.5.4）
+
+- 数据位置：安装版 `%APPDATA%\Sill`（与安装目录分开）；绿色版 `<exe 目录>\Sill-data`（就在程序文件夹里）。
+  设置 → 通用 → 数据与卸载会显示当前路径，并提供「打开文件夹」。
+- 设置内卸载：
+  - 安装版：勾选「同时删除用户数据」时带 `--delete-app-data` 打开官方 `Uninstall Sill.exe`；
+    不勾选则只打开卸载器，`%APPDATA%\Sill` 保留。
+  - 绿色版：应用退出后删掉整个文件夹，`Sill-data` 一起删；数据跟着文件夹走，不需要单独选项。
+- 顺序：应用先退出，helper 等约 2s 再启动卸载器 / 删目录，避免 NSIS 弹「应用正在运行」提示。
+- helper 是写在 `%TEMP%` 的纯 ASCII `.cmd`，路径通过环境变量传入，用 detached cmd 启动。
+  **不要改回 detached PowerShell**：无控制台时 PowerShell 会 exit 0 但不执行脚本（实测）。
+- 绿色版只删同时带 `Sill.exe` + `portable.flag` + `resources\app.asar` 三个标记的目录，并拒绝盘符根目录；
+  被 `SILL_USER_DATA` 指到外部的数据目录不会被删（仅测试用）。
+- 从 Windows「应用和功能」卸载安装版：走官方卸载器，数据默认保留；要连数据一起清，用设置里的卸载入口。
 
 ## 7. 视觉规范
 
@@ -618,6 +633,7 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 | 绿色版设置不保存 | exe 放在只读目录（如 `Program Files`） | 移到可写目录；确认 exe 旁生成了 `Sill-data` |
 | 绿色版数据跑到 AppData | ZIP 里缺 `portable.flag`，`paths.ts` 没进便携分支 | 用 `pnpm dist:portable` 生成的 ZIP；检查 `Sill/portable.flag` 是否在 `Sill.exe` 旁 |
 | `dist:portable` 脚本中文解析报错 | Windows PowerShell 5.1 按 ANSI 读无 BOM 的 UTF-8 脚本 | 脚本保存为 UTF-8 with BOM；或改用 ASCII 文案 |
+| 设置里卸载后程序 / 目录还在 | helper 没跑起来，或用了 detached PowerShell（无控制台时静默 exit 0） | 确认 `main/uninstall.ts` 用 cmd helper；查 `%TEMP%\sill-uninstall-*.cmd`；不要改回 detached PowerShell |
 
 ---
 
@@ -650,7 +666,9 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 12. **点外收起依赖鼠标左键轮询**：面板可见时才有进程；不是全局钩子，不消费点击，但 40ms 轮询
     对极快点击有理论漏判；托盘/设置/布局编辑已豁免。
 13. **绿色版数据在 exe 旁的 `Sill-data`**，文件夹必须可写，不能放 `Program Files`；
-    删整个文件夹即卸载。ZIP 版不会解压到临时目录，启动速度和安装版接近。
+    设置内卸载会删除整个文件夹，手动删文件夹同样彻底。ZIP 版不会解压到临时目录，启动速度和安装版接近。
+14. **安装版从 Windows「应用和功能」卸载时默认保留 `%APPDATA%\Sill`**；要连数据一起清，用设置 →
+    通用 → 数据与卸载里的入口。这是 electron-builder 的标准行为，避免误删用户主题与待办。
 
 ## 10. 发布与自动更新（M0.5 进行中）
 
@@ -659,8 +677,10 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 `extraResources`（`resources\resources\tray.ico`）。
 **v0.5.3**：安装版接入 electron-updater；`pnpm dist` 额外生成 `latest.yml` + blockmap，
 release 需要一起上传；绿色 ZIP 不参与自动更新。
-当前源码版本 **0.5.3**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.3.exe`，绿色版输出
-`apps/desktop/dist/Sill-0.5.3-portable-win64.zip`，已发布到 GitHub Releases；
+**v0.5.4（本地已构建，未发布）**：设置页增加「数据与卸载」；安装版可带 `--delete-app-data` 打开官方卸载器，
+绿色版退出后删除整个文件夹。
+当前源码版本 **0.5.4**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.4.exe`，绿色版输出
+`apps/desktop/dist/Sill-0.5.4-portable-win64.zip`；**尚未发布到 GitHub Releases**（最新 Release 仍是 0.5.3）。
 `media-control.ps1` / `mouse-watch.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：

@@ -1,12 +1,12 @@
 # Sill 开发文档
 
-v0.5.3 · 2026-11-17
+v0.5.4 · 2026-11-17
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。
 
 ---
 
-## 0. 变更记录（v0.3 → v0.5.3）
+## 0. 变更记录（v0.3 → v0.5.4）
 
 | 变更 | 原因 |
 |---|---|
@@ -60,6 +60,7 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | **v0.5.1** 监测刷新 | 主进程按 1/2/3/5s 设置推送快照，快捷键唤出无需点击即可刷新；collector 常驻预热，首帧即有 GPU/网速/进程；丢弃陈旧样本；CPU/内存/GPU/网络读数 560ms 平滑过渡 |
 | **v0.5.2** 常驻采集 | collector 启动即预热、面板隐藏不停；网络计数先预热 250ms；唤出后 0.4s 内 GPU/网速/进程即有值，避免每次显示都空一截 |
 | **v0.5.3** 设置与自动更新 | 设置页拆成外观 / 面板 / 数据 / 系统 / 通用五段；安装版接 electron-updater，后台下载、重启安装、退出时自动安装；绿色版手动更新 |
+| **v0.5.4** 设置内卸载 | 通用页新增「数据与卸载」：显示数据目录、打开文件夹；安装版打开官方 NSIS 卸载器（可带 `--delete-app-data` 删 `%APPDATA%\Sill`），绿色版退出后删整个文件夹（数据在 `Sill-data`，随文件夹一起删） |
 
 ---
 
@@ -670,7 +671,7 @@ Electron + TypeScript + Vite + React + Zustand；测试 Vitest + Playwright；�
 | 打包 | electron-builder + NSIS + 绿色 ZIP | 生态最稳；NSIS 支持 per-user 安装，不需要 UAC；绿色版用普通文件夹 ZIP |
 | 更新库 | electron-updater | 直接读 electron-builder 产出的 `latest.yml` |
 | 更新源 | GitHub provider | 公开仓库直接用 Releases；setup / `latest.yml` / blockmap 同源 |
-| 安装位置 | `%LOCALAPPDATA%\Programs\Sill`（per-user） | 不弹 UAC；与数据目录 `%APPDATA%\Sill` 分开，卸载不丢主题 |
+| 安装位置 | `%LOCALAPPDATA%\Programs\Sill`（per-user） | 不弹 UAC；与数据目录 `%APPDATA%\Sill` 分开，默认保留主题，设置内卸载可显式清数据 |
 | 版本 | `package.json` 单一来源 | 构建时注入；页脚与托盘显示 `app.getVersion()` |
 | 签名 | M0.5 先不签，M6 前定 | 未签名只会被 SmartScreen 拦一次；证书要买，不该拖住通道验证 |
 
@@ -706,8 +707,6 @@ idle → checking → up-to-date
 
 ### 11.6 验收标准（M0.5 不算完成，直到）
 
-# 绿色版：普通文件夹 ZIP（win-unpacked + portable.flag），数据在 exe 旁 Sill-data；不写安装目录/卸载项。详见 DEVELOPMENT §6.23
-
 1. `pnpm dist` 产出 `Sill-Setup-0.1.0.exe`；双击装到 `%LOCALAPPDATA%\Programs\Sill`，
    开始菜单有快捷方式，托盘 / 面板 / 热键全部正常
 2. 版本改 0.1.1 再 `pnpm dist`，产物放进本地 feed → 启动 0.1.0 → 自动下载 → 页脚提示 →
@@ -715,15 +714,21 @@ idle → checking → up-to-date
 3. 断网启动：不崩、不弹窗，日志里有一条 error
 4. feed 里放 sha512 错误的包：拒绝安装，旧版仍可启动
 5. `pnpm dev` 与 `pnpm smoke` 不发任何更新请求（日志断言）
+6. 卸载：安装版从 Sill 设置 → 通用 → 数据与卸载打开官方卸载器；勾选「同时删除用户数据」后
+   `%APPDATA%\Sill` 一并删除，不勾选则保留。绿色版设置内卸载后整个文件夹（含 `Sill-data`）消失。
+
+绿色版仍是普通文件夹 ZIP（`win-unpacked` + `portable.flag`），数据在 exe 旁 `Sill-data`；
+不写安装目录/注册表卸载项，详见 DEVELOPMENT §6.23 / §6.25。
 
 ### 11.7 实现落点
 
 ```
 apps/desktop/electron-builder.yml      appId com.sill.app、NSIS per-user、publish: generic
 apps/desktop/src/main/updater.ts       状态机 + electron-updater 封装（网络：更新检查）
-apps/desktop/src/main/ipc.ts           update:get / update:check / update:install
-apps/desktop/src/preload/index.ts      window.sill.update.*
-apps/desktop/src/renderer/…            页脚版本号与更新入口
+apps/desktop/src/main/uninstall.ts     安装版调官方卸载器、绿色版删文件夹、数据目录
+apps/desktop/src/main/ipc.ts           update:get / update:check / update:install / app:uninstall*
+apps/desktop/src/preload/index.ts      window.sill.uninstall / getUninstallInfo / openDataFolder
+apps/desktop/src/renderer/…            页脚版本号、更新入口、设置页「数据与卸载」
 package.json                           dist / dist:dir 脚本
 ```
 

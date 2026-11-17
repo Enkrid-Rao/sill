@@ -46,19 +46,24 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
   页面标题 24px、收紧字距、提高浅色文字对比度，并恢复 Windows 次像素渲染；英文继续用 Instrument Sans。
 - **M0.5——安装包已通。** `pnpm dist` 出 NSIS per-user 安装包；安装版用 electron-updater
   后台自动下载，退出时安装或重启更新；绿色 ZIP 需要手动替换文件夹。
+- **卸载——设置里直接做。** 通用 → 数据与卸载会显示用户数据目录，并提供「打开文件夹」与
+  「卸载 Sill」。安装版打开官方 NSIS 卸载器，可勾选同时删除 `%APPDATA%\Sill`；绿色版退出后
+  删除整个文件夹（包括 `Sill-data`）。
 
 ## 安装
 
 从 [Releases](https://github.com/Enkrid-Rao/sill/releases) 下载 `Sill-Setup-0.5.3.exe`，
-或绿色版 ZIP `Sill-0.5.3-portable-win64.zip`。
+或绿色版 ZIP `Sill-0.5.3-portable-win64.zip`（最新已发布版本；v0.5.4 已本地构建，尚未发布）。
 per-user 安装到 `%LOCALAPPDATA%\Programs\Sill`，不弹 UAC。安装包**未签名**，SmartScreen 会拦一次，
 点「更多信息 → 仍要运行」。
 
 **绿色版**是普通文件夹 ZIP：把 `Sill` 文件夹解压到任意可写位置，双击 `Sill.exe` 即可。
-没有安装程序、没有卸载项、不碰 Program Files，也不会每次启动解压到临时目录。
+没有安装程序、不写注册表卸载项、不碰 Program Files，也不会每次启动解压到临时目录。
 `settings.json`、`todo.json`、`layout.json`、`weather.json` 都放在 `Sill.exe` 旁的 `Sill-data`；
-移动整个文件夹时数据跟着走。不要放在 `Program Files`（可能只读）。
-源码当前是 **v0.5.3**（真实天气与自动/手动定位、点外收起、Open/Closed/All 待办与编辑撤销、绿色版、1–5 秒可调监测刷新、常驻采集与平滑读数、五段式设置页、安装版自动下载并安装更新、组件宿主、可选独立设置窗口），这个版本已发布。
+移动整个文件夹时数据跟着走。卸载用设置 → 通用 → 数据与卸载（退出后删整个文件夹），
+或退出后直接删文件夹。不要放在 `Program Files`（可能只读）。
+源码当前是 **v0.5.4**（在 v0.5.3 的真实天气、点外收起、待办过滤/编辑/撤销、绿色版、可调监测刷新、
+五段式设置、安装版自动更新之上，新增设置内卸载）；**v0.5.4 尚未发布**，最新 Release 仍是 v0.5.3。
 
 需要 Windows 10/11 x64。
 

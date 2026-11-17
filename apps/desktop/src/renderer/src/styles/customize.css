@@ -1092,6 +1092,69 @@
   }
 }
 
+/* ---------- 数据位置与卸载 ---------- */
+
+/* 用户数据路径可能很长（%APPDATA%\Sill、Sill-data），必须允许在任意位置折行 */
+.cz-path {
+  overflow-wrap: anywhere;
+  font-variant-numeric: normal;
+}
+
+.cz-action--danger {
+  border-color: hsl(2 72% 62% / 0.34);
+  background: hsl(2 65% 52% / 0.12);
+  color: hsl(6 92% 90%);
+}
+
+.cz-action--danger:hover:not(:disabled) {
+  border-color: hsl(2 78% 68% / 0.52);
+  background: hsl(2 70% 55% / 0.22);
+}
+
+.cz-confirm {
+  margin: 10px 0 4px;
+  padding: 12px 12px 11px;
+  border: 1px solid hsl(2 70% 64% / 0.26);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, hsl(2 70% 50% / 0.09), rgba(255, 255, 255, 0.015)),
+    rgba(255, 255, 255, 0.02);
+  animation: cz-details-in 0.22s var(--ease-out) both;
+}
+
+.cz-confirm__title {
+  margin: 0 0 5px;
+  color: rgba(255, 246, 244, 0.94);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.cz-confirm__body {
+  margin: 0 0 9px;
+  color: rgba(250, 238, 236, 0.56);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.cz-confirm .cz-setrow {
+  padding: 4px 0 2px;
+  border-top: 0;
+}
+
+.cz-confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cz-confirm__pending {
+  margin: 10px 0 0;
+  color: rgba(250, 238, 236, 0.7);
+  font-size: 9px;
+}
+
 /* =========================================================
    中文排版
    设置页的小字原本沿用英文的 8.5–9px + 0.17em 字距，中文几乎糊成一片。
@@ -1216,4 +1279,23 @@
 
 :root[lang='zh'] .cz-select {
   font-size: 12.5px;
+}
+
+:root[lang='zh'] .cz-confirm__title {
+  font-size: 12.5px;
+}
+
+:root[lang='zh'] .cz-confirm__body {
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: rgba(250, 240, 238, 0.7);
+}
+
+:root[lang='zh'] .cz-confirm__pending {
+  font-size: 10.5px;
+}
+
+:root[lang='zh'] .cz-path {
+  font-size: 9.5px;
+  letter-spacing: 0.005em;
 }

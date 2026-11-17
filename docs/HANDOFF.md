@@ -3,28 +3,29 @@
 写给**接手这个项目的人或下一个会话**。目标：读完这页，你知道现在到底有什么、什么是真的验证过的、
 下一条命令该敲什么。
 
-- 交接时间：2026-11-17（v0.5.3：五段式设置 + 安装版自动下载/安装更新）
+- 交接时间：2026-11-17（v0.5.4：设置内卸载 + 用户数据位置透明化）
 - 代码位置：`D:\Projects\Sill`（从旧的 `D:\Projects\Tide` 改名而来，旧路径已不存在）
-- 对应规划：[../DEVPLAN.md](../DEVPLAN.md) v0.5.3
+- 对应规划：[../DEVPLAN.md](../DEVPLAN.md) v0.5.4
 - 对应开发文档：[DEVELOPMENT.md](DEVELOPMENT.md)
 - 组件规范仓库：[Sill-Components](https://github.com/Enkrid-Rao/sill-components)
-- 当前应用版本：**v0.5.3**（`package.json`，已发布）
-- 上一发布：v0.5.2
+- 当前应用版本：**v0.5.4**（`package.json`，本地已构建，**未发布**）
+- 上一发布：v0.5.3
 
 ---
 
 ## 0. 30 秒速览
 
-- 版本 **v0.5.3**，已发 GitHub Release；安装版 + **绿色版**都在
-  [Releases](https://github.com/Enkrid-Rao/sill/releases)
-- 绿色版 `Sill-0.5.3-portable-win64.zip`：解压整个 `Sill` 文件夹即用；不写安装目录 / 注册表卸载项 / Program Files；
+- 版本 **v0.5.4**（本地已构建，尚未发 Release）；GitHub Release 上最新仍是 v0.5.3
+- 卸载：设置 → 通用 → 数据与卸载。安装版打开官方 NSIS 卸载器，可勾选同时删除 `%APPDATA%\Sill`；
+  绿色版退出后删除整个文件夹（含 `Sill-data`）。设置页直接显示当前数据目录，不需要用户猜
+- 绿色版 `Sill-0.5.4-portable-win64.zip`：解压整个 `Sill` 文件夹即用；不写安装目录 / 注册表卸载项 / Program Files；
   数据在同目录 `Sill-data`，可随文件夹移动；不会每次解压到临时目录
 - 已完成：M0 骨架、五段式设置、真实数据（system / media / todo / **weather**）、NSIS 安装包、
   **面板连续自由缩放**、**媒体传输键与系统音量**、**待办原位动效**、
   **组件宿主（WidgetShell + 注册表）与逐组件显隐**、**独立设置窗口开关**、
   **中文排版可读性**、**真实天气（自动 IP / 28 城市）**、**点外自动收起**、
   **TODO Open / Closed / All + 编辑 + 撤销**、**1–5s 可调监测刷新与平滑读数**、
-  可编辑布局（拖动 / 箭头 / 跨列，落 `layout.json`）
+  可编辑布局（拖动 / 箭头 / 跨列，落 `layout.json`）、**设置内卸载**
 - 未完成：**M1 的 IR 引擎尚未开始**；组件 manifest / IR / sandbox 仍是规范，不是运行能力
 - 下一步：`packages/engine` 的 IR + Validator + Compiler + Binder，按
   [Sill-Components](https://github.com/Enkrid-Rao/sill-components) 的 spec 验收
@@ -41,7 +42,8 @@
   面板显示时用轻量左键监视器判断点外收起；设置 / 布局编辑 / 托盘点击豁免。
 - 设置：外观 / 面板 / 数据 / 系统 / 通用五段式；热键录制、**面板尺寸（拖拽 + 预设 + 宽高滑杆 + 撑满高度）**、
   停靠边、边缘距离、中英即时切换、**天气地区（自动 / 28 城市）**、**监测刷新频率（1/2/3/5s）**、自启、
-  **组件显隐**、**设置页使用独立窗口**、**自动下载/安装更新**。
+  **组件显隐**、**设置页使用独立窗口**、**自动下载/安装更新**、**数据与卸载（显示数据目录，安装版走官方卸载器、
+  绿色版删整个文件夹）**。
 - 数据：CPU / 内存 / GPU / 网络 / 进程 / SMTC 媒体 / 真实天气 / 可增删改的 `todo.json` 都是真的。
 - 天气：Open-Meteo 温度 / WMO 天气 / 高低温；自动定位走 ipwho.is 的 IP 粗判，失败回退上海；
   天气缓存 `weather.json`，失败保留旧值并 30s 重试。
@@ -57,7 +59,7 @@
 - 组件规范：独立 `Sill-Components` 仓库（manifest / IR / runtime / sandbox / examples），
   但引擎与 CLI 尚未实现。
 - 发布：`pnpm dist` 出 NSIS 安装包 + `latest.yml` / blockmap；`pnpm dist:portable` 生成绿色 ZIP；
-  **v0.5.3 是当前已发布版本**（上一发布是 v0.5.2）。
+  **v0.5.4 已本地构建、未发布**；当前 GitHub Release 仍是 v0.5.3。
 
 ---
 
@@ -115,7 +117,10 @@
 | TODO 过滤/编辑/撤销 | Playwright + DOM 点击：Open 3 → 勾选后 2（留 360ms 再收起）→ Closed 1 → All 3；行内编辑保存为「编辑测试任务」；删除后 700ms 出现「待办已删除 / 撤销」toast，点撤销恢复 3 条；无页面报错 |
 | TODO 输入框 Esc | Playwright：addrow 输入 draft 后 Esc → 值清空、面板仍在；编辑输入后 Esc → 输入框消失、原文不变、面板仍在 |
 | 组件规范仓库 | `D:\Projects\Sill-Components` 已同步到 [GitHub](https://github.com/Enkrid-Rao/sill-components)，标签 `v0.1.0`；clock / counter 两个 manifest 通过 `spec/widget.schema.json` 校验 |
-| 绿色版可用 | 解压 `Sill-0.5.3-portable-win64.zip` → `Sill\Sill.exe --smoke` exit 0；同目录生成 `Sill-data`，`layout.json` / `todo.json` / `weather.json` / `smoke.png` 都落在里面；外层只有 `Sill` 文件夹 |
+| 绿色版可用 | 解压 `Sill-0.5.4-portable-win64.zip` → `Sill\Sill.exe --smoke` exit 0；同目录生成 `Sill-data`，`layout.json` / `todo.json` / `weather.json` / `smoke.png` 都落在里面；外层只有 `Sill` 文件夹 |
+| 设置内卸载（绿色版） | Playwright/CDP 实跑：设置 → 通用 → 数据与卸载 → 确认后应用退出，整个 `Sill` 文件夹（含 `Sill-data`）被删除，进程正常退出，`%TEMP%` 无残留 helper |
+| 设置内卸载（安装版） | 临时安装 `SillSelfTest` 后跑真实 helper：官方卸载器 UI 正常打开；带 `--delete-app-data` 时临时安装目录与 `%APPDATA%\SillSelfTest` 都删除，真实 Sill 安装与 `%APPDATA%\Sill` 未受影响；不带参数时数据保留 |
+| v0.5.4 构建 | `pnpm dist` 产出 `Sill-Setup-0.5.4.exe`；`pnpm dist:portable` 产出 `Sill-0.5.4-portable-win64.zip`（均未发布） |
 | 自动更新 | 安装版用 `electron-updater` + GitHub provider；`latest.yml` / blockmap / setup 都在 release。自动检查→后台下载→`Restart to update` 或退出时自动安装；绿色版显示手动替换 |
 | 监测刷新 | 快捷键唤出后不点击面板，1.2s 内 CPU 已从 — 变成真实值，3.4s 内 `snapshot.at` 继续前进；设置切 1s 后两次快照间隔约 1.0s。首帧由主进程 `data:changed` 推送，渲染进程不再轮询 |
 | 唤出即有扫描值 | 应用启动后 collector 在后台预热；隐藏 2.6s 再唤出，0.4s 内 `gpu=23`、`down=18382`、3 个进程已可读；再次隐藏 2.6s 后仍在。媒体 / 点外监视器仍只在面板可见时运行，collector 故意常驻 |
@@ -158,7 +163,9 @@
    失败时回退上海。没有系统定位权限、也没有高精度坐标；离线时保留最后一次缓存（`weather.json`），
    首次无缓存会显示「天气暂不可用」，30s 后重试。
 8. **绿色版数据在 exe 旁的 `Sill-data`**，所以文件夹必须可写，不能放 `Program Files`；
-   没有安装器/卸载项，删整个文件夹即可。首次启动不会解压到临时目录（这是 ZIP 版和自解压 exe 的区别）。
+   设置内卸载和手动删文件夹等效，都会连数据一起删；首次启动不会解压到临时目录（这是 ZIP 版和
+   自解压 exe 的区别）。安装版的数据在 `%APPDATA%\Sill`，从 Windows「应用和功能」卸载默认保留，
+   要一起清就在 Sill 设置里勾选「同时删除用户数据」。
 
 ---
 
@@ -181,7 +188,9 @@
 > 0.4s 内 GPU / 网速 / 进程即有值，不再每次显示都空一截。
 > **v0.5.3 / 应用 v0.5.3（已发布）** 设置页拆成五段；安装版接入 electron-updater，
 > 支持后台下载、重启安装与退出时自动安装。
-> 它不改变顺序；下一版才是 M1 的 IR 引擎——宿主只解决了「谁放在哪」，还没解决「组件怎么描述自己」。
+> **v0.5.4 / 应用 v0.5.4（本地构建，未发布）** 设置页新增「数据与卸载」：显示数据目录、可打开文件夹；
+> 安装版打开官方卸载器并可带 `--delete-app-data`，绿色版退出后删整个文件夹。
+> 它不改变顺序；下一版仍是 M1 的 IR 引擎——宿主只解决了「谁放在哪」，还没解决「组件怎么描述自己」。
 
 ### 第 1 步：把 M0 剩下五条跑一遍（约 30 分钟）
 ```powershell
@@ -253,7 +262,8 @@ M1 的验收标准在 DEVPLAN §3.2，最关键那条是：**用一个没为它�
 | 点外收起 | 原决策 #4 只列热键 / Esc / 托盘 | v0.5.0 增加鼠标左键监视器；设置 / 布局编辑 / 托盘点击豁免 | 已写进 DEVPLAN §5.2 / 决策 #4 |
 | TODO 交互 | 只有增删勾选 + 原位动效 | v0.5.0 增加 Open / Closed / All、行内编辑、5 秒撤销、输入框 Esc 取消 | 已写进 DEVPLAN §5.2 / DEVELOPMENT §6.21 |
 | 组件规范位置 | 全部写在 DEVPLAN §6 | 规范 / 示例拆到独立 `Sill-Components` 仓库；Sill 只留宿主与内置组件 | 已写进 DEVPLAN §6.5 |
-| 绿色版 | 原发布通道只有 NSIS 安装包 | v0.5.3 资产追加绿色 ZIP；`portable.flag` + `Sill-data`，无安装器/卸载项 | 已写进 DEVELOPMENT §6.23 |
+| 绿色版 | 原发布通道只有 NSIS 安装包 | v0.5.3 资产追加绿色 ZIP；`portable.flag` + `Sill-data`，无安装器/注册表卸载项；v0.5.4 起设置内可卸载 | 已写进 DEVELOPMENT §6.23 / §6.25 |
+| 卸载 | 原只依赖 Windows「应用和功能」/ 手动删文件夹 | v0.5.4 设置 → 通用 → 数据与卸载：安装版打开官方卸载器，可带 `--delete-app-data`；绿色版退出后删整个文件夹 | 已写进 DEVELOPMENT §6.25，HANDOFF §3 有实跑记录 |
 
 ---
 
@@ -308,7 +318,9 @@ M1 的验收标准在 DEVPLAN §3.2，最关键那条是：**用一个没为它�
     引擎、CLI、sandbox 以 `Sill-Components` 的 spec 为准
 28. 绿色版用 **ZIP 文件夹**（`win-unpacked` + `portable.flag`），不是 electron-builder 的
     `portable` 自解压 exe；`paths.ts` 检测 `portable.flag` 后把 userData 指到 exe 旁 `Sill-data`；
-    开机自启注册文件夹里的 `Sill.exe`；不写安装目录/卸载项
+    开机自启注册文件夹里的 `Sill.exe`；不写安装目录/注册表卸载项。v0.5.4 起设置内卸载 = 退出后删文件夹。
+29. 卸载走系统标准做法：安装版只调官方 NSIS 卸载器（要删数据就带 electron-builder 的
+    `--delete-app-data`），绿色版只删文件夹；不做自定义卸载协议、不写额外注册表项。
 
 **还开着（等用户拍板）：**
 
