@@ -8,14 +8,15 @@
 - 对应规划：[../DEVPLAN.md](../DEVPLAN.md) v0.5.4
 - 对应开发文档：[DEVELOPMENT.md](DEVELOPMENT.md)
 - 组件规范仓库：[Sill-Components](https://github.com/Enkrid-Rao/sill-components)
-- 当前应用版本：**v0.5.4**（`package.json`，本地已构建，**未发布**）
+- 当前应用版本：**v0.5.4**（`package.json`，已发布）
 - 上一发布：v0.5.3
 
 ---
 
 ## 0. 30 秒速览
 
-- 版本 **v0.5.4**（本地已构建，尚未发 Release）；GitHub Release 上最新仍是 v0.5.3
+- 版本 **v0.5.4**，已发 GitHub Release；安装版 + **绿色版**都在
+  [Releases](https://github.com/Enkrid-Rao/sill/releases)
 - 卸载：设置 → 通用 → 数据与卸载。安装版打开官方 NSIS 卸载器，可勾选同时删除 `%APPDATA%\Sill`；
   绿色版退出后删除整个文件夹（含 `Sill-data`）。设置页直接显示当前数据目录，不需要用户猜
 - 绿色版 `Sill-0.5.4-portable-win64.zip`：解压整个 `Sill` 文件夹即用；不写安装目录 / 注册表卸载项 / Program Files；
@@ -59,7 +60,7 @@
 - 组件规范：独立 `Sill-Components` 仓库（manifest / IR / runtime / sandbox / examples），
   但引擎与 CLI 尚未实现。
 - 发布：`pnpm dist` 出 NSIS 安装包 + `latest.yml` / blockmap；`pnpm dist:portable` 生成绿色 ZIP；
-  **v0.5.4 已本地构建、未发布**；当前 GitHub Release 仍是 v0.5.3。
+  **v0.5.4 是当前已发布版本**（上一发布是 v0.5.3）。
 
 ---
 
@@ -120,7 +121,7 @@
 | 绿色版可用 | 解压 `Sill-0.5.4-portable-win64.zip` → `Sill\Sill.exe --smoke` exit 0；同目录生成 `Sill-data`，`layout.json` / `todo.json` / `weather.json` / `smoke.png` 都落在里面；外层只有 `Sill` 文件夹 |
 | 设置内卸载（绿色版） | Playwright/CDP 实跑：设置 → 通用 → 数据与卸载 → 确认后应用退出，整个 `Sill` 文件夹（含 `Sill-data`）被删除，进程正常退出，`%TEMP%` 无残留 helper |
 | 设置内卸载（安装版） | 临时安装 `SillSelfTest` 后跑真实 helper：官方卸载器 UI 正常打开；带 `--delete-app-data` 时临时安装目录与 `%APPDATA%\SillSelfTest` 都删除，真实 Sill 安装与 `%APPDATA%\Sill` 未受影响；不带参数时数据保留 |
-| v0.5.4 构建 | `pnpm dist` 产出 `Sill-Setup-0.5.4.exe`；`pnpm dist:portable` 产出 `Sill-0.5.4-portable-win64.zip`（均未发布） |
+| v0.5.4 构建 | `pnpm dist` 产出 `Sill-Setup-0.5.4.exe`；`pnpm dist:portable` 产出 `Sill-0.5.4-portable-win64.zip`；均已发布到 v0.5.4 Release |
 | 自动更新 | 安装版用 `electron-updater` + GitHub provider；`latest.yml` / blockmap / setup 都在 release。自动检查→后台下载→`Restart to update` 或退出时自动安装；绿色版显示手动替换 |
 | 监测刷新 | 快捷键唤出后不点击面板，1.2s 内 CPU 已从 — 变成真实值，3.4s 内 `snapshot.at` 继续前进；设置切 1s 后两次快照间隔约 1.0s。首帧由主进程 `data:changed` 推送，渲染进程不再轮询 |
 | 唤出即有扫描值 | 应用启动后 collector 在后台预热；隐藏 2.6s 再唤出，0.4s 内 `gpu=23`、`down=18382`、3 个进程已可读；再次隐藏 2.6s 后仍在。媒体 / 点外监视器仍只在面板可见时运行，collector 故意常驻 |
@@ -188,7 +189,7 @@
 > 0.4s 内 GPU / 网速 / 进程即有值，不再每次显示都空一截。
 > **v0.5.3 / 应用 v0.5.3（已发布）** 设置页拆成五段；安装版接入 electron-updater，
 > 支持后台下载、重启安装与退出时自动安装。
-> **v0.5.4 / 应用 v0.5.4（本地构建，未发布）** 设置页新增「数据与卸载」：显示数据目录、可打开文件夹；
+> **v0.5.4 / 应用 v0.5.4（已发布）** 设置页新增「数据与卸载」：显示数据目录、可打开文件夹；
 > 安装版打开官方卸载器并可带 `--delete-app-data`，绿色版退出后删整个文件夹。
 > 它不改变顺序；下一版仍是 M1 的 IR 引擎——宿主只解决了「谁放在哪」，还没解决「组件怎么描述自己」。
 

@@ -677,10 +677,10 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 `extraResources`（`resources\resources\tray.ico`）。
 **v0.5.3**：安装版接入 electron-updater；`pnpm dist` 额外生成 `latest.yml` + blockmap，
 release 需要一起上传；绿色 ZIP 不参与自动更新。
-**v0.5.4（本地已构建，未发布）**：设置页增加「数据与卸载」；安装版可带 `--delete-app-data` 打开官方卸载器，
+**v0.5.4（已发布，2026-11-17）**：设置页增加「数据与卸载」；安装版可带 `--delete-app-data` 打开官方卸载器，
 绿色版退出后删除整个文件夹。
 当前源码版本 **0.5.4**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.4.exe`，绿色版输出
-`apps/desktop/dist/Sill-0.5.4-portable-win64.zip`；**尚未发布到 GitHub Releases**（最新 Release 仍是 0.5.3）。
+`apps/desktop/dist/Sill-0.5.4-portable-win64.zip`；已发布到 GitHub Releases（带 `latest.yml` 与 blockmap）。
 `media-control.ps1` / `mouse-watch.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：

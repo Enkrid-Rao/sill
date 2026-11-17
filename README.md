@@ -4,7 +4,7 @@
 ![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
 ![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
-[![Release](https://img.shields.io/badge/release-v0.5.3-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+[![Release](https://img.shields.io/badge/release-v0.5.4-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
 
 A glass side rail for the Windows desktop: summon it with a hotkey, docked to the edge of the screen,
 built to host installable widgets — and eventually to eat Rainmeter skins.
@@ -60,9 +60,8 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
 
 ## Install
 
-Grab `Sill-Setup-0.5.3.exe` or the portable ZIP `Sill-0.5.3-portable-win64.zip`
-from [Releases](https://github.com/Enkrid-Rao/sill/releases) (latest published release; v0.5.4 is
-built locally but not published yet).
+Grab `Sill-Setup-0.5.4.exe` or the portable ZIP `Sill-0.5.4-portable-win64.zip`
+from [Releases](https://github.com/Enkrid-Rao/sill/releases).
 It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
 so SmartScreen warns once — choose “More info → Run anyway”.
 
@@ -74,8 +73,7 @@ use Settings → General → Data & uninstall (quits, then deletes the whole fol
 folder after quitting. Do not put it in `Program Files` (it may be read-only).
 The source is currently at **v0.5.4** (adds the Settings uninstall entry on top of v0.5.3's real
 weather, click-outside dismissal, todo filters/edit/undo, portable build, adjustable monitor refresh,
-five-section Settings and installed-build auto-updates); **v0.5.4 is not published yet**, the latest
-Release is v0.5.3.
+five-section Settings and installed-build auto-updates); v0.5.4 is the latest published release.
 
 Requires Windows 10/11 x64.
 
