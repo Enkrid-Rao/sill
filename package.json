@@ -10,6 +10,7 @@
     "build": "pnpm --filter @sill/desktop build",
     "typecheck": "pnpm --filter @sill/desktop typecheck",
     "smoke": "pnpm --filter @sill/desktop smoke",
+    "test": "pnpm --filter @sill/desktop test",
     "sill": "node packages/cli/bin/sill.js",
     "dist": "pnpm --filter @sill/desktop dist",
     "dist:dir": "pnpm --filter @sill/desktop dist:dir",

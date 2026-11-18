@@ -15,6 +15,7 @@ export interface DevWidgetPayload {
   html: string
   css: string
   data: WidgetDataBinding[]
+  permissions: string[]
   /** lang -> key -> text; declared inline in widget.json. */
   strings: Record<string, Record<string, string>>
 }

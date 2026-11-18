@@ -12,7 +12,9 @@ const PERMISSIONS = new Set([
   'data.system',
   'data.media',
   'data.weather',
-  'data.todo'
+  'data.todo',
+  'action.media',
+  'action.todo'
 ])
 const ID = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/

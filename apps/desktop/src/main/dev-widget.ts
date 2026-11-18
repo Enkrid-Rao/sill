@@ -77,7 +77,21 @@ export function getDevWidget(): DevWidgetPayload | null {
 
   const css = readText(join(uiDir, 'style.css'), total) ?? ''
 
-  return { id, name, span, html, css, data: readBindings(manifest.data), strings: readStrings(manifest.strings) }
+  return {
+    id,
+    name,
+    span,
+    html,
+    css,
+    data: readBindings(manifest.data),
+    permissions: readPermissions(manifest.permissions),
+    strings: readStrings(manifest.strings)
+  }
+}
+
+function readPermissions(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string').slice(0, 16)
 }
 
 function readBindings(value: unknown): WidgetDataBinding[] {

@@ -25,7 +25,8 @@ const ALLOWED_TAGS = new Set([
   'h1',
   'h2',
   'h3',
-  'h4'
+  'h4',
+  'button'
 ])
 
 function sanitizeHtml(input: string): string {
@@ -42,6 +43,7 @@ function sanitizeHtml(input: string): string {
           name === 'class' ||
           name === 'id' ||
           name === 'role' ||
+          name === 'type' ||
           name.startsWith('aria-') ||
           name.startsWith('data-sill-')
         if (!keep) child.removeAttribute(attribute.name)
@@ -156,6 +158,44 @@ function applyBindings(
   for (const node of root.querySelectorAll<HTMLElement>('[data-sill-i18n]')) {
     node.textContent = translate(widget.strings, language, node.dataset.sillI18n ?? '')
   }
+  for (const node of root.querySelectorAll<HTMLElement>('[data-sill-meter]')) {
+    const value = Number(resolve(node, node.dataset.sillMeter ?? '', data, scopes))
+    if (Number.isFinite(value)) {
+      node.style.setProperty('--sill-value', String(Math.max(0, Math.min(100, value))))
+    } else {
+      node.style.removeProperty('--sill-value')
+    }
+  }
+}
+
+function runAction(
+  action: string,
+  arg: unknown,
+  context: WidgetContext,
+  permissions: readonly string[]
+): void {
+  if (action.startsWith('media.') && !permissions.includes('action.media')) return
+  if (action.startsWith('todo.') && !permissions.includes('action.todo')) return
+
+  switch (action) {
+    case 'media.playpause':
+      void context.mediaCommand('playpause')
+      break
+    case 'media.next':
+      void context.mediaCommand('next')
+      break
+    case 'media.prev':
+      void context.mediaCommand('prev')
+      break
+    case 'media.mute':
+      void context.mediaCommand('mute')
+      break
+    case 'todo.toggle':
+      if (typeof arg === 'string') void context.onToggleTodo(arg)
+      break
+    default:
+      break
+  }
 }
 
 /**
@@ -164,15 +204,45 @@ function applyBindings(
  */
 export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
+  const clickBound = useRef(false)
+  const contextRef = useRef(context)
+  const dataRef = useRef<Record<string, unknown>>({})
+  const scopesRef = useRef<Scopes>(new WeakMap())
+  const permissionsRef = useRef<string[]>(widget.permissions)
+  contextRef.current = context
+  permissionsRef.current = widget.permissions
 
   useLayoutEffect(() => {
     const element = host.current
     if (!element) return
     const root = element.shadowRoot ?? element.attachShadow({ mode: 'open' })
+
+    if (!clickBound.current) {
+      root.addEventListener('click', (event) => {
+        const target = event.target
+        if (!(target instanceof Element)) return
+        const actionNode = target.closest<HTMLElement>('[data-sill-action]')
+        if (!actionNode || actionNode.dataset.sillAction === undefined) return
+        const argPath = actionNode.dataset.sillActionArg
+        const arg = argPath
+          ? resolve(actionNode, argPath, dataRef.current, scopesRef.current)
+          : undefined
+        runAction(
+          actionNode.dataset.sillAction ?? '',
+          arg,
+          contextRef.current,
+          permissionsRef.current
+        )
+      })
+      clickBound.current = true
+    }
+
     root.innerHTML = `<style>:host{display:block;color:var(--ink);font-family:var(--sans)}${sanitizeCss(widget.css)}</style>${sanitizeHtml(widget.html)}`
 
     const data = buildProviderData(widget.data, context)
     const scopes: Scopes = new WeakMap()
+    dataRef.current = data
+    scopesRef.current = scopes
     expandRepeats(root, data, scopes)
     applyConditions(root, data, scopes)
     applyBindings(root, data, scopes, widget, context.language)

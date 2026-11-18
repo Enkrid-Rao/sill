@@ -24,7 +24,9 @@ const PERMISSIONS = new Set([
   'data.system',
   'data.media',
   'data.weather',
-  'data.todo'
+  'data.todo',
+  'action.media',
+  'action.todo'
 ])
 
 interface Manifest {
@@ -263,6 +265,7 @@ export function loadInstalled(root: string, id: string): DevWidgetPayload | null
       html: readFileSync(join(dir, manifest.ui), 'utf8'),
       css: readFileSync(join(dir, 'ui/style.css'), 'utf8'),
       data: manifest.data,
+      permissions: manifest.permissions,
       strings: manifest.strings
     }
   } catch {
