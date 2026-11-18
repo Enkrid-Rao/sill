@@ -8,11 +8,10 @@ import type { DevWidgetPayload } from '../shared/dev-widget'
  *   widget.json
  *   ui/index.html
  *   ui/style.css
- *   ui/main.js
  *
- * The folder is read once when the renderer asks for it. No zip, no install
- * directory, no permissions yet — this exists to prove the iframe card path
- * without changing the normal app startup.
+ * The folder is read once when the renderer asks for it. The HTML/CSS is
+ * mounted into a shadow root inside the normal .card; there is no iframe and
+ * no simulated glass. No zip, no install directory, no permissions yet.
  */
 
 const MAX_FILE = 512 * 1024
@@ -60,7 +59,7 @@ export function getDevWidget(): DevWidgetPayload | null {
   const ui = typeof manifest.ui === 'string' ? manifest.ui : 'ui/index.html'
   if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(id)) return fail(`id 不合法：${id || '(空)'}`)
   if (!name) return fail('name 为空')
-  if (type !== 'web' && type !== 'script') return fail(`type 只支持 web / script，收到 ${type || '(空)'}`)
+  if (type !== 'template') return fail(`type 只支持 template，收到 ${type || '(空)'}`)
   if (!ui.endsWith('.html')) return fail(`ui 必须指向 .html：${ui}`)
 
   const htmlPath = resolve(root, ui)
@@ -72,7 +71,6 @@ export function getDevWidget(): DevWidgetPayload | null {
   if (html === null) return fail(`缺少入口：${htmlPath}`)
 
   const css = readText(join(uiDir, 'style.css'), total) ?? ''
-  const js = readText(join(uiDir, 'main.js'), total) ?? ''
 
-  return { id, name, html, css, js }
+  return { id, name, html, css }
 }

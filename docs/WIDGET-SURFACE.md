@@ -1,76 +1,152 @@
-# 第三方组件的表面契约（实验）
+# 第三方组件模板（实验）
 
 > 状态：实验。入口是 `SILL_DEV_WIDGET`，只从文件夹加载；没有 zip 安装、动态布局和权限面板。
-> 这份文档定义「组件的表面」怎么和 Sill 的玻璃 / atmosphere 对齐，避免以后换渲染方式时重写组件。
+> 这份文档定义「别人怎么写一张卡」以及「为什么玻璃和 atmosphere 不需要额外接入」。
 
-## 1. 问题
+## 1. 为什么不是 iframe
 
-Sill 的面板窗口是 `transparent: true`。在这个窗口里，iframe 的合成表面是不透明白底：
+Sill 的玻璃在 `WidgetShell` 的 `.card` 上，atmosphere 在它背后的 `.rail__atmo`。
+内置组件只返回内容，不画卡片背景，所以玻璃是自然透出来的。
 
-- `html/body { background: transparent }` 无效；
-- 加不加 `sandbox` 都一样；
-- 加 `color-scheme` 也一样；
-- 这是 Chromium 对 frame 合成层的处理，不是 CSS 能修的。
+iframe 会把这条链切断：透明窗口里的 iframe 是不透明白底，只能由宿主再铺一块“仿玻璃”；
+无论怎么调 token，都不是同一层材质。`WebContentsView` 虽然能真透明，但它是原生子视图，
+滚动、裁剪、设置面板遮挡、拖拽都要单独处理，不适合作为第一版。
 
-所以 iframe 模式必须由宿主给一块**不透明内衬**，否则卡片里会出现白块。
-未来的 `WebContentsView` 可以用 `setBackgroundColor('#00000000')` 做真透明，但它不是 iframe 的平替。
+因此 v1 的第三方组件是**模板**，直接渲染在 `.card` 里面。
 
-## 2. 两种 surface 模式
+## 2. 包结构
 
-宿主在组件的 `<html>` 上写 `data-sill-surface`：
+```text
+my-widget/
+├─ widget.json
+└─ ui/
+   ├─ index.html   # 内容结构；不写 <script>
+   └─ style.css    # 内容样式
+```
 
-| 模式 | 宿主 | 组件文档 |
-|---|---|---|
-| `inset` | 在 iframe 里画一块不透明内衬，颜色/氛围来自主题 token | `html/body` 保持透明；不要自己铺 full-bleed 背景 |
-| `glass` | 宿主负责真正的玻璃与 atmosphere，组件区域透明 | 同上；组件内容直接落在宿主的玻璃上 |
+`widget.json`：
 
-当前实现是 `inset`。以后切换到 `WebContentsView` 时，只改宿主：
+```json
+{
+  "schema": 1,
+  "id": "com.you.clock",
+  "name": "Clock",
+  "version": "0.1.0",
+  "author": "you",
+  "license": "MIT",
+  "runtime": ">=0.5.4",
+  "engine": ">=0.1.0",
+  "type": "template",
+  "permissions": ["data.time"],
+  "data": [{ "id": "now", "source": "time.now" }],
+  "ui": "ui/index.html",
+  "span": { "default": 1 }
+}
+```
 
-1. `view.setBackgroundColor('#00000000')`；
-2. `data-sill-surface="glass"`，宿主的内衬伪元素全部关掉；
-3. 组件的 `window.sill` API 和 CSS token 不变。
+`ui/index.html`：
 
-## 3. 宿主注入的 CSS token
+```html
+<div class="clock">
+  <div class="clock__label">LOCAL TIME</div>
+  <div class="clock__time" data-sill-text="now.time">--:--</div>
+  <div class="clock__date" data-sill-text="now.dateLabel"></div>
+</div>
+```
 
-组件不要硬编码 Sill 的玻璃色；用这些变量：
+`ui/style.css`：
 
-| token | 含义 |
+```css
+:host {
+  display: block;
+}
+
+.clock__label {
+  color: var(--ink-faint);
+  letter-spacing: 0.17em;
+}
+
+.clock__time {
+  font-family: var(--serif);
+  font-size: 56px;
+  color: rgba(250, 255, 252, 0.97);
+}
+
+.clock__date {
+  color: var(--ink-dim);
+}
+```
+
+不要给 `html` / `body` / 根节点铺背景。背景由 `.card` 负责；组件只画内容。
+
+## 3. 渲染方式
+
+```text
+WidgetShell
+  └─ section.card          # 玻璃、圆角、边框、padding
+       └─ shadow root      # 第三方 index.html + style.css
+            └─ 内容
+```
+
+- HTML 经过白名单清洗后挂到 Shadow DOM；
+- CSS 只在 Shadow DOM 内生效，不会污染其他卡；
+- Shadow DOM 继承宿主的 CSS 自定义属性，`--ink` / `--serif` / `--accent` 直接可用；
+- 卡片背后的 atmosphere 会自然透出来，不需要复制渐变；
+- 主题切换时 CSS 变量变化，模板自动跟随，不需要 JS。
+
+## 4. 数据绑定
+
+v1 只支持文本绑定：
+
+```html
+<span data-sill-text="now.time"></span>
+<span data-sill-text="system.cpu.usage"></span>
+```
+
+- 值的根来自 manifest 的 `data[].id`；
+- 缺失值渲染 `—`；
+- 以后再加 `data-sill-i18n`、`data-sill-if`、`data-sill-repeat`、`data-sill-action`；
+- v1 不执行任意 JS；需要复杂交互时再单独设计受限脚本，不把 JS 塞进模板。
+
+## 5. 样式 token
+
+模板能用宿主暴露的 CSS 变量：
+
+| token | 用途 |
 |---|---|
-| `--sill-hue` / `--sill-tint` | 当前面板色相 / 上色强度 |
-| `--sill-surface` | 不透明内衬的基色；`inset` 模式下由宿主铺在 `body` 上 |
-| `--sill-glass` | 卡片玻璃的浅色渐变；可用在内部小块 |
-| `--sill-glass-alpha` | 玻璃底透明度 |
-| `--sill-atmo-k` | atmosphere 可见度 0–1 |
-| `--sill-atmo-base` / `--sill-atmo-layer` | 当前 atmosphere 配方的渐变 |
-| `--sill-halo-k` / `--sill-grain-k` | 顶光 / 颗粒开关 |
-| `--sill-ink` / `--sill-soft` / `--sill-dim` / `--sill-faint` | 文字层级 |
-| `--sill-accent` / `--sill-accent-pale` / `--sill-accent-soft` | 强调色 |
-| `--sill-sans` / `--sill-serif` | 字体栈 |
+| `--ink` / `--ink-soft` / `--ink-dim` / `--ink-faint` | 文字层级 |
+| `--accent` / `--accent-pale` / `--accent-soft` | 强调色 |
+| `--sans` / `--serif` | 字体栈 |
+| `--radius` | 面板圆角；卡片内部圆角自己按 `18px` 走 |
 
-`inset` 模式下宿主还会在 iframe 内画 atmosphere 渐变和顶光；组件不需要自己复刻。
-主题切换时宿主通过 MessagePort 推送新的 token，组件只要用 CSS 变量就会跟着变。
+不要用 `--atmo-*` 复刻 atmosphere；那是宿主层，不是组件层。
 
-## 4. 组件作者的规则
+## 6. 当前实现
 
-1. `html, body` 的背景必须是 `transparent`；不要盖住宿主的内衬。
-2. 需要一块自己的面板/卡片时，用 `var(--sill-surface)` 或 `var(--sill-glass)`，不要写死颜色。
-3. 不要用 `backdrop-filter` 或桌面采样；Sill 的玻璃只有宿主这一种材质。
-4. 用 `data-sill-surface` 判断自己是在 `inset` 还是 `glass` 模式；两种模式视觉上要都能读。
-5. `window.sill` 的 `ready` / `onData` / `log` 在两种模式下保持一致，不要把布局假设写进组件。
+- 宿主渲染：[DevWidgetCard.tsx](../apps/desktop/src/renderer/src/components/DevWidgetCard.tsx)
+- 文件夹读取：[dev-widget.ts](../apps/desktop/src/main/dev-widget.ts)
+- 示例：[examples/dev-widget](../examples/dev-widget)
 
-## 5. 当前实现
+运行：
 
-- 宿主：[DevWidgetCard.tsx](../apps/desktop/src/renderer/src/components/DevWidgetCard.tsx) 的 `themeVariables()`、`hostSurface`、MessagePort；
-- 读取文件夹：[dev-widget.ts](../apps/desktop/src/main/dev-widget.ts)；
-- 示例：`D:\Projects\Sill-dev-widget`。
+```powershell
+$env:SILL_DEV_WIDGET = 'D:\Projects\Sill\examples\dev-widget'
+pnpm dev
+```
 
-`inset` 模式的表面层是宿主 CSS，不是组件 CSS；示例组件的 `style.css` 只写内容，不铺背景。
+不设置这个变量时，面板行为不变。
 
-## 6. 迁移到 WebContentsView 时需要补的
+## 7. 安全边界（实验版）
 
-- 每个组件一个 `WebContentsView`，`setBackgroundColor('#00000000')`；
-- 把卡片 DOM rect 同步到 view bounds，滚动/缩放/布局编辑时更新；
-- 设置面板、布局编辑、下拉菜单打开时隐藏 view，避免原生 view 盖住 HTML；
-- 拖拽时用把手或临时隐藏 view；
-- `will-frame-navigate` / 导航拦截、焦点、输入法、Esc 仍要单独处理；
-- 组件继续使用同一套 CSS token 和 `window.sill` API，不重写组件。
+- HTML 白名单：`div/span/p/ul/ol/li/strong/em/small/b/i/br/h1-h4`；
+- 去掉 `<script>`、`style` 属性、`on*`、`href`、`src`；
+- CSS 去掉 `@import`、`url()`、`expression`；
+- 不执行 JS；
+- 这不是最终安全模型：正式版还要做属性/URL 白名单、大小/深度限制和测试样例。
+
+## 8. 下一步
+
+1. 动态布局 id，让模板卡进入 `layout.json`，支持拖拽、跨列、隐藏；
+2. `.sill` zip 安装、权限确认、卸载；
+3. 模板能力：`data-sill-i18n`、条件、循环、动作；
+4. 需要任意 JS 的组件另开一条受限脚本路线，不和模板混在一起。

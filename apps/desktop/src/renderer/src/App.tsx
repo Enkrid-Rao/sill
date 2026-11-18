@@ -360,12 +360,7 @@ export default function App(): React.JSX.Element {
             )
           })}
           {devWidget ? (
-            <DevWidgetCard
-              widget={devWidget}
-              now={now}
-              language={settings.language}
-              theme={settings.theme}
-            />
+            <DevWidgetCard widget={devWidget} now={now} language={settings.language} />
           ) : null}
           {!visibleOrder.length && !devWidget ? (
             <div className="sheet__empty sub">{t(settings.language, 'widgets.empty')}</div>

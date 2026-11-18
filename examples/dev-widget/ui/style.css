@@ -1,41 +1,31 @@
-html, body {
-  height: 100%;
-  margin: 0;
-  background: transparent;
-}
-
-body {
-  display: flex;
-  align-items: center;
-  font-family: var(--sill-sans);
-  color: var(--sill-ink);
-  -webkit-font-smoothing: auto;
+:host {
+  display: block;
 }
 
 .clock {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 8px 12px;
 }
 
 .clock__label {
   font-size: 10px;
   letter-spacing: 0.17em;
   text-transform: uppercase;
-  color: var(--sill-faint);
+  color: var(--ink-faint);
 }
 
 .clock__time {
-  font-family: var(--sill-serif);
+  font-family: var(--serif);
   font-style: italic;
   font-size: 56px;
   line-height: 0.92;
   letter-spacing: -0.02em;
+  color: rgba(250, 255, 252, 0.97);
   font-variant-numeric: lining-nums tabular-nums;
 }
 
 .clock__date {
   font-size: 12px;
-  color: var(--sill-dim);
+  color: var(--ink-dim);
 }
