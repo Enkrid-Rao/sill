@@ -5,6 +5,8 @@ export interface InstalledWidgetInfo {
   author: string
   permissions: string[]
   span: number
+  kind: 'template' | 'web'
+  trust: 'sandboxed' | 'trusted'
 }
 
 export interface InstallOutcome {

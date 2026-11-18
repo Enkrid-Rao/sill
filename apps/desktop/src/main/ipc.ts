@@ -164,9 +164,17 @@ export function registerIpc(deps: IpcDeps): void {
       `id: ${widget.id}`,
       `版本: ${widget.version}`,
       `作者: ${widget.author}`,
+      `类型: ${widget.kind === 'web' ? 'web' : 'template'}`,
+      `信任: ${
+        widget.trust === 'trusted'
+          ? '完全信任（可读写文件、执行命令、访问网络）'
+          : '沙箱（只通过组件桥）'
+      }`,
       `权限: ${permissions}`,
       '',
-      '只安装你信任的组件。模板不执行 JS、不联网，但会读取上面声明的数据。'
+      widget.trust === 'trusted'
+        ? '这个组件拥有和 Sill 相同的本机权限。只安装你信任的来源。'
+        : '只安装你信任的组件。'
     ].join('\n')
     const confirmOptions: MessageBoxOptions = {
       type: 'question',

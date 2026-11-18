@@ -6,6 +6,7 @@ import { applyAutostart } from './autostart'
 import { broadcast } from './broadcast'
 import { stopData, warmCollector } from './data'
 import { stopCollector } from './data/collector'
+import { startDevWidgetWatcher, stopDevWidgetWatcher } from './dev-widget'
 import { bindHotkey, disposeHotkeys } from './hotkey'
 import { registerIpc } from './ipc'
 import {
@@ -48,6 +49,7 @@ app.on('before-quit', () => {
   stopCollector()
   disposeHotkeys()
   destroyTray()
+  stopDevWidgetWatcher()
 })
 
 function onToggle(): void {
@@ -110,6 +112,7 @@ async function boot(): Promise<void> {
     return true
   })
   createPanel()
+  startDevWidgetWatcher()
   // 常驻采样：第一次唤出 / 快速隐藏再唤出时，GPU、网速和进程不需要重新等 PowerShell。
   warmCollector()
 

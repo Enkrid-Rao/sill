@@ -57,6 +57,14 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
+const webManifest = { ...manifest, type: 'web', trust: 'trusted', size: { w: 384, h: 180 } }
+const webFiles = (): Record<string, string> => ({
+  'widget.json': JSON.stringify(webManifest),
+  'ui/index.html': '<div id="host">--</div>',
+  'ui/style.css': css,
+  'ui/main.js': "document.querySelector('#host').textContent = require('node:os').hostname()"
+})
+
 describe('installPackage', () => {
   it('inspects, installs, loads and uninstalls a valid package', () => {
     const file = makePackage(validFiles())
@@ -79,6 +87,19 @@ describe('installPackage', () => {
 
     expect(uninstallPackage(join(root, 'components'), 'com.example.clock').ok).toBe(true)
     expect(listInstalled(join(root, 'components'))).toEqual([])
+  })
+
+  it('installs a trusted web package and loads its JS', () => {
+    const file = makePackage(webFiles())
+    const components = join(root, 'components')
+    const installed = installPackage(file, components)
+    expect(installed.ok).toBe(true)
+    expect(installed.widget).toMatchObject({ kind: 'web', trust: 'trusted' })
+
+    const loaded = loadInstalled(components, 'com.example.clock')
+    expect(loaded?.kind).toBe('web')
+    expect(loaded?.trust).toBe('trusted')
+    expect(loaded?.js).toContain('node:os')
   })
 
   it('rejects extra files', () => {

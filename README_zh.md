@@ -118,7 +118,7 @@ Sill 主仓库保留宿主（`WidgetShell`、`WIDGETS`、provider）与内置组
 
 另有一个 `type: "web"` 原型：完整 HTML/CSS/JS 跑在透明 webview guest 里，通过
 `sill.ready / onData / command` 桥通信。`trust: "trusted"` 还会拿到完整 Node / Windows API
-（类似雨滴插件）；`sandboxed` 只走桥。目前只在开发分支，不能安装；见
+（类似雨滴插件）；`sandboxed` 只走桥。可以本地 `.sill` 安装，还没有目录下载；见
 [docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md)。
 
 ## 命名

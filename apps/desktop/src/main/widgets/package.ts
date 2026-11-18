@@ -15,8 +15,9 @@ import type { InstallOutcome, InstalledWidgetInfo } from '../../shared/widgets'
 
 const MAX_ARCHIVE = 10 * 1024 * 1024
 const MAX_FILES = 200
-const MAX_FILE = 512 * 1024
-const FILES = ['widget.json', 'ui/index.html', 'ui/style.css'] as const
+const MAX_FILE = 1024 * 1024
+const BASE_FILES = ['widget.json', 'ui/index.html', 'ui/style.css'] as const
+const WEB_FILES = [...BASE_FILES, 'ui/main.js'] as const
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/
 const ID = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/
 const PERMISSIONS = new Set([
@@ -35,9 +36,10 @@ interface Manifest {
   version: string
   author: string
   span: number
+  height: number
   permissions: string[]
-  type: 'template'
-  ui: 'ui/index.html'
+  kind: 'template' | 'web'
+  trust: 'sandboxed' | 'trusted'
   data: WidgetDataBinding[]
   strings: Record<string, Record<string, string>>
 }
@@ -58,7 +60,9 @@ function info(manifest: Manifest): InstalledWidgetInfo {
     version: manifest.version,
     author: manifest.author,
     permissions: manifest.permissions,
-    span: manifest.span
+    span: manifest.span,
+    kind: manifest.kind,
+    trust: manifest.trust
   }
 }
 
@@ -82,13 +86,21 @@ function parseManifest(raw: Record<string, unknown>): Manifest | null {
   const license = typeof raw.license === 'string' ? raw.license.trim() : ''
   const runtime = typeof raw.runtime === 'string' ? raw.runtime.trim() : ''
   const engine = typeof raw.engine === 'string' ? raw.engine.trim() : ''
-  const type = raw.type === 'template' ? 'template' : ''
+  const kind = raw.type === 'web' ? 'web' : raw.type === 'template' ? 'template' : ''
+  const trust = kind === 'web' && raw.trust === 'trusted' ? 'trusted' : 'sandboxed'
   const ui = raw.ui === 'ui/index.html' ? 'ui/index.html' : ''
   const spanRaw =
     raw.span && typeof raw.span === 'object'
       ? Number((raw.span as Record<string, unknown>).default)
       : NaN
   const span = Number.isFinite(spanRaw) ? Math.max(1, Math.min(3, Math.round(spanRaw))) : NaN
+  const heightRaw =
+    raw.size && typeof raw.size === 'object'
+      ? Number((raw.size as Record<string, unknown>).h)
+      : NaN
+  const height = Number.isFinite(heightRaw)
+    ? Math.max(48, Math.min(1200, Math.round(heightRaw)))
+    : 160
 
   if (!ID.test(id)) return null
   if (!name || name.length > 24) return null
@@ -96,7 +108,7 @@ function parseManifest(raw: Record<string, unknown>): Manifest | null {
   if (!author || author.length > 80) return null
   if (!license || license.length > 40) return null
   if (!runtime || !engine) return null
-  if (!type || !ui) return null
+  if (!kind || !ui) return null
   if (!Number.isFinite(span)) return null
 
   const permissionsRaw = Array.isArray(raw.permissions) ? raw.permissions : []
@@ -111,9 +123,10 @@ function parseManifest(raw: Record<string, unknown>): Manifest | null {
     version,
     author,
     span,
+    height,
     permissions,
-    type,
-    ui,
+    kind,
+    trust,
     data: parseBindings(raw.data),
     strings: parseStrings(raw.strings)
   }
@@ -176,6 +189,10 @@ function packageDirs(root: string, id?: string): string[] {
     })
 }
 
+function allowedFiles(kind: 'template' | 'web'): readonly string[] {
+  return kind === 'web' ? WEB_FILES : BASE_FILES
+}
+
 function readPackage(file: string): { data: PackageData } | { error: string } {
   if (!existsSync(file)) return { error: '文件不存在' }
   const fileStat = statSync(file)
@@ -199,19 +216,17 @@ function readPackage(file: string): { data: PackageData } | { error: string } {
 
   for (const entry of entries) {
     const name = entry.entryName
-    if (!safeEntry(name) || !FILES.includes(name as (typeof FILES)[number])) {
-      return { error: `组件包包含不允许的文件：${name}` }
-    }
+    if (!safeEntry(name)) return { error: `组件包包含非法路径：${name}` }
     total += entry.header.size
     if (total > MAX_ARCHIVE) return { error: '组件解压后超过 10 MB' }
-    if (entry.header.size > MAX_FILE) return { error: `${name} 超过 512 KB` }
+    if (entry.header.size > MAX_FILE) return { error: `${name} 超过 1 MB` }
     let data: Buffer
     try {
       data = entry.getData()
     } catch {
       return { error: `无法读取 ${name}` }
     }
-    if (data.length > MAX_FILE) return { error: `${name} 超过 512 KB` }
+    if (data.length > MAX_FILE) return { error: `${name} 超过 1 MB` }
     files.set(name, data)
     if (name === 'widget.json') {
       try {
@@ -223,17 +238,24 @@ function readPackage(file: string): { data: PackageData } | { error: string } {
   }
 
   if (!manifest) return { error: 'widget.json 字段不合法' }
-  if (!files.has(manifest.ui)) return { error: `缺少 ${manifest.ui}` }
-  if (!files.has('ui/style.css')) return { error: '缺少 ui/style.css' }
-
-  const html = files.get(manifest.ui)?.toString('utf8') ?? ''
-  const css = files.get('ui/style.css')?.toString('utf8') ?? ''
-  if (/<script\b/i.test(html) || /\son\w+\s*=/i.test(html) || /\sstyle\s*=/i.test(html)) {
-    return { error: '模板不能包含 script、on* 或 style 属性' }
+  const allowed = allowedFiles(manifest.kind)
+  for (const name of files.keys()) {
+    if (!allowed.includes(name)) return { error: `组件包包含不允许的文件：${name}` }
   }
-  if (/\b(href|src)\s*=/i.test(html)) return { error: '模板不能包含 href / src' }
-  if (/@import|url\s*\(|expression\s*\(/i.test(css)) {
-    return { error: 'CSS 不能包含 @import、url() 或 expression()' }
+  if (!files.has(manifest.kind === 'web' ? 'ui/main.js' : 'ui/style.css')) {
+    return { error: manifest.kind === 'web' ? '缺少 ui/main.js' : '缺少 ui/style.css' }
+  }
+
+  if (manifest.kind === 'template') {
+    const html = files.get('ui/index.html')?.toString('utf8') ?? ''
+    const css = files.get('ui/style.css')?.toString('utf8') ?? ''
+    if (/<script\b/i.test(html) || /\son\w+\s*=/i.test(html) || /\sstyle\s*=/i.test(html)) {
+      return { error: '模板不能包含 script、on* 或 style 属性' }
+    }
+    if (/\b(href|src)\s*=/i.test(html)) return { error: '模板不能包含 href / src' }
+    if (/@import|url\s*\(|expression\s*\(/i.test(css)) {
+      return { error: 'CSS 不能包含 @import、url() 或 expression()' }
+    }
   }
 
   return { data: { manifest, files } }
@@ -262,8 +284,15 @@ export function loadInstalled(root: string, id: string): DevWidgetPayload | null
       id: manifest.id,
       name: manifest.name,
       span: manifest.span,
-      html: readFileSync(join(dir, manifest.ui), 'utf8'),
+      kind: manifest.kind,
+      trust: manifest.trust,
+      height: manifest.height,
+      html: readFileSync(join(dir, 'ui/index.html'), 'utf8'),
       css: readFileSync(join(dir, 'ui/style.css'), 'utf8'),
+      js:
+        manifest.kind === 'web'
+          ? readFileSync(join(dir, 'ui/main.js'), 'utf8')
+          : undefined,
       data: manifest.data,
       permissions: manifest.permissions,
       strings: manifest.strings
@@ -285,7 +314,7 @@ export function installPackage(file: string, root: string): InstallOutcome {
   const temp = join(root, `.tmp-${process.pid}-${Date.now()}`)
   try {
     mkdirSync(join(temp, 'ui'), { recursive: true })
-    for (const name of FILES) {
+    for (const name of allowedFiles(manifest.kind)) {
       const data = files.get(name)
       if (data) writeFileSync(join(temp, name), data)
     }

@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, watch, type FSWatcher } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type { DevWidgetPayload, WidgetDataBinding } from '../shared/dev-widget'
+import { broadcast } from './broadcast'
 
 /**
  * Dev-only loader. SILL_DEV_WIDGET points at a folder like:
@@ -130,4 +131,30 @@ function readStrings(value: unknown): Record<string, Record<string, string>> {
     out[language] = entries
   }
   return out
+}
+
+let watcher: FSWatcher | null = null
+let watchTimer: NodeJS.Timeout | null = null
+
+/** Watch SILL_DEV_WIDGET so edits hot-reload without restarting Sill. */
+export function startDevWidgetWatcher(): void {
+  const raw = process.env.SILL_DEV_WIDGET?.trim()
+  if (!raw || watcher) return
+  const root = resolve(raw)
+  if (!existsSync(root)) return
+  try {
+    watcher = watch(root, { recursive: true }, () => {
+      if (watchTimer) clearTimeout(watchTimer)
+      watchTimer = setTimeout(() => broadcast('widgets:changed', null), 80)
+    })
+  } catch (error) {
+    console.error('[sill] dev widget watcher:', error)
+  }
+}
+
+export function stopDevWidgetWatcher(): void {
+  watcher?.close()
+  watcher = null
+  if (watchTimer) clearTimeout(watchTimer)
+  watchTimer = null
 }

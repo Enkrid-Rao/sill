@@ -1,6 +1,6 @@
 # Web Widgets
 
-Status: **dev-only prototype.** Not installable as `.sill` yet, not in the 0.5.4 release.
+Status: **developer preview.** Local `.sill` install works; directory download / auto-update do not. Not in the 0.5.4 release.
 
 Two trust levels:
 
@@ -109,7 +109,7 @@ document.querySelector('#who').textContent = execSync('whoami').toString()
   trusted vs sandboxed.
 - Guest document has a strict CSP: no network, no remote images/fonts, inline style/script only.
 - `will-navigate` blocks navigation; the guest is a data URL with no remote origin.
-- Install is not implemented, so a web widget cannot be delivered by the package manager yet.
+- Local `.sill` install is implemented; directory download / auto-update are not.
 
 Electron marks `<webview>` deprecated. This prototype uses it because it is transparent and
 participates in layout; the long-term replacement is `WebContentsView` with the same component API.
@@ -128,8 +128,8 @@ pnpm dev
 
 ## Missing
 
-- `.sill` packaging / install for `type: "web"`.
-- Assets (`ui/assets/...`) and a custom protocol.
+- Directory download / auto-update.
+- Assets (`ui/assets/...`) beyond `ui/main.js`.
 - `sill.fetch` / `sill.storage`.
 - Per-window / per-app audio APIs.
 - `WebContentsView` migration.
