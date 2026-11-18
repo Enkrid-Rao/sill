@@ -1,4 +1,5 @@
 import type { MediaControlState, PanelSnapshot, TodoItem } from '../shared/data'
+import type { DevWidgetPayload } from '../shared/dev-widget'
 import type { Language } from '../shared/i18n'
 import type { PanelLayout } from '../shared/layout'
 import type { Theme } from '../shared/theme'
@@ -34,6 +35,7 @@ export interface SillApi {
   updateSettings: (patch: Partial<SillSettings>) => Promise<SillSettings>
   setHotkey: (accel: string) => Promise<{ ok: boolean; hotkey: string }>
   getVersion: () => Promise<string>
+  getDevWidget: () => Promise<DevWidgetPayload | null>
   getUninstallInfo: () => Promise<UninstallInfo>
   openDataFolder: () => Promise<string>
   uninstall: (deleteData: boolean) => Promise<UninstallResult>

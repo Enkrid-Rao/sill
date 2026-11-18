@@ -2110,3 +2110,24 @@ body {
     animation: none;
   }
 }
+
+/* ---------- dev widget spike ----------
+   一张从文件夹读出来的第三方卡：iframe 内部是独立文档，外面只保留卡片玻璃。
+   这不是正式组件样式，只在 SILL_DEV_WIDGET 下出现。 */
+.dev-card {
+  padding: 12px 14px;
+}
+
+.dev-card__head {
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.dev-card__frame {
+  display: block;
+  width: 100%;
+  height: 148px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+}

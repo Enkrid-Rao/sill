@@ -10,6 +10,7 @@ const api = {
   updateSettings: (patch: unknown) => ipcRenderer.invoke('settings:update', patch),
   setHotkey: (accel: string) => ipcRenderer.invoke('hotkey:set', accel),
   getVersion: () => ipcRenderer.invoke('app:version'),
+  getDevWidget: () => ipcRenderer.invoke('widgets:dev-get'),
   getUninstallInfo: () => ipcRenderer.invoke('app:uninstall-info'),
   openDataFolder: () => ipcRenderer.invoke('app:open-data-folder'),
   uninstall: (deleteData: boolean) => ipcRenderer.invoke('app:uninstall', deleteData),

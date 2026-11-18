@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { MediaControlState, PanelSnapshot, TodoItem } from '../../shared/data'
+import type { DevWidgetPayload } from '../../shared/dev-widget'
 import { t } from '../../shared/i18n'
 import { columnsForWidth, type CardId } from '../../shared/layout'
 import { CustomizeSheet } from './components/CustomizeSheet'
+import { DevWidgetCard } from './components/DevWidgetCard'
 import { ResizeHandles } from './components/ResizeHandles'
 import { formatHotkey } from './lib/hotkey'
 import { useSillSettings } from './lib/useSillSettings'
@@ -65,6 +67,7 @@ export default function App(): React.JSX.Element {
   const [tick, setTick] = useState(0)
   const [editing, setEditing] = useState(false)
   const [dragId, setDragId] = useState<CardId | null>(null)
+  const [devWidget, setDevWidget] = useState<DevWidgetPayload | null>(null)
 
   const { layout, setLayout } = settings
 
@@ -89,6 +92,17 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     const off = window.sill?.onSnapshot((next) => setSnapshot(next))
     return () => off?.()
+  }, [])
+
+  // Dev-only: SILL_DEV_WIDGET points at a folder. Null in a normal launch.
+  useEffect(() => {
+    let alive = true
+    void window.sill?.getDevWidget().then((next) => {
+      if (alive && next) setDevWidget(next)
+    })
+    return () => {
+      alive = false
+    }
   }, [])
 
   // 第一次显示 / 重新显示时补一次，防止 push 发生在监听器挂上之前
@@ -345,7 +359,15 @@ export default function App(): React.JSX.Element {
               </WidgetShell>
             )
           })}
-          {!visibleOrder.length ? (
+          {devWidget ? (
+            <DevWidgetCard
+              widget={devWidget}
+              now={now}
+              language={settings.language}
+              theme={settings.theme}
+            />
+          ) : null}
+          {!visibleOrder.length && !devWidget ? (
             <div className="sheet__empty sub">{t(settings.language, 'widgets.empty')}</div>
           ) : null}
         </div>

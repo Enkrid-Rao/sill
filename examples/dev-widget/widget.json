@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "id": "sill.dev-clock",
+  "name": "Dev Clock",
+  "description": "Spike widget loaded from a folder via SILL_DEV_WIDGET.",
+  "version": "0.1.0",
+  "author": "raoxi",
+  "license": "MIT",
+  "runtime": ">=0.5.4",
+  "engine": ">=0.1.0",
+  "type": "web",
+  "permissions": ["data.time"],
+  "data": [{ "id": "now", "source": "time.now" }],
+  "ui": "ui/index.html",
+  "span": { "default": 1 }
+}

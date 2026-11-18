@@ -546,6 +546,18 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
   被 `SILL_USER_DATA` 指到外部的数据目录不会被删（仅测试用）。
 - 从 Windows「应用和功能」卸载安装版：走官方卸载器，数据默认保留；要连数据一起清，用设置里的卸载入口。
 
+### 6.26 第三方组件实验（SILL_DEV_WIDGET）
+
+- `SILL_DEV_WIDGET` 指向一个文件夹时，面板末尾会多一张 iframe 卡；不设置时行为不变。
+  文件夹结构：`widget.json` + `ui/index.html` + `ui/style.css` + `ui/main.js`；
+  示例见 [`examples/dev-widget`](../examples/dev-widget)。
+- 只是实验：没有 zip 安装、动态布局 id、安装 UI、权限面板；不要把它当组件系统。
+- iframe 在透明窗口里是白底，宿主必须铺内衬（`data-sill-surface="inset"`）。
+  组件不要自己铺 full-bleed 背景；表面/玻璃/atmosphere token 见
+  [WIDGET-SURFACE.md](WIDGET-SURFACE.md)。
+- 数据/主题通过 MessagePort 传给 iframe，不走 `postMessage('*')`；CSP 禁止网络与远程导航。
+- 以后换 `WebContentsView` 时只换宿主，组件继续用同一套 `--sill-*` token 和 `window.sill` API。
+
 ## 7. 视觉规范
 
 字号与间距直接沿用 `docs/mockups/panel-forms.html` 的 C 场景（384 宽），改样式时以那份为准。

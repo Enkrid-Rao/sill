@@ -3,6 +3,7 @@ import { broadcast } from './broadcast'
 import { getSnapshot, refreshDataCadence } from './data'
 import { mediaCommand } from './data/media-control'
 import { addTodo, listTodos, removeTodo, restoreTodo, toggleTodo, updateTodo } from './data/todo'
+import { getDevWidget } from './dev-widget'
 import { getLayout, resetLayout, setLayout } from './layout'
 import {
   commitPanelSize,
@@ -116,6 +117,9 @@ export function registerIpc(deps: IpcDeps): void {
   })
 
   ipcMain.handle('data:snapshot', () => getSnapshot())
+
+  // Spike: read SILL_DEV_WIDGET once. Returns null in a normal launch.
+  ipcMain.handle('widgets:dev-get', () => getDevWidget())
 
   ipcMain.handle('todo:list', () => listTodos())
   ipcMain.handle('todo:add', (_event, text: unknown) =>
