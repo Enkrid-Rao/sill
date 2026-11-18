@@ -1,9 +1,10 @@
 {
-  "name": "@sill/cli",
-  "version": "0.2.0",
+  "name": "@heavenlydemon/sill-cli",
+  "version": "0.2.2",
   "private": false,
   "type": "module",
   "description": "Standalone Sill component CLI: new / validate / pack / dev.",
+  "license": "MIT",
   "bin": {
     "sill": "bin/sill.js"
   },
@@ -13,6 +14,22 @@
   ],
   "engines": {
     "node": ">=20"
+  },
+  "keywords": [
+    "sill",
+    "widget",
+    "components",
+    "cli",
+    "electron"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Enkrid-Rao/sill.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/Enkrid-Rao/sill/tree/main/packages/cli",
+  "bugs": {
+    "url": "https://github.com/Enkrid-Rao/sill/issues"
   },
   "dependencies": {
     "adm-zip": "^0.6.1"
