@@ -32,6 +32,10 @@ const api = {
     return () => ipcRenderer.removeListener('data:changed', listener)
   },
   mediaCommand: (action: string, value?: number) => ipcRenderer.invoke('media:command', action, value),
+  listShelf: () => ipcRenderer.invoke('shelf:list'),
+  addShelf: () => ipcRenderer.invoke('shelf:add'),
+  removeShelf: (id: string) => ipcRenderer.invoke('shelf:remove', id),
+  openShelf: (id: string) => ipcRenderer.invoke('shelf:open', id),
   listTodos: () => ipcRenderer.invoke('todo:list'),
   addTodo: (text: string) => ipcRenderer.invoke('todo:add', text),
   toggleTodo: (id: string) => ipcRenderer.invoke('todo:toggle', id),

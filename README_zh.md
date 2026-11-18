@@ -30,9 +30,10 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
   监测刷新频率、每个组件的显隐、「设置页使用独立窗口」开关，以及自动更新。
 - **布局——流式或自由。** 流式支持拖动换位、箭头、跨列；自由模式每张卡任意 x/y/w/h，
   布局编辑里可拖拽和缩放。两者都存 `layout.json`，隐藏状态不丢。
-- **组件平台——已落地。** 卡片从注册表（`WidgetShell` + `WIDGETS`）渲染。模板组件从 `.sill`
+- **快捷方式收纳——已落地。** 收纳盒卡片保存 `.lnk` / `.exe`，显示系统图标，点击打开、可删除。
+  它是收纳盒，不是文件管理器。\n- **组件平台——已落地。** 卡片从注册表（`WidgetShell` + `WIDGETS`）渲染。模板组件从 `.sill`
   安装，在卡片的 Shadow DOM 里运行，用宿主的 time / system / media / weather / todo provider；
-  文本、i18n、条件、repeat、动作和 meter 都已支持；五个内置组件仍是 React 实现。
+  文本、i18n、条件、repeat、动作和 meter 都已支持；六个内置组件仍是 React 实现。
 - **组件 CLI——已落地。** `pnpm sill validate / pack / new / dev`；本地 `.sill` 安装前会确认
   id / 版本 / 作者 / 权限。
 - **真实数据——已接入。** CPU、内存、GPU、网络、TOP 进程、Windows SMTC 正在播放（含播放 / 暂停、

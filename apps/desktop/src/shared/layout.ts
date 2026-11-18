@@ -47,7 +47,7 @@ export function maxColumns(width: number): number {
 
 // ---------- 卡片布局 ----------
 
-export const CARD_IDS = ['hero', 'system', 'processes', 'media', 'todo'] as const
+export const CARD_IDS = ['hero', 'system', 'processes', 'media', 'shelf', 'todo'] as const
 
 export interface WidgetBox {
   x: number

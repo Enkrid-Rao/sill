@@ -153,6 +153,11 @@ const en = {
   'widget.processes': 'Processes',
   'widget.media': 'Now playing',
   'widget.todo': 'To-do',
+  'widget.shelf': 'Shortcuts',
+  'shelf.title': 'Shortcuts',
+  'shelf.add': 'Add',
+  'shelf.empty': 'Add a shortcut',
+  'shelf.remove': 'Remove',
 
   'layout.title': 'Layout',
   'layout.hint': 'Drag cards, use the arrows, or set columns',
@@ -377,6 +382,11 @@ const zh: Record<Key, string> = {
   'widget.processes': '进程',
   'widget.media': '正在播放',
   'widget.todo': '待办',
+  'widget.shelf': '收纳',
+  'shelf.title': '快捷方式',
+  'shelf.add': '添加',
+  'shelf.empty': '添加快捷方式',
+  'shelf.remove': '删除',
 
   'layout.title': '布局',
   'layout.hint': '拖动卡片，或用箭头与跨列数',

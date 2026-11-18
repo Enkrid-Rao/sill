@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { broadcast } from './broadcast'
 import { getSnapshot, refreshDataCadence } from './data'
 import { mediaCommand } from './data/media-control'
+import { addShelfPaths, listShelf, openShelf, removeShelf } from './data/shelf'
 import { addTodo, listTodos, removeTodo, restoreTodo, toggleTodo, updateTodo } from './data/todo'
 import { getDevWidget } from './dev-widget'
 import { COMPONENTS_DIR, getLayout, invalidateLayout, resetLayout, setLayout } from './layout'
@@ -202,6 +203,24 @@ export function registerIpc(deps: IpcDeps): void {
     if (result.ok) afterWidgetsChanged()
     return result
   })
+
+  ipcMain.handle('shelf:list', () => listShelf())
+  ipcMain.handle('shelf:add', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const options: OpenDialogOptions = {
+      title: '添加快捷方式',
+      properties: ['openFile', 'multiSelections']
+    }
+    const picked = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    if (picked.canceled) return listShelf()
+    return addShelfPaths(picked.filePaths)
+  })
+  ipcMain.handle('shelf:remove', (_event, id: unknown) =>
+    typeof id === 'string' ? removeShelf(id) : listShelf()
+  )
+  ipcMain.handle('shelf:open', (_event, id: unknown) =>
+    typeof id === 'string' ? openShelf(id) : { ok: false, error: '无效 id' }
+  )
 
   ipcMain.handle('todo:list', () => listTodos())
   ipcMain.handle('todo:add', (_event, text: unknown) =>

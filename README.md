@@ -33,10 +33,11 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
   visibility, an option to open Settings in its own window, and automatic updates.
 - **Layout — flow or free.** Flow swaps/columns; free positions every card at any x/y/w/h, draggable
   and resizable in layout editing. Both live in `layout.json`; hidden widgets keep their slot.
-- **Widget platform — in.** Cards render from a registry (`WidgetShell` + `WIDGETS`). Template
+- **Shortcut shelf — in.** A shelf card stores `.lnk` / `.exe` shortcuts with native icons, opens them,
+  and removes them. It is a shelf, not a file manager.\n- **Widget platform — in.** Cards render from a registry (`WidgetShell` + `WIDGETS`). Template
   widgets install from `.sill`, run in a Shadow DOM inside the card, and use host providers for
   time / system / media / weather / todo. Text, i18n, conditions, repeat, actions and meter bindings
-  are implemented; the built-in five remain React components.
+  are implemented; the built-in six remain React components.
 - **Widget CLI — in.** `pnpm sill validate / pack / new / dev`; local `.sill` install asks for
   id / version / author / permissions before writing.
 - **Live data — in.** CPU, memory, GPU, network, top processes, Windows SMTC now-playing with

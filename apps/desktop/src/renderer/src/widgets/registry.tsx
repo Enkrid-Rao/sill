@@ -1,3 +1,4 @@
+import { ShelfWidget } from '../components/ShelfWidget'
 import { MediaWidget } from '../components/widgets/MediaWidget'
 import { TodoWidget } from '../components/widgets/TodoWidget'
 import { HeroWidget } from './HeroWidget'
@@ -57,6 +58,12 @@ export const BUILTIN_WIDGETS: readonly WidgetDefinition[] = [
         onCommand={context.mediaCommand}
       />
     )
+  },
+  {
+    id: 'shelf',
+    nameKey: 'widget.shelf',
+    spanFor: () => 1,
+    render: (context) => <ShelfWidget language={context.language} />
   },
   {
     id: 'todo',

@@ -2,6 +2,7 @@ import type { MediaControlState, PanelSnapshot, TodoItem } from '../shared/data'
 import type { DevWidgetPayload } from '../shared/dev-widget'
 import type { Language } from '../shared/i18n'
 import type { PanelLayout } from '../shared/layout'
+import type { ShelfShortcut } from '../shared/shelf'
 import type { Theme } from '../shared/theme'
 import type { UninstallInfo, UninstallResult } from '../shared/uninstall'
 import type { UpdateState } from '../shared/update'
@@ -49,6 +50,10 @@ export interface SillApi {
   getSnapshot: () => Promise<PanelSnapshot>
   onSnapshot: (callback: (snapshot: PanelSnapshot) => void) => () => void
   mediaCommand: (action: string, value?: number) => Promise<MediaControlState | null>
+  listShelf: () => Promise<ShelfShortcut[]>
+  addShelf: () => Promise<ShelfShortcut[]>
+  removeShelf: (id: string) => Promise<ShelfShortcut[]>
+  openShelf: (id: string) => Promise<{ ok: boolean; error?: string }>
   listTodos: () => Promise<TodoItem[]>
   addTodo: (text: string) => Promise<TodoItem[]>
   toggleTodo: (id: string) => Promise<TodoItem[]>
