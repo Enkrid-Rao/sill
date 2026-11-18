@@ -38,8 +38,24 @@ interface Manifest {
   ui: 'ui/index.html'
 }
 
+interface PackageData {
+  manifest: Manifest
+  files: Map<string, Buffer>
+}
+
 function fail(error: string): InstallOutcome {
   return { ok: false, error }
+}
+
+function info(manifest: Manifest): InstalledWidgetInfo {
+  return {
+    id: manifest.id,
+    name: manifest.name,
+    version: manifest.version,
+    author: manifest.author,
+    permissions: manifest.permissions,
+    span: manifest.span
+  }
 }
 
 function safeEntry(name: string): boolean {
@@ -70,7 +86,7 @@ function parseManifest(raw: Record<string, unknown>): Manifest | null {
       : NaN
   const span = Number.isFinite(spanRaw) ? Math.max(1, Math.min(3, Math.round(spanRaw))) : NaN
 
-  if (!ID.test(id) || !id.includes('.')) return null
+  if (!ID.test(id)) return null
   if (!name || name.length > 24) return null
   if (!SEMVER.test(version)) return null
   if (!author || author.length > 80) return null
@@ -97,17 +113,9 @@ function readManifest(dir: string): Manifest | null {
   }
 }
 
-function info(dir: string): InstalledWidgetInfo | null {
+function infoFromDir(dir: string): InstalledWidgetInfo | null {
   const manifest = readManifest(dir)
-  if (!manifest) return null
-  return {
-    id: manifest.id,
-    name: manifest.name,
-    version: manifest.version,
-    author: manifest.author,
-    permissions: manifest.permissions,
-    span: manifest.span
-  }
+  return manifest ? info(manifest) : null
 }
 
 function packageDirs(root: string, id?: string): string[] {
@@ -122,9 +130,78 @@ function packageDirs(root: string, id?: string): string[] {
     })
 }
 
+function readPackage(file: string): { data: PackageData } | { error: string } {
+  if (!existsSync(file)) return { error: '文件不存在' }
+  const fileStat = statSync(file)
+  if (!fileStat.isFile()) return { error: '不是文件' }
+  if (fileStat.size > MAX_ARCHIVE) return { error: '组件包超过 10 MB' }
+
+  let zip: AdmZip
+  try {
+    zip = new AdmZip(file)
+  } catch {
+    return { error: '无法读取 .sill 压缩包' }
+  }
+
+  const entries = zip.getEntries().filter((entry) => !entry.isDirectory)
+  if (entries.length > MAX_FILES) return { error: '组件包文件过多' }
+  if (entries.length === 0) return { error: '组件包是空的' }
+
+  let total = 0
+  let manifest: Manifest | null = null
+  const files = new Map<string, Buffer>()
+
+  for (const entry of entries) {
+    const name = entry.entryName
+    if (!safeEntry(name) || !FILES.includes(name as (typeof FILES)[number])) {
+      return { error: `组件包包含不允许的文件：${name}` }
+    }
+    total += entry.header.size
+    if (total > MAX_ARCHIVE) return { error: '组件解压后超过 10 MB' }
+    if (entry.header.size > MAX_FILE) return { error: `${name} 超过 512 KB` }
+    let data: Buffer
+    try {
+      data = entry.getData()
+    } catch {
+      return { error: `无法读取 ${name}` }
+    }
+    if (data.length > MAX_FILE) return { error: `${name} 超过 512 KB` }
+    files.set(name, data)
+    if (name === 'widget.json') {
+      try {
+        manifest = parseManifest(JSON.parse(data.toString('utf8')) as Record<string, unknown>)
+      } catch {
+        return { error: 'widget.json 不是合法 JSON' }
+      }
+    }
+  }
+
+  if (!manifest) return { error: 'widget.json 字段不合法' }
+  if (!files.has(manifest.ui)) return { error: `缺少 ${manifest.ui}` }
+  if (!files.has('ui/style.css')) return { error: '缺少 ui/style.css' }
+
+  const html = files.get(manifest.ui)?.toString('utf8') ?? ''
+  const css = files.get('ui/style.css')?.toString('utf8') ?? ''
+  if (/<script\b/i.test(html) || /\son\w+\s*=/i.test(html) || /\sstyle\s*=/i.test(html)) {
+    return { error: '模板不能包含 script、on* 或 style 属性' }
+  }
+  if (/\b(href|src)\s*=/i.test(html)) return { error: '模板不能包含 href / src' }
+  if (/@import|url\s*\(|expression\s*\(/i.test(css)) {
+    return { error: 'CSS 不能包含 @import、url() 或 expression()' }
+  }
+
+  return { data: { manifest, files } }
+}
+
+export function inspectPackage(file: string): InstallOutcome {
+  const result = readPackage(file)
+  if ('error' in result) return fail(result.error)
+  return { ok: true, widget: info(result.data.manifest) }
+}
+
 export function listInstalled(root: string): InstalledWidgetInfo[] {
   return packageDirs(root)
-    .map(info)
+    .map(infoFromDir)
     .filter((item): item is InstalledWidgetInfo => item !== null)
     .sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -148,64 +225,9 @@ export function loadInstalled(root: string, id: string): DevWidgetPayload | null
 }
 
 export function installPackage(file: string, root: string): InstallOutcome {
-  if (!existsSync(file)) return fail('文件不存在')
-  const fileStat = statSync(file)
-  if (!fileStat.isFile()) return fail('不是文件')
-  if (fileStat.size > MAX_ARCHIVE) return fail('组件包超过 10 MB')
-
-  let zip: AdmZip
-  try {
-    zip = new AdmZip(file)
-  } catch {
-    return fail('无法读取 .sill 压缩包')
-  }
-
-  const entries = zip.getEntries().filter((entry) => !entry.isDirectory)
-  if (entries.length > MAX_FILES) return fail('组件包文件过多')
-  if (entries.length === 0) return fail('组件包是空的')
-
-  let total = 0
-  let manifest: Manifest | null = null
-  const files = new Map<string, Buffer>()
-
-  for (const entry of entries) {
-    const name = entry.entryName
-    if (!safeEntry(name) || !FILES.includes(name as (typeof FILES)[number])) {
-      return fail(`组件包包含不允许的文件：${name}`)
-    }
-    total += entry.header.size
-    if (total > MAX_ARCHIVE) return fail('组件解压后超过 10 MB')
-    if (entry.header.size > MAX_FILE) return fail(`${name} 超过 512 KB`)
-    let data: Buffer
-    try {
-      data = entry.getData()
-    } catch {
-      return fail(`无法读取 ${name}`)
-    }
-    if (data.length > MAX_FILE) return fail(`${name} 超过 512 KB`)
-    files.set(name, data)
-    if (name === 'widget.json') {
-      try {
-        manifest = parseManifest(JSON.parse(data.toString('utf8')) as Record<string, unknown>)
-      } catch {
-        return fail('widget.json 不是合法 JSON')
-      }
-    }
-  }
-
-  if (!manifest) return fail('widget.json 字段不合法')
-  if (!files.has(manifest.ui)) return fail(`缺少 ${manifest.ui}`)
-  if (!files.has('ui/style.css')) return fail('缺少 ui/style.css')
-
-  const html = files.get(manifest.ui)?.toString('utf8') ?? ''
-  const css = files.get('ui/style.css')?.toString('utf8') ?? ''
-  if (/<script\b/i.test(html) || /\son\w+\s*=/i.test(html) || /\sstyle\s*=/i.test(html)) {
-    return fail('模板不能包含 script、on* 或 style 属性')
-  }
-  if (/\b(href|src)\s*=/i.test(html)) return fail('模板不能包含 href / src')
-  if (/@import|url\s*\(|expression\s*\(/i.test(css)) {
-    return fail('CSS 不能包含 @import、url() 或 expression()')
-  }
+  const result = readPackage(file)
+  if ('error' in result) return fail(result.error)
+  const { manifest, files } = result.data
 
   const target = join(root, `${manifest.id}@${manifest.version}`)
   if (!within(root, target)) return fail('安装路径非法')
@@ -228,17 +250,7 @@ export function installPackage(file: string, root: string): InstallOutcome {
     return fail(error instanceof Error ? error.message : '安装失败')
   }
 
-  return {
-    ok: true,
-    widget: {
-      id: manifest.id,
-      name: manifest.name,
-      version: manifest.version,
-      author: manifest.author,
-      permissions: manifest.permissions,
-      span: manifest.span
-    }
-  }
+  return { ok: true, widget: info(manifest) }
 }
 
 export function uninstallPackage(root: string, id: string): InstallOutcome {

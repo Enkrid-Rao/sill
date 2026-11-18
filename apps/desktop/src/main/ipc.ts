@@ -1,11 +1,17 @@
-import { app, BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, type MessageBoxOptions, type OpenDialogOptions } from 'electron'
 import { broadcast } from './broadcast'
 import { getSnapshot, refreshDataCadence } from './data'
 import { mediaCommand } from './data/media-control'
 import { addTodo, listTodos, removeTodo, restoreTodo, toggleTodo, updateTodo } from './data/todo'
 import { getDevWidget } from './dev-widget'
 import { COMPONENTS_DIR, getLayout, invalidateLayout, resetLayout, setLayout } from './layout'
-import { installPackage, listInstalled, loadInstalled, uninstallPackage } from './widgets/package'
+import {
+  inspectPackage,
+  installPackage,
+  listInstalled,
+  loadInstalled,
+  uninstallPackage
+} from './widgets/package'
 import {
   commitPanelSize,
   getPanelSizeLimits,
@@ -137,15 +143,43 @@ export function registerIpc(deps: IpcDeps): void {
 
   ipcMain.handle('widgets:install', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
-    const options: OpenDialogOptions = {
+    const openOptions: OpenDialogOptions = {
       title: '安装 Sill 组件',
       properties: ['openFile'],
       filters: [{ name: 'Sill 组件', extensions: ['sill', 'zip'] }]
     }
     const picked = win
-      ? await dialog.showOpenDialog(win, options)
-      : await dialog.showOpenDialog(options)
+      ? await dialog.showOpenDialog(win, openOptions)
+      : await dialog.showOpenDialog(openOptions)
     if (picked.canceled || !picked.filePaths[0]) return { ok: false, error: '已取消' }
+
+    const inspected = inspectPackage(picked.filePaths[0])
+    if (!inspected.ok || !inspected.widget) return inspected
+    const widget = inspected.widget
+    const permissions = widget.permissions.length ? widget.permissions.join('\n') : '无'
+    const detail = [
+      `id: ${widget.id}`,
+      `版本: ${widget.version}`,
+      `作者: ${widget.author}`,
+      `权限: ${permissions}`,
+      '',
+      '只安装你信任的组件。模板不执行 JS、不联网，但会读取上面声明的数据。'
+    ].join('\n')
+    const confirmOptions: MessageBoxOptions = {
+      type: 'question',
+      title: '安装组件',
+      message: `${widget.name} ${widget.version}`,
+      detail,
+      buttons: ['安装', '取消'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true
+    }
+    const confirmed = win
+      ? await dialog.showMessageBox(win, confirmOptions)
+      : await dialog.showMessageBox(confirmOptions)
+    if (confirmed.response !== 0) return { ok: false, error: '已取消' }
+
     const result = installPackage(picked.filePaths[0], COMPONENTS_DIR)
     if (result.ok) afterWidgetsChanged()
     return result
