@@ -4,6 +4,8 @@ interface WidgetData {
   data: Record<string, unknown>
   language: string
   tokens?: Record<string, string>
+  /** Trusted components only: package/dev folder. */
+  dir?: string
 }
 
 let latest: WidgetData | null = null

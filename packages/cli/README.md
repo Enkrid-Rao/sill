@@ -1,44 +1,25 @@
-# Sill CLI
+# @sill/cli
 
-本地开发命令。直接跑在 Sill 仓库里，不发布到 npm。
+Sill 组件开发命令行。不需要 clone Sill 源码。
 
 ```bash
-pnpm sill validate ./my-widget
-pnpm sill pack ./my-widget -o my-widget.sill
-pnpm sill new com.example.clock
-pnpm sill dev ./my-widget
+npm i -g @sill/cli
+sill new com.example.clock
+cd com.example.clock
+sill dev
+sill pack
 ```
 
-## 命令
+- `sill dev` 找已安装的 `Sill.exe`，用独立开发数据和 `SILL_DEV_WIDGET` 启动；
+- 找不到安装版时，`SILL_EXE` 指向便携版；再不行才回退源码仓库的 `pnpm dev`；
+- `sill new` 默认生成 `type: "web"`、`trust: "trusted"`，`--template` 生成旧模板；
+- `sill pack` 输出 `.sill`；web 组件可带 `ui/assets/**`（trusted 用包目录）。
 
-### `validate <dir>`
+环境变量：
 
-检查：
+| 变量 | 用途 |
+|---|---|
+| `SILL_EXE` | Sill.exe 路径 |
+| `SILL_DEV_DATA` | 开发用 userData，默认 `%APPDATA%\Sill-dev` |
 
-- `widget.json` 可解析，`schema=1`；
-- `id` / `version` / `type` / `ui` / `span` 合法；
-- 三个文件存在且 ≤ 512 KB；
-- HTML 没有 `<script>`、`on*`、`style`、`href`、`src`；
-- CSS 没有 `@import`、`url()`、`expression()`。
-
-### `pack <dir> [-o file]`
-
-先 `validate`，再把三个文件打成 `.sill`。默认文件名 `<id>-<version>.sill`。
-压缩包根目录就是这三个文件，不套文件夹。
-
-### `new <id> [dir]`
-
-生成最小可运行模板：
-
-```text
-com.example.clock/
-├─ widget.json
-└─ ui/
-   ├─ index.html
-   └─ style.css
-```
-
-### `dev <dir>`
-
-校验后以 `SILL_DEV_WIDGET=<dir>` 启动 Sill 的 `pnpm dev`。
-依赖当前工作区；不是全局安装的 `sill` 命令。
+Node.js >= 20。

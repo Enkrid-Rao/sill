@@ -73,6 +73,8 @@ export function SettingsWindow(): React.JSX.Element {
         onDownloadUpdate={settings.downloadUpdate}
         onInstallUpdate={settings.installUpdate}
         onEditLayout={() => void window.sill?.editLayout()}
+        layoutMode={settings.layout.mode}
+        onLayoutModeChange={(mode) => settings.setLayout({ ...settings.layout, mode })}
         widgets={settings.widgets}
         onToggleWidget={settings.toggleWidget}
         version={settings.version}

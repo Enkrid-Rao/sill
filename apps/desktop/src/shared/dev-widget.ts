@@ -22,6 +22,8 @@ export interface DevWidgetPayload {
   height?: number
   /** Inline script for kind=web; never mounted in the host DOM. */
   js?: string
+  /** Absolute package/dev folder; trusted web only. */
+  dir?: string
   data: WidgetDataBinding[]
   permissions: string[]
   /** lang -> key -> text; declared inline in widget.json. */

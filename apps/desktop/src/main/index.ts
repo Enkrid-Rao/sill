@@ -28,7 +28,9 @@ const SMOKE = process.argv.includes('--smoke')
 
 app.setAppUserModelId('com.sill.app')
 
-const singleInstance = app.requestSingleInstanceLock()
+// 开发实例不抢占正式 Sill 的单实例锁；否则开着 Sill 就无法预览组件。
+const DEV_WIDGET = Boolean(process.env.SILL_DEV_WIDGET)
+const singleInstance = DEV_WIDGET || app.requestSingleInstanceLock()
 if (!singleInstance) {
   app.quit()
 } else {
@@ -113,6 +115,7 @@ async function boot(): Promise<void> {
   })
   createPanel()
   startDevWidgetWatcher()
+  if (process.env.SILL_DEV_WIDGET) showPanel()
   // 常驻采样：第一次唤出 / 快速隐藏再唤出时，GPU、网速和进程不需要重新等 PowerShell。
   warmCollector()
 

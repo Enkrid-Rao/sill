@@ -69,6 +69,10 @@ export default function App(): React.JSX.Element {
   const sheetRef = useRef<HTMLDivElement>(null)
 
   const { layout, setLayout } = settings
+  const layoutRef = useRef(layout)
+  const setLayoutRef = useRef(setLayout)
+  layoutRef.current = layout
+  setLayoutRef.current = setLayout
 
   // 窗口尺寸变化（拖拽把手 / 设置滑杆 / 换屏）→ 只在跨过列数阈值时重排
   useEffect(() => {
@@ -272,31 +276,36 @@ export default function App(): React.JSX.Element {
       ) + 24
     : undefined
 
-  // 第一次进 free：先在 flow 里量出每张卡的真实尺寸，再落到 boxes。
+  // 第一次进 free：先让数据落一帧，再量真实尺寸；默认 flow 期间不会跳。
   useLayoutEffect(() => {
-    if (!free) return
-    const sheet = sheetRef.current
-    if (!sheet) return
-    const missing = visibleOrder.filter((id) => !layout.boxes[id])
-    if (!missing.length) return
-    const base = sheet.getBoundingClientRect()
-    const boxes = { ...layout.boxes }
-    let changed = false
-    for (const element of sheet.querySelectorAll<HTMLElement>('.card')) {
-      const id = element.dataset.card
-      if (!id || !missing.includes(id)) continue
-      const rect = element.getBoundingClientRect()
-      boxes[id] = {
-        x: Math.round(rect.left - base.left),
-        y: Math.round(rect.top - base.top),
-        w: Math.round(rect.width),
-        h: Math.round(rect.height)
+    if (!free || !snapshot) return
+    const timer = window.setTimeout(() => {
+      const sheet = sheetRef.current
+      if (!sheet) return
+      const latest = layoutRef.current
+      const missing = latest.order
+        .filter((id) => !latest.hidden.includes(id))
+        .filter((id) => !latest.boxes[id])
+      if (!missing.length) return
+      const base = sheet.getBoundingClientRect()
+      const boxes = { ...latest.boxes }
+      let changed = false
+      for (const element of sheet.querySelectorAll<HTMLElement>('.card')) {
+        const id = element.dataset.card
+        if (!id || !missing.includes(id)) continue
+        const rect = element.getBoundingClientRect()
+        boxes[id] = {
+          x: Math.round(rect.left - base.left),
+          y: Math.round(rect.top - base.top),
+          w: Math.round(rect.width),
+          h: Math.round(rect.height)
+        }
+        changed = true
       }
-      changed = true
-    }
-    if (changed) settings.setLayout({ ...layout, boxes })
-  }, [free, layout, settings, visibleOrder])
-
+      if (changed) setLayoutRef.current({ ...latest, boxes })
+    }, 2400)
+    return () => window.clearTimeout(timer)
+  }, [free, snapshot])
   const updateBox = useCallback(
     (id: string, box: WidgetBox) => {
       settings.setLayout({
@@ -472,6 +481,8 @@ export default function App(): React.JSX.Element {
             setCustomizing(false)
             setEditing(true)
           }}
+          layoutMode={layout.mode}
+          onLayoutModeChange={(mode) => settings.setLayout({ ...layout, mode })}
           widgets={settings.widgets}
           onToggleWidget={settings.toggleWidget}
           version={settings.version}

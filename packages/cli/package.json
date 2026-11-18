@@ -1,12 +1,13 @@
 {
   "name": "@sill/cli",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
+  "private": false,
   "type": "module",
-  "description": "Local validate / pack / new / dev commands for Sill template widgets.",
+  "description": "Standalone Sill component CLI: new / validate / pack / dev.",
   "bin": {
     "sill": "./bin/sill.js"
   },
+  "files": ["bin", "README.md"],
   "engines": {
     "node": ">=20"
   },

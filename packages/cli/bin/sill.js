@@ -2,12 +2,13 @@
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import AdmZip from 'adm-zip'
 
 const BASE_FILES = ['widget.json', 'ui/index.html', 'ui/style.css']
 const WEB_FILES = [...BASE_FILES, 'ui/main.js']
-const MAX_FILE = 1024 * 1024
+const MAX_FILE = 20 * 1024 * 1024
 const PERMISSIONS = new Set([
   'data.time',
   'data.system',
@@ -26,12 +27,16 @@ function usage() {
   validate <dir>              校验组件
   pack <dir> [-o file]        打成 .sill
   new <id> [dir] [--template] 生成组件（默认 web/trusted）
-  dev <dir>                   用 SILL_DEV_WIDGET 启动 Sill
+  dev <dir>                   启动已安装 Sill / SILL_EXE，独立开发数据
 
 示例：
   sill new com.example.clock
   sill dev ./com.example.clock
-  sill pack ./com.example.clock -o clock.sill`)
+  sill pack ./com.example.clock -o clock.sill
+
+环境变量：
+  SILL_EXE                    便携版 Sill.exe
+  SILL_DEV_DATA               开发 userData（默认 %APPDATA%\\Sill-dev）`)
 }
 
 function fail(message) {
@@ -113,6 +118,12 @@ function validateDir(dir) {
       const relative = file.slice(root.length + 1).replace(/\\/g, '/')
       if (statSync(file).isDirectory()) {
         walk(file)
+      } else if (relative.endsWith('.sill') && !relative.includes('/')) {
+        // 允许把打包产物放在项目根目录；它不会进 .sill。
+        continue
+      } else if (relative.startsWith('ui/assets/') && kind === 'web') {
+        // web 组件可以带 assets；trusted 用包目录，sandboxed 以后走协议。
+        continue
       } else if (!allowed.has(relative)) {
         errors.push(`不允许的文件：${relative}`)
       }
@@ -130,7 +141,7 @@ function validateDir(dir) {
       errors.push(`${relative} 不是文件`)
       continue
     }
-    if (statSync(file).size > MAX_FILE) errors.push(`${relative} 超过 1 MB`)
+    if (statSync(file).size > MAX_FILE) errors.push(`${relative} 超过 20 MB`)
   }
 
   if (kind === 'template') {
@@ -158,6 +169,26 @@ function readManifest(dir) {
   return readJson(join(resolve(dir), 'widget.json'))
 }
 
+function collectPackageFiles(root, kind) {
+  const files = []
+  const walk = (current) => {
+    for (const entry of readdirSync(current)) {
+      const file = join(current, entry)
+      const relative = file.slice(root.length + 1).replace(/\\/g, '/')
+      if (statSync(file).isDirectory()) {
+        walk(file)
+        continue
+      }
+      if (relative === 'README.md' || relative.endsWith('.sill')) continue
+      if (allowedFiles(kind).includes(relative) || (kind === 'web' && relative.startsWith('ui/assets/'))) {
+        files.push(relative)
+      }
+    }
+  }
+  walk(root)
+  return files
+}
+
 function pack(dir, out) {
   const root = resolve(dir)
   const errors = validateDir(root)
@@ -169,7 +200,7 @@ function pack(dir, out) {
   const kind = manifest.type === 'web' ? 'web' : 'template'
   const target = resolve(out || `${manifest.id}-${manifest.version}.sill`)
   const zip = new AdmZip()
-  for (const relative of allowedFiles(kind)) {
+  for (const relative of collectPackageFiles(root, kind)) {
     zip.addFile(relative, readFileSync(join(root, relative)))
   }
   zip.writeZip(target)
@@ -219,6 +250,29 @@ function newWidget(id, dir, template) {
   console.log(target)
 }
 
+function findSillExe() {
+  const explicit = process.env.SILL_EXE?.trim()
+  if (explicit && existsSync(explicit)) return explicit
+  const candidates = []
+  if (process.env.LOCALAPPDATA) {
+    candidates.push(join(process.env.LOCALAPPDATA, 'Programs', 'Sill', 'Sill.exe'))
+  }
+  if (process.env.ProgramFiles) {
+    candidates.push(join(process.env.ProgramFiles, 'Sill', 'Sill.exe'))
+  }
+  if (process.env['ProgramFiles(x86)']) {
+    candidates.push(join(process.env['ProgramFiles(x86)'], 'Sill', 'Sill.exe'))
+  }
+  candidates.push(join(homedir(), 'AppData', 'Local', 'Programs', 'Sill', 'Sill.exe'))
+  return candidates.find((path) => existsSync(path)) ?? null
+}
+
+function devData() {
+  const explicit = process.env.SILL_DEV_DATA?.trim()
+  if (explicit) return explicit
+  return join(process.env.APPDATA || join(homedir(), 'AppData', 'Roaming'), 'Sill-dev')
+}
+
 function dev(dir) {
   const root = resolve(dir)
   const errors = validateDir(root)
@@ -226,10 +280,39 @@ function dev(dir) {
     for (const error of errors) console.error(`  ${error}`)
     return fail('校验失败，未启动')
   }
+
+  const data = devData()
+  mkdirSync(data, { recursive: true })
+  const baseEnv = { ...process.env }
+  delete baseEnv.ELECTRON_RUN_AS_NODE
+  const exe = findSillExe()
+  if (exe) {
+    console.log(`sill: dev ${root}`)
+    console.log(`sill: Sill ${exe}`)
+    console.log(`sill: data ${data}`)
+    const child = spawn(exe, [], {
+      env: {
+        ...baseEnv,
+        SILL_DEV_WIDGET: root,
+        SILL_USER_DATA: data,
+        SILL_DEV: '1'
+      },
+      stdio: 'inherit'
+    })
+    child.on('exit', (code) => {
+      process.exitCode = code ?? 0
+    })
+    return
+  }
+
   const sillRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+  if (!existsSync(join(sillRoot, 'package.json'))) {
+    return fail('没有找到 Sill.exe。安装 Sill，或设置 SILL_EXE 指向便携版 Sill.exe。')
+  }
+  console.log('sill: 没有找到已安装的 Sill，回退到源码 pnpm dev')
   const child = spawn('pnpm', ['dev'], {
     cwd: sillRoot,
-    env: { ...process.env, SILL_DEV_WIDGET: root },
+    env: { ...baseEnv, SILL_DEV_WIDGET: root, SILL_USER_DATA: data, SILL_DEV: '1' },
     stdio: 'inherit',
     shell: process.platform === 'win32'
   })
@@ -237,7 +320,6 @@ function dev(dir) {
     process.exitCode = code ?? 0
   })
 }
-
 function main() {
   const [command, ...args] = process.argv.slice(2)
   if (!command || command === 'help' || command === '--help' || command === '-h') {
@@ -246,8 +328,8 @@ function main() {
   }
 
   if (command === 'validate') {
-    if (!args[0]) return fail('缺少目录')
-    const errors = validateDir(args[0])
+    const dir = args[0] && !args[0].startsWith('-') ? args[0] : process.cwd()
+    const errors = validateDir(dir)
     if (errors.length) {
       for (const error of errors) console.error(`  ${error}`)
       return fail('校验失败')
@@ -257,8 +339,18 @@ function main() {
   }
 
   if (command === 'pack') {
-    const dir = args.find((arg) => !arg.startsWith('-') && arg !== '-o' && arg !== '--out')
-    if (!dir) return fail('缺少目录')
+    let dir = process.cwd()
+    for (let index = 0; index < args.length; index += 1) {
+      const arg = args[index]
+      if (arg === '-o' || arg === '--out') {
+        index += 1
+        continue
+      }
+      if (!arg.startsWith('-')) {
+        dir = arg
+        break
+      }
+    }
     const outIndex = args.findIndex((arg) => arg === '-o' || arg === '--out')
     const out = outIndex >= 0 ? args[outIndex + 1] : undefined
     if (outIndex >= 0 && !out) return fail('-o 需要文件路径')
@@ -275,8 +367,8 @@ function main() {
   }
 
   if (command === 'dev') {
-    if (!args[0]) return fail('缺少目录')
-    dev(args[0])
+    const dir = args[0] && !args[0].startsWith('-') ? args[0] : process.cwd()
+    dev(dir)
     return
   }
 

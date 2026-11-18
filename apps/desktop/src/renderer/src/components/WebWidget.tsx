@@ -126,7 +126,8 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
         guest.send('sill:data', {
           data: buildProviderData(widget.data, contextRef.current),
           language: contextRef.current.language,
-          tokens: readTokens()
+          tokens: readTokens(),
+          ...(trusted && widget.dir ? { dir: widget.dir } : {})
         })
       } catch {
         // guest may not be ready yet; dom-ready sends again
@@ -169,7 +170,8 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
       guest.send('sill:data', {
         data: buildProviderData(widget.data, context),
         language: context.language,
-        tokens: readTokens()
+        tokens: readTokens(),
+        ...(trusted && widget.dir ? { dir: widget.dir } : {})
       })
     } catch {
       // guest not ready; dom-ready handles first frame

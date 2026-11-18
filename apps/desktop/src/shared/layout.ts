@@ -70,7 +70,8 @@ export interface PanelLayout {
 
 export const DEFAULT_LAYOUT: PanelLayout = {
   version: 2,
-  mode: 'flow',
+  // 新装默认自由布局；flow 仍可选。
+  mode: 'free',
   order: [...CARD_IDS],
   spans: { hero: 3 },
   hidden: [],
@@ -133,9 +134,16 @@ export function normalizeLayout(
     if (box) boxes[id] = box
   }
 
+  const mode =
+    src.mode === 'free' || src.mode === 'flow'
+      ? src.mode
+      : src.version === 1
+        ? 'flow'
+        : 'free'
+
   return {
     version: 2,
-    mode: src.mode === 'free' ? 'free' : 'flow',
+    mode,
     order,
     spans,
     hidden,

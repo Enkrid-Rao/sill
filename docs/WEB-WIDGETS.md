@@ -28,7 +28,8 @@ my-web-widget/
 └─ ui/
    ├─ index.html
    ├─ style.css
-   └─ main.js
+   ├─ main.js
+   └─ assets/          # optional: helper, icons, fonts
 ```
 
 ```json
@@ -80,6 +81,7 @@ sill.command('media.playpause')
 
 - `data` uses the same manifest `data[].id` aliases as templates.
 - `language` is `zh` / `en`.
+- `dir` is the package/dev folder; trusted only. Use it with `ui/assets/**`.
 - Host tokens (`--ink`, `--serif`, `--accent`, ...) are written onto the guest `<html>`.
 - `command` is checked against the host action allowlist and manifest permissions.
 - No Node, no `require`, no `fs`, no direct network.
@@ -124,9 +126,9 @@ pnpm sill dev .\examples\dev-trusted   # trusted full Node
 ## Missing
 
 - Directory download / auto-update.
-- Assets (`ui/assets/...`) beyond `ui/main.js`.
+- Sandboxed assets still need a custom protocol; trusted assets work through `dir`.
 - `sill.fetch` / `sill.storage`.
-- Per-window / per-app audio APIs.
+- Host audio APIs; trusted components can ship their own WASAPI helper.
 - `WebContentsView` migration.
 
 ## Per-app volume

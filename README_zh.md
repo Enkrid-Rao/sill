@@ -28,13 +28,15 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
 - **设置——已落地。** 外观 / 面板 / 数据 / 系统 / 通用五段式；8 套主题预设、强调色、热键录制、自由面板尺寸
   （拖拽 / 滑杆 / 预设 / 撑满高度）、停靠边、边缘距离、中英切换、天气地区（自动或 28 个城市）、
   监测刷新频率、每个组件的显隐、「设置页使用独立窗口」开关，以及自动更新。
-- **布局——流式或自由。** 流式支持拖动换位、箭头、跨列；自由模式每张卡任意 x/y/w/h，
-  布局编辑里可拖拽和缩放。两者都存 `layout.json`，隐藏状态不丢。
+- **布局——流式或自由。** 新装默认自由：每张卡可放任意 x/y/w/h，布局编辑里可拖拽和缩放。
+  旧的流式网格在 设置 → 行为 → 布局模式 里保留。两者都存 `layout.json`，隐藏状态不丢。
 - **快捷方式收纳——已落地。** 收纳盒卡片保存 `.lnk` / `.exe`，显示系统图标，点击打开、可删除。
-  它是收纳盒，不是文件管理器。\n- **组件平台——已落地。** 卡片从注册表（`WidgetShell` + `WIDGETS`）渲染。模板组件从 `.sill`
+  它是收纳盒，不是文件管理器。
+- **组件平台——已落地。** 卡片从注册表（`WidgetShell` + `WIDGETS`）渲染。模板组件从 `.sill`
   安装，在卡片的 Shadow DOM 里运行，用宿主的 time / system / media / weather / todo provider；
   文本、i18n、条件、repeat、动作和 meter 都已支持；六个内置组件仍是 React 实现。
-- **组件 CLI——已落地。** `pnpm sill validate / pack / new / dev`；本地 `.sill` 安装前会确认
+- **组件 CLI——已落地。** 独立 `@sill/cli`（`sill new / dev / pack`）可以不碰源码，直接面向
+  已安装或便携版 Sill；`sill dev` 用独立 `Sill-dev` 数据并热重载。本地 `.sill` 安装前会确认
   id / 版本 / 作者 / 权限。
 - **真实数据——已接入。** CPU、内存、GPU、网络、TOP 进程、Windows SMTC 正在播放（含播放 / 暂停、
   上一首 / 下一首、系统音量）、真实天气（Open-Meteo），以及可编辑的待办（存在 `todo.json`）。
@@ -106,17 +108,24 @@ pnpm dist        # NSIS 安装包 → apps/desktop/dist
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 进程边界、数据流、组件运行时、扩展点 | 要**改架构**的人 |
 | [docs/LAYOUT.md](docs/LAYOUT.md) | 流式/自由布局、boxes、迁移 | 要**摆放组件**的人 |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | 当前进度、已验证 / 未验证、阻塞、下一步 | 要**接手**的人或下一个会话 |
-| [docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md) | webview JS 原型、桥、安全与限制 | 要**写 JS 组件**的人 |`n| [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、测试、提交与 review 规则 | 要**发 patch** 的人 |
+| [docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md) | web 组件、trusted Node、沙箱桥 | 要**写 JS 组件**的人 |
+| [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md) | 装 CLI、new、dev、pack | 要**写第一个组件**的人 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、测试、提交与 review 规则 | 要**发 patch** 的人 |
 | [SECURITY.md](SECURITY.md) | 威胁模型与漏洞披露 | 要**报安全问题**的人 |
 | [docs/mockups/panel-forms.html](docs/mockups/panel-forms.html) | 四种面板形态的实尺对比（按 1/2/3/4 切换） | 想回看**为什么选侧边廊**的人 |
 
 ## 组件开发
 
-组件的模板格式、manifest、provider、包与安全规范在独立的
-**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** 仓库里。先从
-[docs/template.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/template.md) 和
-[docs/package.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/package.md) 看起。
-Sill 主仓库保留宿主（`WidgetShell`、`WIDGETS`、provider）与内置组件。
+从 [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md) 开始：独立 `@sill/cli`、
+`type: "web"` + `trust: "trusted"`、`sill dev` 热重载、`sill pack`。
+
+trusted 组件是完整 Node 运行时，不是 provider 白名单。它可以带 `ui/assets/**`
+（helper、native addon、图标、字体），通过 `sill.ready(({ dir }) => ...)` 拿包目录，直接调
+WASAPI / PowerShell / C#。看 [examples/dev-volume](examples/dev-volume)：一个真实的按应用调音量
+组件，没有为它新增宿主 API。
+
+template 仍保留给简单无 JS 卡片。格式、manifest、provider、包与安全规范在独立的
+**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** 仓库里。
 
 另有一个 `type: "web"` 原型：完整 HTML/CSS/JS 跑在透明 webview guest 里，通过
 `sill.ready / onData / command` 桥通信。`trust: "trusted"` 还会拿到完整 Node / Windows API

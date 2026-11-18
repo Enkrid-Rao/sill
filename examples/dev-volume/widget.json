@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "sill.volume",
+  "name": "Volume",
+  "version": "1.0.0",
+  "author": "Sill",
+  "license": "MIT",
+  "runtime": ">=0.5.4",
+  "engine": ">=0.1.0",
+  "type": "web",
+  "trust": "trusted",
+  "size": { "w": 420, "h": 560 },
+  "span": { "default": 1 },
+  "permissions": [],
+  "data": [],
+  "ui": "ui/index.html"
+}

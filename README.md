@@ -31,15 +31,18 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
   accent colours, hotkey recorder, free panel size (drag, sliders, presets, fill-height), dock side,
   edge distance, zh/en switch, weather location (auto or 28 cities), monitor refresh, per-widget
   visibility, an option to open Settings in its own window, and automatic updates.
-- **Layout — flow or free.** Flow swaps/columns; free positions every card at any x/y/w/h, draggable
-  and resizable in layout editing. Both live in `layout.json`; hidden widgets keep their slot.
+- **Layout — flow or free.** New installs default to free: every card can sit at any x/y/w/h and is
+  draggable/resizable in layout editing. Flow (the old grid) is selectable in Settings → Behavior.
+  Both live in `layout.json`; hidden widgets keep their slot.
 - **Shortcut shelf — in.** A shelf card stores `.lnk` / `.exe` shortcuts with native icons, opens them,
-  and removes them. It is a shelf, not a file manager.\n- **Widget platform — in.** Cards render from a registry (`WidgetShell` + `WIDGETS`). Template
+  and removes them. It is a shelf, not a file manager.
+- **Widget platform — in.** Cards render from a registry (`WidgetShell` + `WIDGETS`). Template
   widgets install from `.sill`, run in a Shadow DOM inside the card, and use host providers for
   time / system / media / weather / todo. Text, i18n, conditions, repeat, actions and meter bindings
   are implemented; the built-in six remain React components.
-- **Widget CLI — in.** `pnpm sill validate / pack / new / dev`; local `.sill` install asks for
-  id / version / author / permissions before writing.
+- **Widget CLI — in.** Standalone `@sill/cli` (`sill new / dev / pack`) can target an installed or
+  portable Sill without the source repo; `sill dev` runs with separate `Sill-dev` data and hot reload.
+  Local `.sill` install asks for id / version / author / permissions before writing.
 - **Live data — in.** CPU, memory, GPU, network, top processes, Windows SMTC now-playing with
   play/pause, previous/next and system volume, real weather (Open-Meteo), and an editable todo list
   stored in `todo.json`. Completed tasks stay in place; deletes fade horizontally while the row
@@ -119,17 +122,26 @@ pnpm dist        # NSIS installer → apps/desktop/dist
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | process boundaries, data flow, widget runtime, extension points | **changing the architecture** |
 | [docs/LAYOUT.md](docs/LAYOUT.md) | flow/free layout, boxes, migration | **placing widgets** |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | current state, verified vs. unverified, blockers, next steps | **picking it up** |
-| [docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md) | webview JS prototype, bridge, security, limits | **writing a JS widget** |`n| [CONTRIBUTING.md](CONTRIBUTING.md) | setup, tests, commit and review rules | **sending a patch** |
+| [docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md) | web components, trusted Node, sandbox bridge | **writing JS components** |
+| [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md) | install CLI, new, dev, pack | **first component** |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | setup, tests, commit and review rules | **sending a patch** |
 | [SECURITY.md](SECURITY.md) | threat model and disclosure | **reporting a vulnerability** |
 | [docs/mockups/panel-forms.html](docs/mockups/panel-forms.html) | four panel shapes at 1:1 scale | why the side rail |
 
 ## Component development
 
-The template format, manifest, providers, package and security spec live in the separate
-**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** repository. Start with
-[docs/template.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/template.md) and
-[docs/package.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/package.md).
-Sill keeps the host (`WidgetShell`, `WIDGETS`, providers) and the built-in components.
+Start with [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md): standalone `@sill/cli`,
+`type: "web"` + `trust: "trusted"`, `sill dev` hot reload, `sill pack`.
+
+A trusted component is a full Node runtime, not a provider whitelist. It can ship `ui/assets/**`
+(helper scripts, native addons, icons, fonts), read its package folder from
+`sill.ready(({ dir }) => ...)`, and call WASAPI / PowerShell / C# directly. See
+[examples/dev-volume](examples/dev-volume) for a working per-app volume component that does not add a
+host API.
+
+`type: "template"` remains for simple no-JS cards. The format, manifest, providers, package and
+security spec live in the separate
+**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** repository.
 
 A `type: "web"` prototype also exists: full HTML/CSS/JS in a transparent webview guest with a
 `sill.ready / onData / command` bridge. `trust: "trusted"` additionally gets full Node / Windows API,

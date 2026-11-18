@@ -9,13 +9,13 @@ import {
   statSync,
   writeFileSync
 } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import type { DevWidgetPayload, WidgetDataBinding } from '../../shared/dev-widget'
 import type { InstallOutcome, InstalledWidgetInfo } from '../../shared/widgets'
 
-const MAX_ARCHIVE = 10 * 1024 * 1024
-const MAX_FILES = 200
-const MAX_FILE = 1024 * 1024
+const MAX_ARCHIVE = 50 * 1024 * 1024
+const MAX_FILES = 500
+const MAX_FILE = 20 * 1024 * 1024
 const BASE_FILES = ['widget.json', 'ui/index.html', 'ui/style.css'] as const
 const WEB_FILES = [...BASE_FILES, 'ui/main.js'] as const
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/
@@ -193,11 +193,15 @@ function allowedFiles(kind: 'template' | 'web'): readonly string[] {
   return kind === 'web' ? WEB_FILES : BASE_FILES
 }
 
+function isAssetFile(name: string, kind: 'template' | 'web'): boolean {
+  return kind === 'web' && name.startsWith('ui/assets/') && safeEntry(name)
+}
+
 function readPackage(file: string): { data: PackageData } | { error: string } {
   if (!existsSync(file)) return { error: '文件不存在' }
   const fileStat = statSync(file)
   if (!fileStat.isFile()) return { error: '不是文件' }
-  if (fileStat.size > MAX_ARCHIVE) return { error: '组件包超过 10 MB' }
+  if (fileStat.size > MAX_ARCHIVE) return { error: '组件包超过 50 MB' }
 
   let zip: AdmZip
   try {
@@ -218,15 +222,15 @@ function readPackage(file: string): { data: PackageData } | { error: string } {
     const name = entry.entryName
     if (!safeEntry(name)) return { error: `组件包包含非法路径：${name}` }
     total += entry.header.size
-    if (total > MAX_ARCHIVE) return { error: '组件解压后超过 10 MB' }
-    if (entry.header.size > MAX_FILE) return { error: `${name} 超过 1 MB` }
+    if (total > MAX_ARCHIVE) return { error: '组件解压后超过 50 MB' }
+    if (entry.header.size > MAX_FILE) return { error: `${name} 超过 20 MB` }
     let data: Buffer
     try {
       data = entry.getData()
     } catch {
       return { error: `无法读取 ${name}` }
     }
-    if (data.length > MAX_FILE) return { error: `${name} 超过 1 MB` }
+    if (data.length > MAX_FILE) return { error: `${name} 超过 20 MB` }
     files.set(name, data)
     if (name === 'widget.json') {
       try {
@@ -240,7 +244,9 @@ function readPackage(file: string): { data: PackageData } | { error: string } {
   if (!manifest) return { error: 'widget.json 字段不合法' }
   const allowed = allowedFiles(manifest.kind)
   for (const name of files.keys()) {
-    if (!allowed.includes(name)) return { error: `组件包包含不允许的文件：${name}` }
+    if (!allowed.includes(name) && !isAssetFile(name, manifest.kind)) {
+      return { error: `组件包包含不允许的文件：${name}` }
+    }
   }
   if (!files.has(manifest.kind === 'web' ? 'ui/main.js' : 'ui/style.css')) {
     return { error: manifest.kind === 'web' ? '缺少 ui/main.js' : '缺少 ui/style.css' }
@@ -287,6 +293,7 @@ export function loadInstalled(root: string, id: string): DevWidgetPayload | null
       kind: manifest.kind,
       trust: manifest.trust,
       height: manifest.height,
+      dir,
       html: readFileSync(join(dir, 'ui/index.html'), 'utf8'),
       css: readFileSync(join(dir, 'ui/style.css'), 'utf8'),
       js:
@@ -314,9 +321,10 @@ export function installPackage(file: string, root: string): InstallOutcome {
   const temp = join(root, `.tmp-${process.pid}-${Date.now()}`)
   try {
     mkdirSync(join(temp, 'ui'), { recursive: true })
-    for (const name of allowedFiles(manifest.kind)) {
-      const data = files.get(name)
-      if (data) writeFileSync(join(temp, name), data)
+    for (const [name, data] of files) {
+      const targetFile = join(temp, name)
+      mkdirSync(dirname(targetFile), { recursive: true })
+      writeFileSync(targetFile, data)
     }
     renameSync(temp, target)
   } catch (error) {

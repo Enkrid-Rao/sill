@@ -1,0 +1,16 @@
+<div class="audio">
+  <div class="audio__head">
+    <span class="audio__cap">应用音量</span>
+    <button id="refresh" class="audio__refresh" type="button">刷新</button>
+  </div>
+
+  <label class="audio__master">
+    <span class="audio__name">系统</span>
+    <input id="master" type="range" min="0" max="100" step="1" value="50" />
+    <span id="master-value" class="audio__value">50%</span>
+    <button id="master-mute" class="audio__mute" type="button">静音</button>
+  </label>
+
+  <div id="apps" class="audio__apps"></div>
+  <div id="status" class="audio__status">正在读取音频会话…</div>
+</div>

@@ -1,6 +1,7 @@
 # Layout
 
-`layout.json` has two modes. Existing v1 files migrate automatically; `version` becomes `2`.
+`layout.json` has two modes. New installs default to **free**; flow is still available in Settings → Behavior →
+Layout mode. Existing v1 files migrate to flow; `version` becomes `2`.
 
 ## flow
 
@@ -40,17 +41,17 @@
 
 ### Enabling
 
-Layout editing → **自由布局 / Free layout**. The first time it is enabled, Sill measures the current
-flow layout and writes real boxes, so nothing jumps. Drag the grip to move; drag the bottom-right
-corner to resize. **流式布局 / Flow layout** switches back.
+Settings → Behavior → **布局模式 / Layout mode**（默认自由）, or the layout bar toggle. When boxes are
+missing, Sill measures the current flow layout after the first data sample and writes real boxes.
+Drag the grip to move; drag the bottom-right corner to resize. **流式 / Flow** switches back.
 
 When a new widget appears while free layout is active, it is measured in flow first, then placed.
 
 ## Why
 
-Flow is good for a tidy rail; free is for component dashboards and Rainmeter-like layouts where the
-author/user decides where things go. The layout model and widget runtime are independent: a web
-component can be 160×160 or 700×300 without changing its code.
+Flow is good for a tidy rail; free is for component dashboards where the user decides where things
+go. The layout model and widget runtime are independent: a web component can be 160×160 or 700×300
+without changing its code.
 
 ## Limits
 

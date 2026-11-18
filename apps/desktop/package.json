@@ -1,6 +1,6 @@
 {
   "name": "@sill/desktop",
-  "version": "0.5.4",
+  "version": "0.6.0-dev.1",
   "private": true,
   "description": "Sill desktop shell — main process, panel window, renderer",
   "author": "raoxi",

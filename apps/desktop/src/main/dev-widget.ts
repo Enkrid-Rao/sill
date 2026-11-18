@@ -95,6 +95,7 @@ export function getDevWidget(): DevWidgetPayload | null {
     trust,
     height,
     js,
+    dir: root,
     data: readBindings(manifest.data),
     permissions: readPermissions(manifest.permissions),
     strings: readStrings(manifest.strings)

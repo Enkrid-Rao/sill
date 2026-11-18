@@ -1,5 +1,5 @@
 import AdmZip from 'adm-zip'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -62,7 +62,8 @@ const webFiles = (): Record<string, string> => ({
   'widget.json': JSON.stringify(webManifest),
   'ui/index.html': '<div id="host">--</div>',
   'ui/style.css': css,
-  'ui/main.js': "document.querySelector('#host').textContent = require('node:os').hostname()"
+  'ui/main.js': "document.querySelector('#host').textContent = require('node:os').hostname()",
+  'ui/assets/helper.ps1': 'Write-Output ok'
 })
 
 describe('installPackage', () => {
@@ -100,6 +101,8 @@ describe('installPackage', () => {
     expect(loaded?.kind).toBe('web')
     expect(loaded?.trust).toBe('trusted')
     expect(loaded?.js).toContain('node:os')
+    expect(loaded?.dir).toBeTruthy()
+    expect(existsSync(join(loaded!.dir!, 'ui/assets/helper.ps1'))).toBe(true)
   })
 
   it('rejects extra files', () => {

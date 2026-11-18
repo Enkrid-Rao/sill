@@ -63,6 +63,8 @@ interface Props {
   onDownloadUpdate: () => void
   onInstallUpdate: () => void
   onEditLayout: () => void
+  layoutMode: 'flow' | 'free'
+  onLayoutModeChange: (mode: 'flow' | 'free') => void
   widgets: readonly { id: string; label: string; hidden: boolean }[]
   onToggleWidget: (id: string, shown: boolean) => void
   version: string
@@ -453,6 +455,8 @@ export function CustomizeSheet({
   onDownloadUpdate,
   onInstallUpdate,
   onEditLayout,
+  layoutMode,
+  onLayoutModeChange,
   widgets,
   onToggleWidget,
   version,
@@ -836,6 +840,31 @@ export function CustomizeSheet({
               <button className="cz-action" type="button" onClick={onEditLayout}>
                 {t(language, 'behavior.editLayout')}
               </button>
+            </div>
+
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'behavior.layoutMode')}</span>
+                <span className="cz-setrow__note">
+                  {t(language, 'behavior.layoutModeNote')}
+                </span>
+              </div>
+              <div className="cz-seg" role="group" aria-label={t(language, 'behavior.layoutMode')}>
+                <button
+                  type="button"
+                  aria-pressed={layoutMode === 'free'}
+                  onClick={() => onLayoutModeChange('free')}
+                >
+                  {t(language, 'behavior.layoutFree')}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={layoutMode === 'flow'}
+                  onClick={() => onLayoutModeChange('flow')}
+                >
+                  {t(language, 'behavior.layoutFlow')}
+                </button>
+              </div>
             </div>
 
             <Slider
