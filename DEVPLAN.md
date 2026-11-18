@@ -1,5 +1,9 @@
 # Sill 开发文档
 
+> **历史规划。** 本文件写于 v0.5.4，里面的 IR / rmskin 方案已被 template 组件模型取代。
+> 当前实现看 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)；组件格式看
+> [Sill-Components](https://github.com/Enkrid-Rao/sill-components)。
+
 v0.5.4 · 2026-11-17
 Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边廊，组件可安装、可写、可导入 rmskin。
 前身是 Tide（同名原型 LiquidGlassTodo 仍在运行，互不干扰）。

@@ -5,6 +5,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
 ![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
 [![Release](https://img.shields.io/badge/release-v0.5.4-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+[![verify](https://github.com/Enkrid-Rao/sill/actions/workflows/verify.yml/badge.svg)](https://github.com/Enkrid-Rao/sill/actions/workflows/verify.yml)
 
 A glass side rail for the Windows desktop: summon it with a hotkey, docked to the edge of the screen,
 built to host installable widgets — and eventually to eat Rainmeter skins.
@@ -32,8 +33,12 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
   visibility, an option to open Settings in its own window, and automatic updates.
 - **Layout — editable.** Drag a card onto another to swap, or use the arrows, and set how many columns
   each card spans. The arrangement lives in `layout.json`; hidden widgets keep their slot.
-- **Widget host — in.** Cards render from a registry (`WidgetShell` + `WIDGETS`), so adding a built-in
-  component no longer means editing `App.tsx`. The declarative IR compiler is the next step.
+- **Widget platform — in.** Cards render from a registry (`WidgetShell` + `WIDGETS`). Template
+  widgets install from `.sill`, run in a Shadow DOM inside the card, and use host providers for
+  time / system / media / weather / todo. Text, i18n, conditions, repeat, actions and meter bindings
+  are implemented; the built-in five remain React components.
+- **Widget CLI — in.** `pnpm sill validate / pack / new / dev`; local `.sill` install asks for
+  id / version / author / permissions before writing.
 - **Live data — in.** CPU, memory, GPU, network, top processes, Windows SMTC now-playing with
   play/pause, previous/next and system volume, real weather (Open-Meteo), and an editable todo list
   stored in `todo.json`. Completed tasks stay in place; deletes fade horizontally while the row
@@ -75,6 +80,9 @@ The source is currently at **v0.5.4** (adds the Settings uninstall entry on top 
 weather, click-outside dismissal, todo filters/edit/undo, portable build, adjustable monitor refresh,
 five-section Settings and installed-build auto-updates); v0.5.4 is the latest published release.
 
+The widget platform (templates, `.sill` install, dynamic layout, CLI, actions) is on `main` and is
+**not** part of the 0.5.4 release. Run it from source or install a local `.sill` from a dev build.
+
 Requires Windows 10/11 x64.
 
 ## Development
@@ -95,6 +103,7 @@ Self-checks:
 
 ```powershell
 pnpm typecheck   # main + renderer
+pnpm test        # package + provider unit tests
 pnpm build       # output in apps/desktop/out
 pnpm smoke       # headless panel → screenshot to apps/desktop/out/smoke.png → exit
 pnpm dist        # NSIS installer → apps/desktop/dist
@@ -104,16 +113,21 @@ pnpm dist        # NSIS installer → apps/desktop/dist
 
 | Doc | What it covers | For |
 |---|---|---|
-| [DEVPLAN.md](DEVPLAN.md) | product and architecture, milestones, widget spec, rmskin strategy | understanding **what it should become** |
+| [DEVPLAN.md](DEVPLAN.md) | historical planning, milestones, IR / rmskin strategy | understanding **how it got here** |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | environment, commands, layout, implementation decisions, troubleshooting | **changing the code** |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | process boundaries, data flow, widget runtime, extension points | **changing the architecture** |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | current state, verified vs. unverified, blockers, next steps | **picking it up** |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | setup, tests, commit and review rules | **sending a patch** |
+| [SECURITY.md](SECURITY.md) | threat model and disclosure | **reporting a vulnerability** |
 | [docs/mockups/panel-forms.html](docs/mockups/panel-forms.html) | four panel shapes at 1:1 scale | why the side rail |
 
 ## Component development
 
-The component manifest / IR / runtime / sandbox spec lives in the separate
-**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** repository.
-Sill itself only keeps the host (`WidgetShell`, `WIDGETS`, data providers) and built-in components.
+The template format, manifest, providers, package and security spec live in the separate
+**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** repository. Start with
+[docs/template.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/template.md) and
+[docs/package.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/package.md).
+Sill keeps the host (`WidgetShell`, `WIDGETS`, providers) and the built-in components.
 
 ## Naming
 

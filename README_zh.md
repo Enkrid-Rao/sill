@@ -5,6 +5,7 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
 ![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
 [![Release](https://img.shields.io/badge/release-v0.5.4-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+[![verify](https://github.com/Enkrid-Rao/sill/actions/workflows/verify.yml/badge.svg)](https://github.com/Enkrid-Rao/sill/actions/workflows/verify.yml)
 
 Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用来承载可安装的组件——将来还要吃下 Rainmeter 皮肤。
 
@@ -29,8 +30,11 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
   监测刷新频率、每个组件的显隐、「设置页使用独立窗口」开关，以及自动更新。
 - **布局——可编辑。** 把一张卡拖到另一张上即可换位，也可以用箭头；每张卡还能设跨几列。
   顺序、跨列与隐藏状态存在 `layout.json`。
-- **组件宿主——已落地。** 卡片从注册表（`WidgetShell` + `WIDGETS`）渲染，新增内置组件不再改
-  `App.tsx`；下一步是声明式 IR 编译器。
+- **组件平台——已落地。** 卡片从注册表（`WidgetShell` + `WIDGETS`）渲染。模板组件从 `.sill`
+  安装，在卡片的 Shadow DOM 里运行，用宿主的 time / system / media / weather / todo provider；
+  文本、i18n、条件、repeat、动作和 meter 都已支持；五个内置组件仍是 React 实现。
+- **组件 CLI——已落地。** `pnpm sill validate / pack / new / dev`；本地 `.sill` 安装前会确认
+  id / 版本 / 作者 / 权限。
 - **真实数据——已接入。** CPU、内存、GPU、网络、TOP 进程、Windows SMTC 正在播放（含播放 / 暂停、
   上一首 / 下一首、系统音量）、真实天气（Open-Meteo），以及可编辑的待办（存在 `todo.json`）。
   勾选后任务留在原位，删除只做横向淡出与行高收合，不会上下跳动。待办卡支持
@@ -65,6 +69,9 @@ per-user 安装到 `%LOCALAPPDATA%\Programs\Sill`，不弹 UAC。安装包**未�
 源码当前是 **v0.5.4**（在 v0.5.3 的真实天气、点外收起、待办过滤/编辑/撤销、绿色版、可调监测刷新、
 五段式设置、安装版自动更新之上，新增设置内卸载）；v0.5.4 是最新已发布版本。
 
+组件平台（模板、`.sill` 安装、动态布局、CLI、动作）在 `main` 上，**不在** 0.5.4 发布版里。
+要从源码运行，或在开发版里安装本地 `.sill`。
+
 需要 Windows 10/11 x64。
 
 ## 开发
@@ -83,6 +90,7 @@ pnpm dev
 
 ```powershell
 pnpm typecheck   # 主进程与渲染进程各查一遍
+pnpm test        # 安装器 + provider 单元测试
 pnpm build       # 产物在 apps/desktop/out
 pnpm smoke       # 无头起面板 → 截图到 apps/desktop/out/smoke.png → 退出
 pnpm dist        # NSIS 安装包 → apps/desktop/dist
@@ -92,16 +100,21 @@ pnpm dist        # NSIS 安装包 → apps/desktop/dist
 
 | 文档 | 内容 | 读者 |
 |---|---|---|
-| [DEVPLAN.md](DEVPLAN.md) | 产品与架构规划、里程碑、组件规范、rmskin 策略 | 想理解**要做成什么**的人 |
+| [DEVPLAN.md](DEVPLAN.md) | 历史规划、里程碑、IR / rmskin 策略 | 想理解**怎么走到这里**的人 |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 环境、命令、目录职责、关键实现决策、排错 | 要**动手改代码**的人 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 进程边界、数据流、组件运行时、扩展点 | 要**改架构**的人 |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | 当前进度、已验证 / 未验证、阻塞、下一步 | 要**接手**的人或下一个会话 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、测试、提交与 review 规则 | 要**发 patch** 的人 |
+| [SECURITY.md](SECURITY.md) | 威胁模型与漏洞披露 | 要**报安全问题**的人 |
 | [docs/mockups/panel-forms.html](docs/mockups/panel-forms.html) | 四种面板形态的实尺对比（按 1/2/3/4 切换） | 想回看**为什么选侧边廊**的人 |
 
 ## 组件开发
 
-组件的 manifest / IR / runtime / sandbox 规范在独立的
-**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** 仓库里。Sill 主仓库只保留宿主
-（`WidgetShell`、`WIDGETS`、数据 provider）与内置组件。
+组件的模板格式、manifest、provider、包与安全规范在独立的
+**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** 仓库里。先从
+[docs/template.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/template.md) 和
+[docs/package.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/package.md) 看起。
+Sill 主仓库保留宿主（`WidgetShell`、`WIDGETS`、provider）与内置组件。
 
 ## 命名
 
