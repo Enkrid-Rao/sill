@@ -40,7 +40,8 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
   widgets install from `.sill`, run in a Shadow DOM inside the card, and use host providers for
   time / system / media / weather / todo. Text, i18n, conditions, repeat, actions and meter bindings
   are implemented; the built-in six remain React components.
-- **Widget CLI — in.** Standalone `@sill/cli` (`sill new / dev / pack`) can target an installed or
+- **Widget CLI — in.** Standalone `sill-cli` (`npm i -g @heavenlydemon/sill-cli`, commands
+  `sill new / dev / pack`) can target an installed or
   portable Sill without the source repo; `sill dev` runs with separate `Sill-dev` data and hot reload.
   Local `.sill` install asks for id / version / author / permissions before writing.
 - **Live data — in.** CPU, memory, GPU, network, top processes, Windows SMTC now-playing with
@@ -139,7 +140,8 @@ pnpm dist        # NSIS installer → apps/desktop/dist
 
 ## Component development
 
-Start with [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md): standalone `@sill/cli`,
+Start with [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md): standalone `sill-cli`
+(`npm i -g @heavenlydemon/sill-cli`),
 `type: "web"` + `trust: "trusted"`, `sill dev` hot reload, `sill pack`.
 
 A trusted component is a full Node runtime, not a provider whitelist. It can ship `ui/assets/**`

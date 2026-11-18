@@ -98,7 +98,7 @@ Electron + TypeScript 的 Windows 桌面组件层：热键唤出的玻璃侧边�
 | 包 id | `sill.clock`（内置）、第三方反向域名 | 生态骨架 |
 | 用户数据 | `%APPDATA%\Sill\` | 与原型 `%APPDATA%\Tide\` 完全隔离 |
 | 自启项 | `HKCU\...\Run\Sill`（Electron 以 app name 写入） | AppUserModelId 是 `com.sill.app`，别混淆 |
-| npm | `sill` 已被占用 | CLI 发 `@sill/cli`；开发期 `pnpm link` 即可 |
+| npm | `sill`、`@sill` 都是 estrattonbailey 的；`sill-cli` 被 npm 相似度规则拦（撞 `sirv-cli`） | CLI 发 `@heavenlydemon/sill-cli`（已发 0.2.1）；开发期 `pnpm link` 即可 |
 
 > 改名窗口就是现在：M0 一动，目录、后缀、包 id、注册表键都会把它变成单向决策。
 

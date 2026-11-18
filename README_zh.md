@@ -35,7 +35,7 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
 - **组件平台——已落地。** 卡片从注册表（`WidgetShell` + `WIDGETS`）渲染。模板组件从 `.sill`
   安装，在卡片的 Shadow DOM 里运行，用宿主的 time / system / media / weather / todo provider；
   文本、i18n、条件、repeat、动作和 meter 都已支持；六个内置组件仍是 React 实现。
-- **组件 CLI——已落地。** 独立 `@sill/cli`（`sill new / dev / pack`）可以不碰源码，直接面向
+- **组件 CLI——已落地。** 独立 `sill-cli`（`npm i -g @heavenlydemon/sill-cli`，命令 `sill new / dev / pack`）可以不碰源码，直接面向
   已安装或便携版 Sill；`sill dev` 用独立 `Sill-dev` 数据并热重载。本地 `.sill` 安装前会确认
   id / 版本 / 作者 / 权限。
 - **真实数据——已接入。** CPU、内存、GPU、网络、TOP 进程、Windows SMTC 正在播放（含播放 / 暂停、
@@ -125,7 +125,8 @@ pnpm dist        # NSIS 安装包 → apps/desktop/dist
 
 ## 组件开发
 
-从 [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md) 开始：独立 `@sill/cli`、
+从 [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md) 开始：独立 `sill-cli`
+（`npm i -g @heavenlydemon/sill-cli`）、
 `type: "web"` + `trust: "trusted"`、`sill dev` 热重载、`sill pack`。
 
 trusted 组件是完整 Node 运行时，不是 provider 白名单。它可以带 `ui/assets/**`

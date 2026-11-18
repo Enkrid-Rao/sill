@@ -1,11 +1,9 @@
-# @sill/cli
+# sill-cli
 
 Sill 组件开发命令行。不需要 clone Sill 源码。
 
 ```bash
-# 尚未发 npm：用 GitHub release 的 tarball
-npm i -g .\sill-cli-0.2.0.tgz
-# 发 npm 后：npm i -g @sill/cli
+npm i -g @heavenlydemon/sill-cli
 sill new com.example.clock
 cd com.example.clock
 sill dev
