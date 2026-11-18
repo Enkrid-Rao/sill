@@ -5,9 +5,12 @@
   "type": "module",
   "description": "Standalone Sill component CLI: new / validate / pack / dev.",
   "bin": {
-    "sill": "./bin/sill.js"
+    "sill": "bin/sill.js"
   },
-  "files": ["bin", "README.md"],
+  "files": [
+    "bin",
+    "README.md"
+  ],
   "engines": {
     "node": ">=20"
   },
