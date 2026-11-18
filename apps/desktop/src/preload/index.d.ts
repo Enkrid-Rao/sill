@@ -37,6 +37,7 @@ export interface SillApi {
   setHotkey: (accel: string) => Promise<{ ok: boolean; hotkey: string }>
   getVersion: () => Promise<string>
   getDevWidget: () => Promise<DevWidgetPayload | null>
+  getWidgetPreload: () => Promise<string>
   getInstalledWidgets: () => Promise<InstalledWidgetInfo[]>
   getInstalledWidget: (id: string) => Promise<DevWidgetPayload | null>
   installWidget: () => Promise<InstallOutcome>

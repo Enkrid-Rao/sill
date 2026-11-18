@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import type { DevWidgetPayload } from '../../../shared/dev-widget'
 import type { InstalledWidgetInfo } from '../../../shared/widgets'
 import { TemplateWidget } from '../components/TemplateWidget'
+import { WebWidget } from '../components/WebWidget'
 import { BUILTIN_WIDGETS } from './registry'
 import type { WidgetDefinition } from './types'
 
@@ -80,7 +81,11 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
         label: info.name,
         spanFor: () => info.span,
         render: (context) => (
-          <TemplateWidget widget={payload} context={context} />
+          payload.kind === 'web' ? (
+            <WebWidget widget={payload} context={context} />
+          ) : (
+            <TemplateWidget widget={payload} context={context} />
+          )
         )
       }
       widgets.push(definition)
@@ -93,7 +98,11 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
         label: dev.name,
         spanFor: () => dev.span,
         render: (context) => (
-          <TemplateWidget widget={dev} context={context} />
+          dev.kind === 'web' ? (
+            <WebWidget widget={dev} context={context} />
+          ) : (
+            <TemplateWidget widget={dev} context={context} />
+          )
         )
       }
       widgets.push(definition)

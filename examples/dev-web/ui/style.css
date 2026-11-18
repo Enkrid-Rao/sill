@@ -1,0 +1,42 @@
+html,
+body {
+  background: transparent;
+}
+
+.web {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--ink);
+}
+
+.web__label {
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.17em;
+}
+
+.web__time {
+  font-family: var(--serif);
+  font-size: 52px;
+  font-style: italic;
+  line-height: 0.95;
+}
+
+.web__hint {
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+.web__button {
+  width: fit-content;
+  margin-top: 4px;
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}

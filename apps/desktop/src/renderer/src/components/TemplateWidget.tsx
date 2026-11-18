@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { DevWidgetPayload } from '../../../shared/dev-widget'
+import { runWidgetAction } from '../widgets/actions'
 import { buildProviderData } from '../widgets/providers'
 import type { WidgetContext } from '../widgets/types'
 
@@ -168,36 +169,6 @@ function applyBindings(
   }
 }
 
-function runAction(
-  action: string,
-  arg: unknown,
-  context: WidgetContext,
-  permissions: readonly string[]
-): void {
-  if (action.startsWith('media.') && !permissions.includes('action.media')) return
-  if (action.startsWith('todo.') && !permissions.includes('action.todo')) return
-
-  switch (action) {
-    case 'media.playpause':
-      void context.mediaCommand('playpause')
-      break
-    case 'media.next':
-      void context.mediaCommand('next')
-      break
-    case 'media.prev':
-      void context.mediaCommand('prev')
-      break
-    case 'media.mute':
-      void context.mediaCommand('mute')
-      break
-    case 'todo.toggle':
-      if (typeof arg === 'string') void context.onToggleTodo(arg)
-      break
-    default:
-      break
-  }
-}
-
 /**
  * Template content. The host renders it in a shadow root inside a normal .card,
  * so the card supplies glass, radius and atmosphere. v1 has no arbitrary JS.
@@ -227,7 +198,7 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
         const arg = argPath
           ? resolve(actionNode, argPath, dataRef.current, scopesRef.current)
           : undefined
-        runAction(
+        runWidgetAction(
           actionNode.dataset.sillAction ?? '',
           arg,
           contextRef.current,

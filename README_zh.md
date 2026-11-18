@@ -104,7 +104,7 @@ pnpm dist        # NSIS 安装包 → apps/desktop/dist
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 环境、命令、目录职责、关键实现决策、排错 | 要**动手改代码**的人 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 进程边界、数据流、组件运行时、扩展点 | 要**改架构**的人 |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | 当前进度、已验证 / 未验证、阻塞、下一步 | 要**接手**的人或下一个会话 |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、测试、提交与 review 规则 | 要**发 patch** 的人 |
+| [docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md) | webview JS 原型、桥、安全与限制 | 要**写 JS 组件**的人 |`n| [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、测试、提交与 review 规则 | 要**发 patch** 的人 |
 | [SECURITY.md](SECURITY.md) | 威胁模型与漏洞披露 | 要**报安全问题**的人 |
 | [docs/mockups/panel-forms.html](docs/mockups/panel-forms.html) | 四种面板形态的实尺对比（按 1/2/3/4 切换） | 想回看**为什么选侧边廊**的人 |
 
@@ -115,6 +115,10 @@ pnpm dist        # NSIS 安装包 → apps/desktop/dist
 [docs/template.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/template.md) 和
 [docs/package.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/package.md) 看起。
 Sill 主仓库保留宿主（`WidgetShell`、`WIDGETS`、provider）与内置组件。
+
+另有一个 `type: "web"` 原型：完整 HTML/CSS/JS 跑在透明 webview guest 里，通过
+`sill.ready / onData / command` 桥通信。目前只在开发分支，不能安装；见
+[docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md)。
 
 ## 命名
 

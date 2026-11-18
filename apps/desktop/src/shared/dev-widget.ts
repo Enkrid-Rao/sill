@@ -14,6 +14,12 @@ export interface DevWidgetPayload {
   span: number
   html: string
   css: string
+  /** "web" runs in a sandboxed webview; omitted/undefined means template. */
+  kind?: 'template' | 'web'
+  /** Fixed webview height; templates size from content. */
+  height?: number
+  /** Inline script for kind=web; never mounted in the host DOM. */
+  js?: string
   data: WidgetDataBinding[]
   permissions: string[]
   /** lang -> key -> text; declared inline in widget.json. */

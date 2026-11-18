@@ -11,6 +11,7 @@ const api = {
   setHotkey: (accel: string) => ipcRenderer.invoke('hotkey:set', accel),
   getVersion: () => ipcRenderer.invoke('app:version'),
   getDevWidget: () => ipcRenderer.invoke('widgets:dev-get'),
+  getWidgetPreload: () => ipcRenderer.invoke('widgets:preload'),
   getInstalledWidgets: () => ipcRenderer.invoke('widgets:list'),
   getInstalledWidget: (id: string) => ipcRenderer.invoke('widgets:load', id),
   installWidget: () => ipcRenderer.invoke('widgets:install'),

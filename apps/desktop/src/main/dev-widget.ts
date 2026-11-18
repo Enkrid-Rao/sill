@@ -62,9 +62,14 @@ export function getDevWidget(): DevWidgetPayload | null {
       ? Number((manifest.span as Record<string, unknown>).default)
       : NaN
   const span = Number.isFinite(spanRaw) ? Math.max(1, Math.min(3, Math.round(spanRaw))) : 1
+  const heightRaw =
+    manifest.size && typeof manifest.size === 'object'
+      ? Number((manifest.size as Record<string, unknown>).h)
+      : NaN
+  const height = Number.isFinite(heightRaw) ? Math.max(48, Math.min(1200, Math.round(heightRaw))) : 160
   if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(id)) return fail(`id 不合法：${id || '(空)'}`)
   if (!name) return fail('name 为空')
-  if (type !== 'template') return fail(`type 只支持 template，收到 ${type || '(空)'}`)
+  if (type !== 'template' && type !== 'web') return fail(`type 只支持 template / web，收到 ${type || '(空)'}`)
   if (!ui.endsWith('.html')) return fail(`ui 必须指向 .html：${ui}`)
 
   const htmlPath = resolve(root, ui)
@@ -76,6 +81,7 @@ export function getDevWidget(): DevWidgetPayload | null {
   if (html === null) return fail(`缺少入口：${htmlPath}`)
 
   const css = readText(join(uiDir, 'style.css'), total) ?? ''
+  const js = type === 'web' ? readText(join(uiDir, 'main.js'), total) ?? '' : ''
 
   return {
     id,
@@ -83,6 +89,9 @@ export function getDevWidget(): DevWidgetPayload | null {
     span,
     html,
     css,
+    kind: type,
+    height,
+    js,
     data: readBindings(manifest.data),
     permissions: readPermissions(manifest.permissions),
     strings: readStrings(manifest.strings)

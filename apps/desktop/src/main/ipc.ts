@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, type MessageBoxOptions, type OpenDialogOptions } from 'electron'
+import { join } from 'node:path'
 import { broadcast } from './broadcast'
 import { getSnapshot, refreshDataCadence } from './data'
 import { mediaCommand } from './data/media-control'
@@ -134,6 +135,8 @@ export function registerIpc(deps: IpcDeps): void {
 
   // Spike: read SILL_DEV_WIDGET once. Returns null in a normal launch.
   ipcMain.handle('widgets:dev-get', () => getDevWidget())
+
+  ipcMain.handle('widgets:preload', () => join(__dirname, '../preload/widget.js'))
 
   ipcMain.handle('widgets:list', () => listInstalled(COMPONENTS_DIR))
 

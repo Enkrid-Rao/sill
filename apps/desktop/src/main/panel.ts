@@ -155,6 +155,9 @@ export function createPanel(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      // Web widgets are sandboxed guests; the host only creates the tag and
+      // talks through a preload bridge. No Node is exposed to the guest.
+      webviewTag: true,
       spellcheck: false,
       // 面板隐藏/重新唤出时不冻结渲染进程：否则 panel:state 和首帧数据
       // 会排队到用户点击面板才处理，表现为“唤出后必须先点一下才刷新”。
@@ -163,6 +166,16 @@ export function createPanel(): BrowserWindow {
   })
 
   panel.setAlwaysOnTop(true, 'screen-saver')
+
+  // Web widgets are guests. Force the bridge and reject anything that is not
+  // the inline HTML we generated for this card.
+  panel.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    webPreferences.preload = join(__dirname, '../preload/widget.js')
+    webPreferences.nodeIntegration = false
+    webPreferences.contextIsolation = true
+    webPreferences.sandbox = true
+    if (!params.src.startsWith('data:text/html')) event.preventDefault()
+  })
 
   // 外链一律交给系统浏览器，面板本身不导航
   panel.webContents.setWindowOpenHandler(({ url }) => {

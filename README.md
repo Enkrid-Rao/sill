@@ -117,7 +117,7 @@ pnpm dist        # NSIS installer → apps/desktop/dist
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | environment, commands, layout, implementation decisions, troubleshooting | **changing the code** |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | process boundaries, data flow, widget runtime, extension points | **changing the architecture** |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | current state, verified vs. unverified, blockers, next steps | **picking it up** |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | setup, tests, commit and review rules | **sending a patch** |
+| [docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md) | webview JS prototype, bridge, security, limits | **writing a JS widget** |`n| [CONTRIBUTING.md](CONTRIBUTING.md) | setup, tests, commit and review rules | **sending a patch** |
 | [SECURITY.md](SECURITY.md) | threat model and disclosure | **reporting a vulnerability** |
 | [docs/mockups/panel-forms.html](docs/mockups/panel-forms.html) | four panel shapes at 1:1 scale | why the side rail |
 
@@ -128,6 +128,10 @@ The template format, manifest, providers, package and security spec live in the 
 [docs/template.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/template.md) and
 [docs/package.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/package.md).
 Sill keeps the host (`WidgetShell`, `WIDGETS`, providers) and the built-in components.
+
+A `type: "web"` prototype also exists: full HTML/CSS/JS in a transparent webview guest with a
+`sill.ready / onData / command` bridge. It is dev-only and not installable yet; see
+[docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md).
 
 ## Naming
 

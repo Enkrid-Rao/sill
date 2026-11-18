@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "sill.dev-web",
+  "name": "Web Clock",
+  "description": "JavaScript web widget prototype.",
+  "version": "0.1.0",
+  "author": "raoxi",
+  "license": "MIT",
+  "runtime": ">=0.5.4",
+  "engine": ">=0.1.0",
+  "type": "web",
+  "size": { "w": 384, "h": 150 },
+  "span": { "default": 1 },
+  "permissions": ["data.time", "action.media"],
+  "data": [{ "id": "now", "source": "time.now" }],
+  "ui": "ui/index.html"
+}

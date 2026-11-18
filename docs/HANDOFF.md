@@ -32,7 +32,7 @@
 | 项 | 证据 |
 |---|---|
 | `pnpm typecheck` | 通过 |
-| `pnpm test` | 10 个测试通过 |
+| `pnpm test` | 13 个测试通过 |
 | `pnpm build` | 通过 |
 | `pnpm smoke` | 截图输出正常 |
 | 模板卡玻璃 | 默认 / Lagoon / 320 宽截图 |
@@ -48,7 +48,7 @@
 - 签名 / 哈希；安装器现在只做静态校验和权限确认。
 - 模板格式化函数、图片资源、通用样式绑定。
 - 五个内置组件仍是 React，不是模板。
-- webview / 任意 JS 组件运行时。
+- web 组件只有开发原型：不能 `.sill` 安装，没有 assets / fetch / storage。
 - 根目录 LICENSE；许可策略还没定。
 - `DEVPLAN.md` 的 IR / rmskin 章节是历史规划，不要按它实现。
 
