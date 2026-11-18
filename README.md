@@ -31,8 +31,8 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
   accent colours, hotkey recorder, free panel size (drag, sliders, presets, fill-height), dock side,
   edge distance, zh/en switch, weather location (auto or 28 cities), monitor refresh, per-widget
   visibility, an option to open Settings in its own window, and automatic updates.
-- **Layout — editable.** Drag a card onto another to swap, or use the arrows, and set how many columns
-  each card spans. The arrangement lives in `layout.json`; hidden widgets keep their slot.
+- **Layout — flow or free.** Flow swaps/columns; free positions every card at any x/y/w/h, draggable
+  and resizable in layout editing. Both live in `layout.json`; hidden widgets keep their slot.
 - **Widget platform — in.** Cards render from a registry (`WidgetShell` + `WIDGETS`). Template
   widgets install from `.sill`, run in a Shadow DOM inside the card, and use host providers for
   time / system / media / weather / todo. Text, i18n, conditions, repeat, actions and meter bindings
@@ -116,6 +116,7 @@ pnpm dist        # NSIS installer → apps/desktop/dist
 | [DEVPLAN.md](DEVPLAN.md) | historical planning, milestones, IR / rmskin strategy | understanding **how it got here** |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | environment, commands, layout, implementation decisions, troubleshooting | **changing the code** |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | process boundaries, data flow, widget runtime, extension points | **changing the architecture** |
+| [docs/LAYOUT.md](docs/LAYOUT.md) | flow/free layout, boxes, migration | **placing widgets** |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | current state, verified vs. unverified, blockers, next steps | **picking it up** |
 | [docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md) | webview JS prototype, bridge, security, limits | **writing a JS widget** |`n| [CONTRIBUTING.md](CONTRIBUTING.md) | setup, tests, commit and review rules | **sending a patch** |
 | [SECURITY.md](SECURITY.md) | threat model and disclosure | **reporting a vulnerability** |

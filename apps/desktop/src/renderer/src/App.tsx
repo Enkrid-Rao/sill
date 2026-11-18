@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { MediaControlState, PanelSnapshot, TodoItem } from '../../shared/data'
 import { t } from '../../shared/i18n'
-import { columnsForWidth } from '../../shared/layout'
+import { columnsForWidth, type WidgetBox } from '../../shared/layout'
 import { CustomizeSheet } from './components/CustomizeSheet'
 import { ResizeHandles } from './components/ResizeHandles'
 import { formatHotkey } from './lib/hotkey'
@@ -66,6 +66,7 @@ export default function App(): React.JSX.Element {
   const [tick, setTick] = useState(0)
   const [editing, setEditing] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
 
   const { layout, setLayout } = settings
 
@@ -259,6 +260,52 @@ export default function App(): React.JSX.Element {
   const mediaProgress = media && media.duration > 0 ? (mediaPosition / media.duration) * 100 : 0
 
   const visibleOrder = layout.order.filter((id) => !layout.hidden.includes(id))
+  const free = layout.mode === 'free'
+  const freeReady = free && visibleOrder.every((id) => Boolean(layout.boxes[id]))
+  const canvasHeight = freeReady
+    ? Math.max(
+        0,
+        ...visibleOrder.map((id) => {
+          const box = layout.boxes[id]
+          return box ? box.y + box.h : 0
+        })
+      ) + 24
+    : undefined
+
+  // 第一次进 free：先在 flow 里量出每张卡的真实尺寸，再落到 boxes。
+  useLayoutEffect(() => {
+    if (!free) return
+    const sheet = sheetRef.current
+    if (!sheet) return
+    const missing = visibleOrder.filter((id) => !layout.boxes[id])
+    if (!missing.length) return
+    const base = sheet.getBoundingClientRect()
+    const boxes = { ...layout.boxes }
+    let changed = false
+    for (const element of sheet.querySelectorAll<HTMLElement>('.card')) {
+      const id = element.dataset.card
+      if (!id || !missing.includes(id)) continue
+      const rect = element.getBoundingClientRect()
+      boxes[id] = {
+        x: Math.round(rect.left - base.left),
+        y: Math.round(rect.top - base.top),
+        w: Math.round(rect.width),
+        h: Math.round(rect.height)
+      }
+      changed = true
+    }
+    if (changed) settings.setLayout({ ...layout, boxes })
+  }, [free, layout, settings, visibleOrder])
+
+  const updateBox = useCallback(
+    (id: string, box: WidgetBox) => {
+      settings.setLayout({
+        ...layout,
+        boxes: { ...layout.boxes, [id]: box }
+      })
+    },
+    [layout, settings]
+  )
 
   /** 组件只认这一份 context：数据、语言、宿主回调都在这里 */
   const widgetContext: WidgetContext = {
@@ -296,6 +343,20 @@ export default function App(): React.JSX.Element {
           <button type="button" onClick={() => void settings.resetLayout()}>
             {t(settings.language, 'layout.reset')}
           </button>
+          <button
+            type="button"
+            onClick={() =>
+              settings.setLayout({
+                ...layout,
+                mode: layout.mode === 'free' ? 'flow' : 'free'
+              })
+            }
+          >
+            {t(
+              settings.language,
+              layout.mode === 'free' ? 'layout.flow' : 'layout.free'
+            )}
+          </button>
           <button type="button" className="layout-bar__done" onClick={() => setEditing(false)}>
             {t(settings.language, 'layout.done')}
           </button>
@@ -303,7 +364,13 @@ export default function App(): React.JSX.Element {
       ) : null}
 
       <div className="rail__scroll" inert={customizing}>
-        <div className="sheet" data-cols={columns}>
+        <div
+          className="sheet"
+          data-cols={columns}
+          data-free={freeReady ? 'true' : undefined}
+          ref={sheetRef}
+          style={freeReady ? { minHeight: `${canvasHeight}px` } : undefined}
+        >
           <header className="row sheet__head">
             <div className="brand">
               <BrandMark />
@@ -335,10 +402,13 @@ export default function App(): React.JSX.Element {
                 layout={layout}
                 columns={columns}
                 editing={editing}
+                free={freeReady}
+                box={layout.boxes[id]}
                 dragId={dragId}
                 language={settings.language}
                 onMove={moveCard}
                 onSpan={setCardSpan}
+                onBox={(box) => updateBox(id, box)}
                 onDragStart={setDragId}
                 onDragEnd={() => setDragId(null)}
                 onDrop={dropCard}

@@ -1,10 +1,9 @@
 /**
  * 面板尺寸：宽高连续可调，形状预设只是起点。
  *
- * 列数由实际宽度推导（columnsForWidth），拖动过程中内容会自己重新落格；
- * 预设只是四个「跳转点」，不是唯一合法值。
- *
- * 卡片的 id 是字符串：内置组件有固定的五个 id，第三方组件用自己的 id。
+ * 布局有两种模式：
+ *   - flow：卡片按网格流式排列（默认）
+ *   - free：卡片绝对定位，开发者/用户可以拖到任意位置、改任意尺寸
  */
 
 export type PanelPresetId = 'rail' | 'compact' | 'board' | 'wide'
@@ -16,7 +15,6 @@ export interface PanelPreset {
   height: number
 }
 
-/** 设置面板里的四个起点；Rail 是默认值（宽 384、高度撑满）。 */
 export const PANEL_PRESETS: readonly PanelPreset[] = [
   { id: 'rail', width: 384, height: 0 },
   { id: 'compact', width: 420, height: 640 },
@@ -33,49 +31,69 @@ export function getPanelPreset(id: string | undefined): PanelPreset {
   return PANEL_PRESETS.find((preset) => preset.id === id) ?? PANEL_PRESETS[0]
 }
 
-/** 面板左右内边距之和（.rail padding 18px × 2），列数按内容宽度算 */
 const PANEL_INLINE_PADDING = 36
-/** 卡片最小可读宽度；再窄就只放一列 */
 const MIN_CARD_WIDTH = 220
 const CARD_GAP = 9
 
-/**
- * 宽度 → 列数。384 宽是 1 列，约 470 起 2 列，约 700 起 3 列。
- * 用公式而不是断点表，是为了拖动窗口时列数跟着连续变化而变化。
- */
 export function columnsForWidth(width: number): 1 | 2 | 3 {
   const inner = Math.max(0, width - PANEL_INLINE_PADDING)
   const columns = Math.floor((inner + CARD_GAP) / (MIN_CARD_WIDTH + CARD_GAP))
   return Math.max(1, Math.min(3, columns)) as 1 | 2 | 3
 }
 
-/** 当前宽度下每张卡最多能跨几列 */
 export function maxColumns(width: number): number {
   return columnsForWidth(width)
 }
 
 // ---------- 卡片布局 ----------
 
-/** 内置组件的固定 id。第三方组件的 id 由 manifest 决定，也存进同一份布局。 */
 export const CARD_IDS = ['hero', 'system', 'processes', 'media', 'todo'] as const
 
+export interface WidgetBox {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 export interface PanelLayout {
-  version: 1
+  version: 2
+  /** flow = 网格；free = 绝对定位 */
+  mode: 'flow' | 'free'
   order: string[]
-  /** 跨几列；渲染时按当前列数夹住。hero 默认占满 */
+  /** flow 模式下的跨列；free 模式不用 */
   spans: Record<string, number>
-  /** 被用户暂时隐藏的组件；只影响渲染，不删布局顺序与跨列 */
   hidden: string[]
+  /** free 模式的位置与尺寸，单位 px，相对 sheet */
+  boxes: Record<string, WidgetBox>
 }
 
 export const DEFAULT_LAYOUT: PanelLayout = {
-  version: 1,
+  version: 2,
+  mode: 'flow',
   order: [...CARD_IDS],
   spans: { hero: 3 },
-  hidden: []
+  hidden: [],
+  boxes: {}
 }
 
-/** 任意来源 → 合法布局：只保留 knownIds，补全缺失卡片、去重、跨列夹在 1–3 */
+function normalizeBox(value: unknown): WidgetBox | null {
+  if (!value || typeof value !== 'object') return null
+  const raw = value as Record<string, unknown>
+  const x = Number(raw.x)
+  const y = Number(raw.y)
+  const w = Number(raw.w)
+  const h = Number(raw.h)
+  if (![x, y, w, h].every(Number.isFinite)) return null
+  return {
+    x: Math.max(0, Math.min(10000, Math.round(x))),
+    y: Math.max(0, Math.min(10000, Math.round(y))),
+    w: Math.max(120, Math.min(4000, Math.round(w))),
+    h: Math.max(48, Math.min(4000, Math.round(h)))
+  }
+}
+
+/** 任意来源 → 合法布局：过滤未知 id、去重、补全、夹住尺寸 */
 export function normalizeLayout(
   raw: unknown,
   knownIds: readonly string[] = CARD_IDS
@@ -107,15 +125,28 @@ export function normalizeLayout(
     }
   }
 
-  return { version: 1, order, spans, hidden }
+  const boxes: Record<string, WidgetBox> = {}
+  const boxesRaw =
+    src.boxes && typeof src.boxes === 'object' ? (src.boxes as Record<string, unknown>) : {}
+  for (const id of knownIds) {
+    const box = normalizeBox(boxesRaw[id])
+    if (box) boxes[id] = box
+  }
+
+  return {
+    version: 2,
+    mode: src.mode === 'free' ? 'free' : 'flow',
+    order,
+    spans,
+    hidden,
+    boxes
+  }
 }
 
-/** 当前列数下这张卡实际占几列 */
 export function clampSpan(span: number | undefined, columns: number): number {
   return Math.max(1, Math.min(columns, Math.round(span ?? 1)))
 }
 
-/** 尺寸预设匹配：宽高都在 2px 内算命中，高度 0 表示「撑满」 */
 export function matchPreset(width: number, height: number): PanelPreset | null {
   return (
     PANEL_PRESETS.find(

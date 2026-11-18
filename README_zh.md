@@ -28,8 +28,8 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
 - **设置——已落地。** 外观 / 面板 / 数据 / 系统 / 通用五段式；8 套主题预设、强调色、热键录制、自由面板尺寸
   （拖拽 / 滑杆 / 预设 / 撑满高度）、停靠边、边缘距离、中英切换、天气地区（自动或 28 个城市）、
   监测刷新频率、每个组件的显隐、「设置页使用独立窗口」开关，以及自动更新。
-- **布局——可编辑。** 把一张卡拖到另一张上即可换位，也可以用箭头；每张卡还能设跨几列。
-  顺序、跨列与隐藏状态存在 `layout.json`。
+- **布局——流式或自由。** 流式支持拖动换位、箭头、跨列；自由模式每张卡任意 x/y/w/h，
+  布局编辑里可拖拽和缩放。两者都存 `layout.json`，隐藏状态不丢。
 - **组件平台——已落地。** 卡片从注册表（`WidgetShell` + `WIDGETS`）渲染。模板组件从 `.sill`
   安装，在卡片的 Shadow DOM 里运行，用宿主的 time / system / media / weather / todo provider；
   文本、i18n、条件、repeat、动作和 meter 都已支持；五个内置组件仍是 React 实现。
@@ -103,6 +103,7 @@ pnpm dist        # NSIS 安装包 → apps/desktop/dist
 | [DEVPLAN.md](DEVPLAN.md) | 历史规划、里程碑、IR / rmskin 策略 | 想理解**怎么走到这里**的人 |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | 环境、命令、目录职责、关键实现决策、排错 | 要**动手改代码**的人 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 进程边界、数据流、组件运行时、扩展点 | 要**改架构**的人 |
+| [docs/LAYOUT.md](docs/LAYOUT.md) | 流式/自由布局、boxes、迁移 | 要**摆放组件**的人 |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | 当前进度、已验证 / 未验证、阻塞、下一步 | 要**接手**的人或下一个会话 |
 | [docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md) | webview JS 原型、桥、安全与限制 | 要**写 JS 组件**的人 |`n| [CONTRIBUTING.md](CONTRIBUTING.md) | 环境、测试、提交与 review 规则 | 要**发 patch** 的人 |
 | [SECURITY.md](SECURITY.md) | 威胁模型与漏洞披露 | 要**报安全问题**的人 |

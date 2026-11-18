@@ -410,6 +410,40 @@ body {
   padding: 1px 0 2px;
 }
 
+/* free 模式：卡片绝对定位，sheet 当画布 */
+.sheet[data-free='true'],
+.sheet[data-free='true'][data-cols='2'],
+.sheet[data-free='true'][data-cols='3'] {
+  position: relative;
+  display: block;
+}
+
+.sheet[data-free='true'] .sheet__head {
+  position: relative;
+  z-index: 1;
+}
+
+.card[data-free='true'] {
+  margin: 0;
+}
+
+.card[data-free='true'] .card-tools__grip {
+  cursor: move;
+}
+
+.card-resize {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 7;
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid var(--ink-faint);
+  border-bottom: 2px solid var(--ink-faint);
+  border-radius: 0 0 4px 0;
+  cursor: nwse-resize;
+}
+
 .sheet__empty {
   display: grid;
   min-height: 220px;
