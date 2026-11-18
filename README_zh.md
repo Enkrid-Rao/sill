@@ -57,6 +57,15 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
   「卸载 Sill」。安装版打开官方 NSIS 卸载器，可勾选同时删除 `%APPDATA%\Sill`；绿色版退出后
   删除整个文件夹（包括 `Sill-data`）。
 
+## 0.6 开发者预览
+
+`v0.6.0-dev.1` 预发布带便携版和独立 CLI：
+
+- [Sill-0.6.0-dev.1-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.1/Sill-0.6.0-dev.1-portable-win64.zip)
+- [sill-cli-0.2.0.tgz](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.1/sill-cli-0.2.0.tgz)
+
+这是开发者预览，不是稳定版 0.5.4。
+
 ## 安装
 
 从 [Releases](https://github.com/Enkrid-Rao/sill/releases) 下载 `Sill-Setup-0.5.4.exe`，

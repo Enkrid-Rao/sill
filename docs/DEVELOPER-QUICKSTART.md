@@ -12,7 +12,7 @@ sill pack
 
 ## 1. Sill
 
-用 `Sill-0.6.0-dev.1-portable-win64.zip`，解压到任意可写目录，记下 `Sill.exe` 路径。
+下载 [Sill-0.6.0-dev.1-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.1/Sill-0.6.0-dev.1-portable-win64.zip)，解压到任意可写目录，记下 `Sill.exe` 路径。
 
 ```powershell
 $env:SILL_EXE = 'D:\Apps\Sill\Sill.exe'
@@ -22,17 +22,17 @@ $env:SILL_EXE = 'D:\Apps\Sill\Sill.exe'
 
 ## 2. CLI
 
-发布后：
-
-```powershell
-npm i -g @sill/cli
-```
-
-本地 tarball：
+现在（还没发 npm）用 GitHub release 的 tarball：
 
 ```powershell
 npm i -g .\sill-cli-0.2.0.tgz
 sill --help
+```
+
+发布后可以改成：
+
+```powershell
+npm i -g @sill/cli
 ```
 
 需要 Node.js >= 20。
