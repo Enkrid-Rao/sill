@@ -80,7 +80,7 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
         label: info.name,
         spanFor: () => info.span,
         render: (context) => (
-          <TemplateWidget widget={payload} now={context.now} language={context.language} />
+          <TemplateWidget widget={payload} context={context} />
         )
       }
       widgets.push(definition)
@@ -93,7 +93,7 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
         label: dev.name,
         spanFor: () => dev.span,
         render: (context) => (
-          <TemplateWidget widget={dev} now={context.now} language={context.language} />
+          <TemplateWidget widget={dev} context={context} />
         )
       }
       widgets.push(definition)

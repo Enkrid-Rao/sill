@@ -80,14 +80,24 @@ function validateDir(dir) {
   if (raw.type !== 'template') errors.push('type 必须是 template')
   if (raw.ui !== 'ui/index.html') errors.push('ui 必须是 ui/index.html')
   if (!Number.isFinite(span) || span < 1 || span > 3) errors.push('span.default 必须在 1–3')
-  if (
-    permissions.length !==
-    (Array.isArray(raw.permissions) ? raw.permissions.length : 0)
-  ) {
-    errors.push('permissions 必须是数组')
+
+  if (raw.data !== undefined && !Array.isArray(raw.data)) {
+    errors.push('data 必须是数组')
   }
-  for (const permission of permissions) {
-    if (!PERMISSIONS.has(permission)) errors.push(`未知权限 ${permission}`)
+  if (raw.strings !== undefined) {
+    if (!raw.strings || typeof raw.strings !== 'object' || Array.isArray(raw.strings)) {
+      errors.push('strings 必须是对象')
+    } else {
+      for (const [language, table] of Object.entries(raw.strings)) {
+        if (!table || typeof table !== 'object' || Array.isArray(table)) {
+          errors.push(`strings.${language} 必须是对象`)
+          continue
+        }
+        for (const [key, text] of Object.entries(table)) {
+          if (typeof text !== 'string') errors.push(`strings.${language}.${key} 必须是字符串`)
+        }
+      }
+    }
   }
 
   const allowed = new Set([...FILES, 'README.md'])

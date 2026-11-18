@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import type { DevWidgetPayload } from '../shared/dev-widget'
+import type { DevWidgetPayload, WidgetDataBinding } from '../shared/dev-widget'
 
 /**
  * Dev-only loader. SILL_DEV_WIDGET points at a folder like:
@@ -77,5 +77,32 @@ export function getDevWidget(): DevWidgetPayload | null {
 
   const css = readText(join(uiDir, 'style.css'), total) ?? ''
 
-  return { id, name, span, html, css }
+  return { id, name, span, html, css, data: readBindings(manifest.data), strings: readStrings(manifest.strings) }
+}
+
+function readBindings(value: unknown): WidgetDataBinding[] {
+  if (!Array.isArray(value)) return []
+  const out: WidgetDataBinding[] = []
+  for (const item of value.slice(0, 16)) {
+    if (!item || typeof item !== 'object') continue
+    const record = item as Record<string, unknown>
+    if (typeof record.id === 'string' && typeof record.source === 'string') {
+      out.push({ id: record.id, source: record.source })
+    }
+  }
+  return out
+}
+
+function readStrings(value: unknown): Record<string, Record<string, string>> {
+  if (!value || typeof value !== 'object') return {}
+  const out: Record<string, Record<string, string>> = {}
+  for (const [language, table] of Object.entries(value as Record<string, unknown>)) {
+    if (!table || typeof table !== 'object') continue
+    const entries: Record<string, string> = {}
+    for (const [key, text] of Object.entries(table as Record<string, unknown>)) {
+      if (typeof text === 'string') entries[key] = text
+    }
+    out[language] = entries
+  }
+  return out
 }

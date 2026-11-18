@@ -11,6 +11,10 @@
   "type": "template",
   "permissions": ["data.time"],
   "data": [{ "id": "now", "source": "time.now" }],
+  "strings": {
+    "en": { "label": "DEV CLOCK" },
+    "zh": { "label": "开发时钟" }
+  },
   "ui": "ui/index.html",
   "span": { "default": 1 }
 }

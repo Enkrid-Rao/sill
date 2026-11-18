@@ -97,16 +97,22 @@ WidgetShell
 
 ## 4. 数据绑定
 
-v1 只支持文本绑定：
+v1 支持文本、本地化、条件和列表：
 
 ```html
 <span data-sill-text="now.time"></span>
-<span data-sill-text="system.cpu.usage"></span>
+<span data-sill-i18n="label"></span>
+<div data-sill-if="media.active">正在播放</div>
+<div data-sill-if="!media.active">未在播放</div>
+<div data-sill-repeat="processes.topRam">
+  <span data-sill-text="item.name"></span>
+</div>
 ```
 
-- 值的根来自 manifest 的 `data[].id`；
+- 值的根来自 manifest 的 `data[].id`；repeat 内部有 `item`；
 - 缺失值渲染 `—`；
-- 以后再加 `data-sill-i18n`、`data-sill-if`、`data-sill-repeat`、`data-sill-action`；
+- 条件只接受路径和 `!`；列表只接受数组；
+- 没有表达式函数、动作和写操作；`data-sill-action` 还没做；
 - v1 不执行任意 JS；需要复杂交互时再单独设计受限脚本，不把 JS 塞进模板。
 
 ## 5. 样式 token
@@ -149,5 +155,5 @@ pnpm dev
 
 1. 动态布局 id，让模板卡进入 `layout.json`，支持拖拽、跨列、隐藏；
 2. `.sill` zip 安装、权限确认、卸载；
-3. 模板能力：`data-sill-i18n`、条件、循环、动作；
+3. 模板能力：`data-sill-action`（命令）；文本 / i18n / 条件 / 列表已有；
 4. 需要任意 JS 的组件另开一条受限脚本路线，不和模板混在一起。

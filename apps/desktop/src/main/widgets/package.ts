@@ -10,7 +10,7 @@ import {
   writeFileSync
 } from 'node:fs'
 import { join, resolve } from 'node:path'
-import type { DevWidgetPayload } from '../../shared/dev-widget'
+import type { DevWidgetPayload, WidgetDataBinding } from '../../shared/dev-widget'
 import type { InstallOutcome, InstalledWidgetInfo } from '../../shared/widgets'
 
 const MAX_ARCHIVE = 10 * 1024 * 1024
@@ -36,6 +36,8 @@ interface Manifest {
   permissions: string[]
   type: 'template'
   ui: 'ui/index.html'
+  data: WidgetDataBinding[]
+  strings: Record<string, Record<string, string>>
 }
 
 interface PackageData {
@@ -101,7 +103,49 @@ function parseManifest(raw: Record<string, unknown>): Manifest | null {
   )
   if (permissions.length !== permissionsRaw.length) return null
 
-  return { id, name, version, author, span, permissions, type, ui }
+  return {
+    id,
+    name,
+    version,
+    author,
+    span,
+    permissions,
+    type,
+    ui,
+    data: parseBindings(raw.data),
+    strings: parseStrings(raw.strings)
+  }
+}
+
+function parseBindings(value: unknown): WidgetDataBinding[] {
+  if (!Array.isArray(value)) return []
+  const out: WidgetDataBinding[] = []
+  for (const item of value.slice(0, 16)) {
+    if (!item || typeof item !== 'object') continue
+    const record = item as Record<string, unknown>
+    if (
+      typeof record.id === 'string' &&
+      /^[A-Za-z_][A-Za-z0-9_]{0,31}$/.test(record.id) &&
+      typeof record.source === 'string'
+    ) {
+      out.push({ id: record.id, source: record.source })
+    }
+  }
+  return out
+}
+
+function parseStrings(value: unknown): Record<string, Record<string, string>> {
+  if (!value || typeof value !== 'object') return {}
+  const out: Record<string, Record<string, string>> = {}
+  for (const [language, table] of Object.entries(value as Record<string, unknown>)) {
+    if (!table || typeof table !== 'object') continue
+    const entries: Record<string, string> = {}
+    for (const [key, text] of Object.entries(table as Record<string, unknown>)) {
+      if (typeof text === 'string' && text.length <= 160) entries[key] = text
+    }
+    out[language] = entries
+  }
+  return out
 }
 
 function readManifest(dir: string): Manifest | null {
@@ -217,7 +261,9 @@ export function loadInstalled(root: string, id: string): DevWidgetPayload | null
       name: manifest.name,
       span: manifest.span,
       html: readFileSync(join(dir, manifest.ui), 'utf8'),
-      css: readFileSync(join(dir, 'ui/style.css'), 'utf8')
+      css: readFileSync(join(dir, 'ui/style.css'), 'utf8'),
+      data: manifest.data,
+      strings: manifest.strings
     }
   } catch {
     return null
