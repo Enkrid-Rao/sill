@@ -3,8 +3,7 @@
 `type: "web"` prototype: HTML/CSS/JS in a transparent webview guest.
 
 ```powershell
-$env:SILL_DEV_WIDGET = 'D:\Projects\Sill\examples\dev-web'
-pnpm dev
+pnpm sill dev .\examples\dev-web
 ```
 
 - The guest calls `sill.ready` for the first host payload.

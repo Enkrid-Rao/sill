@@ -48,7 +48,7 @@
 - 签名 / 哈希；安装器现在只做静态校验和权限确认。
 - 模板格式化函数、图片资源、通用样式绑定。
 - 五个内置组件仍是 React，不是模板。
-- web 组件只有开发原型：sandboxed / trusted 两种；不能 `.sill` 安装，trusted 有完整 Node。
+- web 组件：sandboxed / trusted 两种；本地 `.sill` 可安装；trusted 有完整 Node，没有 assets / 目录下载。
 - 根目录 LICENSE；许可策略还没定。
 - `DEVPLAN.md` 的 IR / rmskin 章节是历史规划，不要按它实现。
 

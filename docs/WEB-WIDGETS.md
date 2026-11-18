@@ -117,13 +117,8 @@ participates in layout; the long-term replacement is `WebContentsView` with the 
 ## Examples
 
 ```powershell
-# sandboxed
-$env:SILL_DEV_WIDGET = 'D:\Projects\Sill\examples\dev-web'
-pnpm dev
-
-# trusted (full Node)
-$env:SILL_DEV_WIDGET = 'D:\Projects\Sill\examples\dev-trusted'
-pnpm dev
+pnpm sill dev .\examples\dev-web       # sandboxed
+pnpm sill dev .\examples\dev-trusted   # trusted full Node
 ```
 
 ## Missing
