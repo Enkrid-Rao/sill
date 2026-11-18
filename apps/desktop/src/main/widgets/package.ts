@@ -18,7 +18,7 @@ const MAX_FILES = 200
 const MAX_FILE = 512 * 1024
 const FILES = ['widget.json', 'ui/index.html', 'ui/style.css'] as const
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/
-const ID = /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$/
+const ID = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/
 const PERMISSIONS = new Set([
   'data.time',
   'data.system',

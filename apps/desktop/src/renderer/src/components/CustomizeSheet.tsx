@@ -876,7 +876,7 @@ export function CustomizeSheet({
                       <div className="cz-setrow__copy">
                         <span className="cz-setrow__name">{item.name}</span>
                         <span className="cz-setrow__note">
-                          {item.id} · v{item.version}
+                          {item.id} · v{item.version} · {item.permissions.join(' / ') || '—'}
                         </span>
                       </div>
                       <button
