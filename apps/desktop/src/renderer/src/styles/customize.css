@@ -978,6 +978,12 @@
   cursor: default;
 }
 
+.cz-widget-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 8px 2px 2px;
+}
+
 .cz-setrow:not(.cz-setrow--stack):hover {
   background: rgba(255, 255, 255, 0.03);
 }

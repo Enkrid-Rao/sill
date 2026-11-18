@@ -556,8 +556,10 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 - 模板 HTML/CSS 挂在 `WidgetShell` 的 `.card` 里的 Shadow DOM 上。玻璃、圆角、边框、
   padding 和 atmosphere 都是卡片/面板自己的，组件只写内容，**不要再铺一层仿玻璃**。
 - v1 不执行任意 JS；文本用 `data-sill-text="now.time"` 这类绑定，宿主负责清洗 HTML/CSS。
+- 设置 → 行为 → 组件 → 安装组件… 可以安装本地 `.sill`（zip，只接受
+  `widget.json` + `ui/index.html` + `ui/style.css`）。安装后进入布局，可卸载。
 - 完整格式、token 和安全边界见 [WIDGET-SURFACE.md](WIDGET-SURFACE.md)。
-- 这还不是组件系统：没有 zip 安装、安装 UI 和权限面板。
+- 还没有 CLI、目录下载、签名与权限确认面板。
 
 ## 7. 视觉规范
 

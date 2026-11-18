@@ -1,10 +1,11 @@
-import { app, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'electron'
 import { broadcast } from './broadcast'
 import { getSnapshot, refreshDataCadence } from './data'
 import { mediaCommand } from './data/media-control'
 import { addTodo, listTodos, removeTodo, restoreTodo, toggleTodo, updateTodo } from './data/todo'
 import { getDevWidget } from './dev-widget'
-import { getLayout, resetLayout, setLayout } from './layout'
+import { COMPONENTS_DIR, getLayout, invalidateLayout, resetLayout, setLayout } from './layout'
+import { installPackage, listInstalled, loadInstalled, uninstallPackage } from './widgets/package'
 import {
   commitPanelSize,
   getPanelSizeLimits,
@@ -28,6 +29,13 @@ export interface IpcDeps {
   apply: (settings: Settings, patch: Partial<Settings>) => void
   /** 换热键：试注册成功才写盘，失败保留旧键 */
   setHotkey: (accel: string) => { ok: boolean; hotkey: string }
+}
+
+/** 组件安装/卸载后，布局与组件列表一起刷新。 */
+function afterWidgetsChanged(): void {
+  invalidateLayout()
+  broadcast('widgets:changed', null)
+  broadcast('layout:changed', getLayout())
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -120,6 +128,35 @@ export function registerIpc(deps: IpcDeps): void {
 
   // Spike: read SILL_DEV_WIDGET once. Returns null in a normal launch.
   ipcMain.handle('widgets:dev-get', () => getDevWidget())
+
+  ipcMain.handle('widgets:list', () => listInstalled(COMPONENTS_DIR))
+
+  ipcMain.handle('widgets:load', (_event, id: unknown) =>
+    typeof id === 'string' ? loadInstalled(COMPONENTS_DIR, id) : null
+  )
+
+  ipcMain.handle('widgets:install', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const options: OpenDialogOptions = {
+      title: '安装 Sill 组件',
+      properties: ['openFile'],
+      filters: [{ name: 'Sill 组件', extensions: ['sill', 'zip'] }]
+    }
+    const picked = win
+      ? await dialog.showOpenDialog(win, options)
+      : await dialog.showOpenDialog(options)
+    if (picked.canceled || !picked.filePaths[0]) return { ok: false, error: '已取消' }
+    const result = installPackage(picked.filePaths[0], COMPONENTS_DIR)
+    if (result.ok) afterWidgetsChanged()
+    return result
+  })
+
+  ipcMain.handle('widgets:uninstall', (_event, id: unknown) => {
+    if (typeof id !== 'string') return { ok: false, error: '无效的组件 id' }
+    const result = uninstallPackage(COMPONENTS_DIR, id)
+    if (result.ok) afterWidgetsChanged()
+    return result
+  })
 
   ipcMain.handle('todo:list', () => listTodos())
   ipcMain.handle('todo:add', (_event, text: unknown) =>

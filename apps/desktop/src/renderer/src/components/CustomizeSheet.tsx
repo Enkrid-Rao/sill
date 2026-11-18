@@ -23,6 +23,7 @@ import {
   type Theme
 } from '../../../shared/theme'
 import { formatHotkey } from '../lib/hotkey'
+import { useWidgetRegistry } from '../widgets/WidgetRegistryProvider'
 
 type Tab = 'appearance' | 'panel' | 'data' | 'system' | 'general'
 
@@ -460,11 +461,35 @@ export function CustomizeSheet({
 }: Props): React.JSX.Element {
   const closeRef = useRef<HTMLButtonElement>(null)
   const [tab, setTab] = useState<Tab>('appearance')
+  const registry = useWidgetRegistry()
+  const [installing, setInstalling] = useState(false)
+  const [uninstalling, setUninstalling] = useState<string | null>(null)
+  const [installError, setInstallError] = useState('')
   const activePreset = matchThemePreset(theme)
   const activeSize = matchPreset(panelWidth, panelHeight)
   const weatherCity = weatherLocation === 'auto' ? null : getWeatherCity(weatherLocation)
   // 独立窗口默认用左侧导航；窗口窄到放不下 152 + 可用表单时退回顶部 tab
   const wide = standalone ? window.innerWidth >= 600 : panelWidth >= 620
+
+  const install = async (): Promise<void> => {
+    setInstallError('')
+    setInstalling(true)
+    const result = await window.sill?.installWidget()
+    setInstalling(false)
+    if (result && !result.ok && result.error !== '已取消') {
+      setInstallError(result.error ?? t(language, 'behavior.installFailed'))
+    }
+  }
+
+  const uninstall = async (id: string): Promise<void> => {
+    setInstallError('')
+    setUninstalling(id)
+    const result = await window.sill?.uninstallWidget(id)
+    setUninstalling(null)
+    if (result && !result.ok) {
+      setInstallError(result.error ?? t(language, 'behavior.installFailed'))
+    }
+  }
 
   const updateText = ((): string => {
     switch (update.status) {
@@ -837,6 +862,35 @@ export function CustomizeSheet({
                   onChange={(value) => onToggleWidget(widget.id, value)}
                 />
               ))}
+              <div className="cz-widget-actions">
+                <button className="cz-action" type="button" disabled={installing} onClick={() => void install()}>
+                  {installing ? '…' : t(language, 'behavior.installWidget')}
+                </button>
+              </div>
+              {installError ? <p className="cz-error">{installError}</p> : null}
+              {registry.installed.length ? (
+                <>
+                  <p className="cz-group">{t(language, 'behavior.installedWidgets')}</p>
+                  {registry.installed.map((item) => (
+                    <div className="cz-setrow" key={item.id}>
+                      <div className="cz-setrow__copy">
+                        <span className="cz-setrow__name">{item.name}</span>
+                        <span className="cz-setrow__note">
+                          {item.id} · v{item.version}
+                        </span>
+                      </div>
+                      <button
+                        className="cz-action"
+                        type="button"
+                        disabled={uninstalling === item.id}
+                        onClick={() => void uninstall(item.id)}
+                      >
+                        {t(language, 'behavior.uninstallWidget')}
+                      </button>
+                    </div>
+                  ))}
+                </>
+              ) : null}
             </Details>
           </>
         ) : null}

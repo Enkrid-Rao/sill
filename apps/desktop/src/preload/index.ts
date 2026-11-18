@@ -11,6 +11,15 @@ const api = {
   setHotkey: (accel: string) => ipcRenderer.invoke('hotkey:set', accel),
   getVersion: () => ipcRenderer.invoke('app:version'),
   getDevWidget: () => ipcRenderer.invoke('widgets:dev-get'),
+  getInstalledWidgets: () => ipcRenderer.invoke('widgets:list'),
+  getInstalledWidget: (id: string) => ipcRenderer.invoke('widgets:load', id),
+  installWidget: () => ipcRenderer.invoke('widgets:install'),
+  uninstallWidget: (id: string) => ipcRenderer.invoke('widgets:uninstall', id),
+  onWidgetsChanged: (callback: () => void) => {
+    const listener = (): void => callback()
+    ipcRenderer.on('widgets:changed', listener)
+    return () => ipcRenderer.removeListener('widgets:changed', listener)
+  },
   getUninstallInfo: () => ipcRenderer.invoke('app:uninstall-info'),
   openDataFolder: () => ipcRenderer.invoke('app:open-data-folder'),
   uninstall: (deleteData: boolean) => ipcRenderer.invoke('app:uninstall', deleteData),

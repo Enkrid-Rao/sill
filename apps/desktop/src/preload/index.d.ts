@@ -5,6 +5,7 @@ import type { PanelLayout } from '../shared/layout'
 import type { Theme } from '../shared/theme'
 import type { UninstallInfo, UninstallResult } from '../shared/uninstall'
 import type { UpdateState } from '../shared/update'
+import type { InstallOutcome, InstalledWidgetInfo } from '../shared/widgets'
 
 export interface SillSettings {
   hotkey: string
@@ -36,6 +37,11 @@ export interface SillApi {
   setHotkey: (accel: string) => Promise<{ ok: boolean; hotkey: string }>
   getVersion: () => Promise<string>
   getDevWidget: () => Promise<DevWidgetPayload | null>
+  getInstalledWidgets: () => Promise<InstalledWidgetInfo[]>
+  getInstalledWidget: (id: string) => Promise<DevWidgetPayload | null>
+  installWidget: () => Promise<InstallOutcome>
+  uninstallWidget: (id: string) => Promise<InstallOutcome>
+  onWidgetsChanged: (callback: () => void) => () => void
   getUninstallInfo: () => Promise<UninstallInfo>
   openDataFolder: () => Promise<string>
   uninstall: (deleteData: boolean) => Promise<UninstallResult>
