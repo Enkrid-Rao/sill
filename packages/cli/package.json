@@ -1,0 +1,16 @@
+{
+  "name": "@sill/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local validate / pack / new / dev commands for Sill template widgets.",
+  "bin": {
+    "sill": "./bin/sill.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.1"
+  }
+}

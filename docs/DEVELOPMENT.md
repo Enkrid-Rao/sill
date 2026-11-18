@@ -557,9 +557,28 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
   padding 和 atmosphere 都是卡片/面板自己的，组件只写内容，**不要再铺一层仿玻璃**。
 - v1 不执行任意 JS；文本用 `data-sill-text="now.time"` 这类绑定，宿主负责清洗 HTML/CSS。
 - 设置 → 行为 → 组件 → 安装组件… 可以安装本地 `.sill`（zip，只接受
-  `widget.json` + `ui/index.html` + `ui/style.css`）。安装后进入布局，可卸载。
+  `widget.json` + `ui/index.html` + `ui/style.css`）。安装前确认 id / 版本 / 作者 / 权限；
+  安装后进入布局，可卸载。
 - 完整格式、token 和安全边界见 [WIDGET-SURFACE.md](WIDGET-SURFACE.md)。
-- 还没有 CLI、目录下载、签名与权限确认面板。
+- 还没有目录下载、签名和自动更新。
+
+### 6.27 组件 CLI
+
+`packages/cli` 提供本地命令，不发布到 npm：
+
+```bash
+pnpm sill validate ./my-widget
+pnpm sill pack ./my-widget -o my-widget.sill
+pnpm sill new com.example.clock
+pnpm sill dev ./my-widget
+```
+
+- `validate`：manifest、三个文件、HTML/CSS 白名单；
+- `pack`：先校验，再打根目录只有三个文件的 `.sill`；
+- `new`：生成最小模板；
+- `dev`：以 `SILL_DEV_WIDGET=<dir>` 启动当前工作区的 `pnpm dev`。
+
+CLI 和安装器各自有一份校验逻辑，改规则时两边都要改；后续抽到共享包。
 
 ## 7. 视觉规范
 
