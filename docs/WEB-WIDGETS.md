@@ -1,10 +1,15 @@
-# Web Widgets (prototype)
+# Web Widgets
 
 Status: **dev-only prototype.** Not installable as `.sill` yet, not in the 0.5.4 release.
 
-Template widgets are HTML/CSS only and run in the host renderer. Web widgets are full HTML/CSS/JS
-and run in a separate `<webview>` guest. The guest is transparent, so the host `.card` still supplies
-glass and atmosphere.
+Two trust levels:
+
+| trust | JS | Node / Win32 | Use |
+|---|---|---|---|
+| `sandboxed` (default) | yes | no, bridge only | marketplace, untrusted code |
+| `trusted` | yes | **full Node** | local/personal components, reviewed plugins |
+
+The guest is transparent, so the host `.card` still supplies glass and atmosphere.
 
 ## Why not put JavaScript in templates
 
@@ -12,7 +17,8 @@ A template is mounted into the host renderer's Shadow DOM. Shadow DOM isolates C
 JavaScript. A `<script>` in a template would run with the host's `window`, `window.sill`, IPC and
 other cards. That is why templates stay JS-free.
 
-A web widget is a separate JS realm. It gets a narrow bridge instead of the host realm.
+A web widget is a separate JS realm. A sandboxed widget gets a narrow bridge; a trusted widget gets
+the full Node environment and can do anything the app can.
 
 ## Package
 
@@ -36,6 +42,7 @@ my-web-widget/
   "runtime": ">=0.5.4",
   "engine": ">=0.1.0",
   "type": "web",
+  "trust": "sandboxed",
   "size": { "w": 384, "h": 220 },
   "span": { "default": 1 },
   "permissions": ["data.media", "action.media"],
@@ -46,7 +53,16 @@ my-web-widget/
 
 `size.h` is the webview height. Templates size from content; web widgets need a height.
 
-## Bridge
+For full access:
+
+```json
+"trust": "trusted"
+```
+
+Trusted widgets can use `require('node:fs')`, `child_process`, native addons and Windows APIs.
+They are **not** sandboxed. Only run code you wrote or reviewed.
+
+## Bridge (sandboxed)
 
 The guest preload exposes:
 
@@ -64,17 +80,33 @@ sill.command('media.playpause')
 
 - `data` uses the same manifest `data[].id` aliases as templates.
 - `language` is `zh` / `en`.
-- Host tokens (`--ink`, `--serif`, `--accent`, ...) are written onto the guest `<html>` as CSS
-  variables.
-- `command` is checked against the host action allowlist and the manifest permissions. A guest
-  cannot call arbitrary IPC.
+- Host tokens (`--ink`, `--serif`, `--accent`, ...) are written onto the guest `<html>`.
+- `command` is checked against the host action allowlist and manifest permissions.
 - No Node, no `require`, no `fs`, no direct network.
 
-## Security
+## Trusted widgets
+
+```js
+const os = require('node:os')
+const { execSync } = require('node:child_process')
+
+document.querySelector('#host').textContent = os.hostname()
+document.querySelector('#who').textContent = execSync('whoami').toString()
+```
+
+- The host sets partition `sill-trusted`; the main process then enables
+  `nodeIntegration`, disables `contextIsolation` and `sandbox`.
+- The widget HTML cannot choose its own trust: `trust` comes from the manifest and is fixed before
+  attach.
+- No marketplace / auto-update for trusted packages. Install must show a full-access warning.
+- A trusted widget can read/delete files, run commands, access the network and call Windows APIs.
+
+## Sandbox security
 
 - `webviewTag: true` on the host window.
 - Guest `contextIsolation`, `nodeIntegration=false`, `sandbox`.
-- Main-process `will-attach-webview` forces the widget preload and rejects non-`data:text/html` src.
+- Main-process `will-attach-webview` forces the widget preload; only the host-set partition decides
+  trusted vs sandboxed.
 - Guest document has a strict CSP: no network, no remote images/fonts, inline style/script only.
 - `will-navigate` blocks navigation; the guest is a data URL with no remote origin.
 - Install is not implemented, so a web widget cannot be delivered by the package manager yet.
@@ -82,14 +114,17 @@ sill.command('media.playpause')
 Electron marks `<webview>` deprecated. This prototype uses it because it is transparent and
 participates in layout; the long-term replacement is `WebContentsView` with the same component API.
 
-## Current example
+## Examples
 
 ```powershell
+# sandboxed
 $env:SILL_DEV_WIDGET = 'D:\Projects\Sill\examples\dev-web'
 pnpm dev
-```
 
-The example uses `sill.ready` for the first clock value and a guest-local `setInterval` for updates.
+# trusted (full Node)
+$env:SILL_DEV_WIDGET = 'D:\Projects\Sill\examples\dev-trusted'
+pnpm dev
+```
 
 ## Missing
 
@@ -101,12 +136,7 @@ The example uses `sill.ready` for the first clock value and a guest-local `setIn
 
 ## Per-app volume
 
-A settings page that controls per-app volume needs more than a webview:
-
-1. host audio session enumeration (WASAPI / Core Audio);
-2. host commands to set volume / mute for a session;
-3. permissions `data.audio` / `action.audio`;
-4. a web widget UI.
-
-The current runtime can render the UI (items 4), but items 1–3 do not exist. A template or web
-widget cannot read or change other applications' audio sessions by itself.
+- **trusted widget**: can call WASAPI through a bundled helper, PowerShell C# or a native addon.
+  This is the Rainmeter-plugin equivalent; fastest path for a personal component.
+- **sandboxed widget**: needs `audio.sessions` / `action.audio` from the host; otherwise it cannot
+  read or change other applications' audio sessions.

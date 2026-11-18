@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "id": "sill.dev-trusted",
+  "name": "Trusted Web",
+  "description": "Full Node trusted web component.",
+  "version": "0.1.0",
+  "author": "raoxi",
+  "license": "MIT",
+  "runtime": ">=0.5.4",
+  "engine": ">=0.1.0",
+  "type": "web",
+  "trust": "trusted",
+  "size": { "w": 384, "h": 180 },
+  "span": { "default": 1 },
+  "permissions": ["data.time"],
+  "data": [{ "id": "now", "source": "time.now" }],
+  "ui": "ui/index.html"
+}

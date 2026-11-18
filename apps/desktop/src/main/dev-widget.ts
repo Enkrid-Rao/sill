@@ -56,6 +56,7 @@ export function getDevWidget(): DevWidgetPayload | null {
   const id = typeof manifest.id === 'string' ? manifest.id : ''
   const name = typeof manifest.name === 'string' ? manifest.name : ''
   const type = typeof manifest.type === 'string' ? manifest.type : ''
+  const trust = manifest.trust === 'trusted' ? 'trusted' : manifest.trust === 'sandboxed' ? 'sandboxed' : 'sandboxed'
   const ui = typeof manifest.ui === 'string' ? manifest.ui : 'ui/index.html'
   const spanRaw =
     manifest.span && typeof manifest.span === 'object'
@@ -90,6 +91,7 @@ export function getDevWidget(): DevWidgetPayload | null {
     html,
     css,
     kind: type,
+    trust,
     height,
     js,
     data: readBindings(manifest.data),

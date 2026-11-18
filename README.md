@@ -130,7 +130,8 @@ The template format, manifest, providers, package and security spec live in the 
 Sill keeps the host (`WidgetShell`, `WIDGETS`, providers) and the built-in components.
 
 A `type: "web"` prototype also exists: full HTML/CSS/JS in a transparent webview guest with a
-`sill.ready / onData / command` bridge. It is dev-only and not installable yet; see
+`sill.ready / onData / command` bridge. `trust: "trusted"` additionally gets full Node / Windows API,
+Rainmeter-plugin style; `sandboxed` stays bridge-only. Dev-only, not installable yet; see
 [docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md).
 
 ## Naming

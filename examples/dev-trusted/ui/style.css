@@ -1,0 +1,34 @@
+html,
+body {
+  background: transparent;
+}
+
+.trusted {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--ink);
+}
+
+.trusted__label {
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.17em;
+}
+
+.trusted__host {
+  font-family: var(--serif);
+  font-size: 30px;
+  font-style: italic;
+  line-height: 1.1;
+}
+
+.trusted__meta {
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+.trusted__time {
+  color: var(--ink-soft);
+  font-size: 12px;
+}

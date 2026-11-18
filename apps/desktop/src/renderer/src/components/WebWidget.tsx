@@ -66,7 +66,8 @@ ${widget.html}
 }
 
 /**
- * Web component prototype: full HTML/CSS/JS in a sandboxed webview guest.
+ * Web component prototype: full HTML/CSS/JS in a webview guest.
+ * Sandboxed guests get only the sill bridge; trusted guests also get Node.
  * The guest is transparent, so the host .card supplies glass and atmosphere.
  */
 export function WebWidget({ widget, context }: Props): React.JSX.Element {
@@ -99,6 +100,7 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
 
   const documentHtml = useMemo(() => buildDocument(widget), [widget])
   const height = widget.height ?? 160
+  const trusted = widget.trust === 'trusted'
 
   useEffect(() => {
     const host = container.current
@@ -106,8 +108,13 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
 
     const guest = document.createElement('webview') as GuestView
     guest.setAttribute('preload', preload)
-    guest.setAttribute('partition', 'sill-widget')
-    guest.setAttribute('webpreferences', 'contextIsolation=yes,nodeIntegration=no,sandbox=yes')
+    guest.setAttribute('partition', trusted ? 'sill-trusted' : 'sill-widget')
+    guest.setAttribute(
+      'webpreferences',
+      trusted
+        ? 'contextIsolation=no,nodeIntegration=yes,sandbox=no'
+        : 'contextIsolation=yes,nodeIntegration=no,sandbox=yes'
+    )
     guest.style.display = 'block'
     guest.style.width = '100%'
     guest.style.height = `${height}px`
@@ -153,7 +160,7 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
       guestRef.current = null
       guest.remove()
     }
-  }, [preload, documentHtml, height, widget])
+  }, [preload, documentHtml, height, trusted, widget])
 
   useEffect(() => {
     const guest = guestRef.current

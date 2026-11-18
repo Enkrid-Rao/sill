@@ -26,7 +26,7 @@ Include:
 Do not include real user data, tokens or personal paths. You will get an acknowledgement when the
 report is triaged; there is no bug bounty.
 
-## Threat model
+## Trust levels\n\n- `trusted` web widgets run with full Node: filesystem, child processes, network, Windows APIs.\n  They are not sandboxed and should only be installed from a source you trust.\n- `sandboxed` web widgets and templates run in the host or a sandboxed webview with the bridge only.\n- The market / installer must show a full-access warning for trusted packages; the current prototype\n  is dev-only.\n\n## Threat model
 
 - **Widget package**: `.sill` zip with `widget.json`, `ui/index.html`, `ui/style.css`. It may come
   from an untrusted author.

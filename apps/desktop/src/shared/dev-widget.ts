@@ -14,8 +14,10 @@ export interface DevWidgetPayload {
   span: number
   html: string
   css: string
-  /** "web" runs in a sandboxed webview; omitted/undefined means template. */
+  /** "web" runs in a webview; omitted/undefined means template. */
   kind?: 'template' | 'web'
+  /** trusted web gets full Node in the guest; sandboxed is the default. */
+  trust?: 'sandboxed' | 'trusted'
   /** Fixed webview height; templates size from content. */
   height?: number
   /** Inline script for kind=web; never mounted in the host DOM. */

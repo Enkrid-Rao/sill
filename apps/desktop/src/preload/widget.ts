@@ -20,7 +20,7 @@ ipcRenderer.on('sill:data', (_event, payload: WidgetData) => {
   for (const listener of listeners) listener(payload)
 })
 
-contextBridge.exposeInMainWorld('sill', {
+const api = {
   ready: (callback: (payload: WidgetData) => void) => {
     listeners.add(callback)
     if (latest) callback(latest)
@@ -32,4 +32,10 @@ contextBridge.exposeInMainWorld('sill', {
   command: (action: string, arg?: unknown) => {
     ipcRenderer.sendToHost('sill:command', action, arg)
   }
-})
+}
+
+if (process.contextIsolated) {
+  contextBridge.exposeInMainWorld('sill', api)
+} else {
+  ;(globalThis as unknown as { sill: typeof api }).sill = api
+}

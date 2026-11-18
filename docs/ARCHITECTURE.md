@@ -96,7 +96,7 @@ means uninstall then install.
 | New directive | `TemplateWidget.tsx` | no arbitrary expressions; update spec/validator |
 | New action | `TemplateWidget.tsx` + main IPC | permission + allowlist + docs |
 | New package rule | `main/widgets/package.ts` + CLI + spec | keep installer/CLI/spec in sync |
-| New UI surface | renderer | reuse `.card` glass and CSS tokens |`n| Web component | `WebWidget.tsx` + `preload/widget.ts` | sandboxed webview, bridge only |
+| New UI surface | renderer | reuse `.card` glass and CSS tokens |`n| Web component | `WebWidget.tsx` + `preload/widget.ts` | sandboxed bridge or trusted full Node |
 
 ## Directory map
 
@@ -124,5 +124,5 @@ docs/           DEVELOPMENT, WIDGET-SURFACE, ARCHITECTURE
 - No package upgrade-in-place.
 - Template has no formatting functions, image assets or generic style bindings.
 - The five built-ins remain React, not templates.
-- Web components are a dev-only prototype; no `.sill` package, assets, fetch/storage or `WebContentsView` migration.
+- Web components are a dev-only prototype; no `.sill` package, assets, fetch/storage or `WebContentsView` migration. Trusted web is full Node and must stay out of the marketplace until a real warning/trust model exists.
 - No root license yet.

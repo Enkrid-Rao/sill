@@ -170,10 +170,12 @@ export function createPanel(): BrowserWindow {
   // Web widgets are guests. Force the bridge and reject anything that is not
   // the inline HTML we generated for this card.
   panel.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    // Only the host sets the partition; widget HTML cannot escalate itself.
+    const trusted = params.partition === 'sill-trusted'
     webPreferences.preload = join(__dirname, '../preload/widget.js')
-    webPreferences.nodeIntegration = false
-    webPreferences.contextIsolation = true
-    webPreferences.sandbox = true
+    webPreferences.nodeIntegration = trusted
+    webPreferences.contextIsolation = !trusted
+    webPreferences.sandbox = !trusted
     if (!params.src.startsWith('data:text/html')) event.preventDefault()
   })
 
