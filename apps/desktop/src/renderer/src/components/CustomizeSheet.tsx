@@ -10,8 +10,7 @@ import {
   matchPreset,
   PANEL_MIN_HEIGHT,
   PANEL_MIN_WIDTH,
-  PANEL_PRESETS,
-  type CardId
+  PANEL_PRESETS
 } from '../../../shared/layout'
 import type { UpdateState } from '../../../shared/update'
 import type { UninstallInfo } from '../../../shared/uninstall'
@@ -63,8 +62,8 @@ interface Props {
   onDownloadUpdate: () => void
   onInstallUpdate: () => void
   onEditLayout: () => void
-  widgets: readonly { id: CardId; label: string; hidden: boolean }[]
-  onToggleWidget: (id: CardId, shown: boolean) => void
+  widgets: readonly { id: string; label: string; hidden: boolean }[]
+  onToggleWidget: (id: string, shown: boolean) => void
   version: string
   columns: number
   /** 独立窗口模式：没有面板做底，自己就是整块玻璃 */

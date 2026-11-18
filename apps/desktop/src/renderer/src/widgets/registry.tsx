@@ -1,4 +1,3 @@
-import type { CardId } from '../../../shared/layout'
 import { MediaWidget } from '../components/widgets/MediaWidget'
 import { TodoWidget } from '../components/widgets/TodoWidget'
 import { HeroWidget } from './HeroWidget'
@@ -13,7 +12,7 @@ import type { WidgetDefinition } from './types'
  * 把 context 交给 render()。新增内置组件 = 加一个 definition + 一个 i18n 名字 +
  * 在 shared/layout 的 CARD_IDS 里加 id；App.tsx 不需要改。
  */
-export const WIDGETS: readonly WidgetDefinition[] = [
+export const BUILTIN_WIDGETS: readonly WidgetDefinition[] = [
   {
     id: 'hero',
     nameKey: 'widget.hero',
@@ -79,7 +78,8 @@ export const WIDGETS: readonly WidgetDefinition[] = [
   }
 ]
 
-export const WIDGET_BY_ID = Object.fromEntries(WIDGETS.map((widget) => [widget.id, widget])) as Record<
-  CardId,
-  WidgetDefinition
->
+export const WIDGETS = BUILTIN_WIDGETS
+
+export const WIDGET_BY_ID: Record<string, WidgetDefinition> = Object.fromEntries(
+  WIDGETS.map((widget) => [widget.id, widget])
+)

@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { MediaControlState, PanelSnapshot, TodoItem } from '../../shared/data'
-import type { DevWidgetPayload } from '../../shared/dev-widget'
 import { t } from '../../shared/i18n'
-import { columnsForWidth, type CardId } from '../../shared/layout'
+import { columnsForWidth } from '../../shared/layout'
 import { CustomizeSheet } from './components/CustomizeSheet'
-import { DevWidgetCard } from './components/DevWidgetCard'
 import { ResizeHandles } from './components/ResizeHandles'
 import { formatHotkey } from './lib/hotkey'
 import { useSillSettings } from './lib/useSillSettings'
-import { WIDGET_BY_ID } from './widgets/registry'
+import { useWidgetRegistry } from './widgets/WidgetRegistryProvider'
 import type { WidgetContext } from './widgets/types'
 import { WidgetShell } from './widgets/WidgetShell'
 
@@ -57,6 +55,7 @@ function SlidersIcon(): React.JSX.Element {
 }
 
 export default function App(): React.JSX.Element {
+  const registry = useWidgetRegistry()
   const settings = useSillSettings()
   const [visible, setVisible] = useState(false)
   const now = useClock(visible)
@@ -66,8 +65,7 @@ export default function App(): React.JSX.Element {
   const [todos, setTodos] = useState<TodoItem[]>([])
   const [tick, setTick] = useState(0)
   const [editing, setEditing] = useState(false)
-  const [dragId, setDragId] = useState<CardId | null>(null)
-  const [devWidget, setDevWidget] = useState<DevWidgetPayload | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
 
   const { layout, setLayout } = settings
 
@@ -92,17 +90,6 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     const off = window.sill?.onSnapshot((next) => setSnapshot(next))
     return () => off?.()
-  }, [])
-
-  // Dev-only: SILL_DEV_WIDGET points at a folder. Null in a normal launch.
-  useEffect(() => {
-    let alive = true
-    void window.sill?.getDevWidget().then((next) => {
-      if (alive && next) setDevWidget(next)
-    })
-    return () => {
-      alive = false
-    }
   }, [])
 
   // 第一次显示 / 重新显示时补一次，防止 push 发生在监听器挂上之前
@@ -184,7 +171,7 @@ export default function App(): React.JSX.Element {
   )
 
   const moveCard = useCallback(
-    (id: CardId, direction: -1 | 1) => {
+    (id: string, direction: -1 | 1) => {
       const order = [...layout.order]
       const index = order.indexOf(id)
       const target = index + direction
@@ -196,7 +183,7 @@ export default function App(): React.JSX.Element {
   )
 
   const dropCard = useCallback(
-    (from: CardId, to: CardId) => {
+    (from: string, to: string) => {
       if (from === to) return
       const order = [...layout.order]
       const a = order.indexOf(from)
@@ -209,7 +196,7 @@ export default function App(): React.JSX.Element {
   )
 
   const setCardSpan = useCallback(
-    (id: CardId, span: number) => {
+    (id: string, span: number) => {
       setLayout({ ...layout, spans: { ...layout.spans, [id]: span } })
     },
     [layout, setLayout]
@@ -339,7 +326,8 @@ export default function App(): React.JSX.Element {
           </header>
 
           {visibleOrder.map((id) => {
-            const definition = WIDGET_BY_ID[id]
+            const definition = registry.byId[id]
+            if (!definition) return null
             return (
               <WidgetShell
                 key={id}
@@ -359,10 +347,7 @@ export default function App(): React.JSX.Element {
               </WidgetShell>
             )
           })}
-          {devWidget ? (
-            <DevWidgetCard widget={devWidget} now={now} language={settings.language} />
-          ) : null}
-          {!visibleOrder.length && !devWidget ? (
+          {!visibleOrder.length ? (
             <div className="sheet__empty sub">{t(settings.language, 'widgets.empty')}</div>
           ) : null}
         </div>

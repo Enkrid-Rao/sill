@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react'
 import type { MediaControlState, PanelSnapshot, TodoItem } from '../../../shared/data'
 import type { Language, TranslationKey } from '../../../shared/i18n'
-import type { CardId } from '../../../shared/layout'
 
 /**
  * 渲染层看到的组件上下文。
  *
  * 它是 App 与组件之间唯一的合同：组件不直接碰 IPC、不直接读 settings，
- * 只吃这份数据 + 回调。M1 的 IR 引擎落地后，声明式组件会用同一份 context。
+ * 只吃这份数据 + 回调。
  */
 export interface WidgetContext {
   language: Language
@@ -28,9 +27,11 @@ export interface WidgetContext {
 }
 
 export interface WidgetDefinition {
-  id: CardId
-  /** 设置里显示的名字 */
-  nameKey: TranslationKey
+  id: string
+  /** 内置组件的 i18n 名称 */
+  nameKey?: TranslationKey
+  /** 第三方组件自带的名字；优先于 nameKey */
+  label?: string
   /** 额外的卡片 class（card--hero / card--grow） */
   className?: string
   /** 当前列数下默认跨几列；用户手动设过 spans 时以 layout 为准 */

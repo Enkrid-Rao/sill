@@ -9,12 +9,11 @@ import {
   PANEL_MIN_HEIGHT,
   PANEL_MIN_WIDTH,
   PANEL_PRESETS,
-  type CardId,
   type PanelLayout
 } from '../../../shared/layout'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../../../shared/theme'
 import type { UpdateState } from '../../../shared/update'
-import { WIDGET_BY_ID } from '../widgets/registry'
+import { useWidgetRegistry } from '../widgets/WidgetRegistryProvider'
 import { applyTheme } from './theme'
 
 export const EMPTY_UPDATE: UpdateState = { status: 'idle' }
@@ -37,7 +36,7 @@ export interface SillSettingsController {
   layout: PanelLayout
   limits: { maxWidth: number; maxHeight: number }
   panelColumns: number
-  widgets: readonly { id: CardId; label: string; hidden: boolean }[]
+  widgets: readonly { id: string; label: string; hidden: boolean }[]
   updateTheme: (patch: Partial<Theme>) => void
   flushTheme: () => void
   resetTheme: () => void
@@ -59,7 +58,7 @@ export interface SillSettingsController {
   installUpdate: () => void
   setLayout: (next: PanelLayout) => void
   resetLayout: () => Promise<void>
-  toggleWidget: (id: CardId, shown: boolean) => void
+  toggleWidget: (id: string, shown: boolean) => void
 }
 
 /**
@@ -70,6 +69,7 @@ export interface SillSettingsController {
  * 所以设置窗口改主题时面板会即时变，面板拖尺寸时设置窗口的滑杆也会跟上。
  */
 export function useSillSettings(): SillSettingsController {
+  const registry = useWidgetRegistry()
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME)
   const [hotkey, setHotkey] = useState('Alt+Q')
   const [panelWidth, setPanelWidth] = useState(384)
@@ -104,8 +104,11 @@ export function useSillSettings(): SillSettingsController {
     setMonitorIntervalMs(next.monitorIntervalMs)
   }, [])
 
-  // 读一次全量状态，然后一直订阅主进程广播
+  // 读一次全量状态，然后一直订阅主进程广播。
+  // Wait for the widget registry: the dev widget adds its id to layout.json,
+  // and normalizing before it is known would drop that entry.
   useEffect(() => {
+    if (!registry.ready) return
     let alive = true
     void (async () => {
       try {
@@ -118,7 +121,7 @@ export function useSillSettings(): SillSettingsController {
         if (!alive) return
         if (settings) adopt(settings)
         if (appVersion) setVersion(appVersion)
-        if (initialLayout) setLayoutState(normalizeLayout(initialLayout))
+        if (initialLayout) setLayoutState(normalizeLayout(initialLayout, registry.ids))
         if (updateState) setUpdate(updateState)
       } catch {
         // 浏览器预览 / IPC 失败时保持默认值
@@ -126,7 +129,9 @@ export function useSillSettings(): SillSettingsController {
     })()
 
     const offSettings = window.sill?.onSettingsChanged((next) => adopt(next))
-    const offLayout = window.sill?.onLayoutChanged((next) => setLayoutState(normalizeLayout(next)))
+    const offLayout = window.sill?.onLayoutChanged((next) =>
+      setLayoutState(normalizeLayout(next, registry.ids))
+    )
     const offUpdate = window.sill?.onUpdateState((next) => setUpdate(next))
     return () => {
       alive = false
@@ -134,7 +139,12 @@ export function useSillSettings(): SillSettingsController {
       offLayout?.()
       offUpdate?.()
     }
-  }, [adopt])
+  }, [adopt, registry.ready, registry.ids])
+
+  // The dev widget arrives after the first render; keep its layout entry.
+  useEffect(() => {
+    setLayoutState((current) => normalizeLayout(current, registry.ids))
+  }, [registry.ids])
 
   // 主题变化 → 写 CSS 变量（唯一的渲染入口）
   useEffect(() => {
@@ -285,18 +295,22 @@ export function useSillSettings(): SillSettingsController {
     void window.sill?.installUpdate()
   }, [])
 
-  const setLayout = useCallback((next: PanelLayout) => {
-    setLayoutState(next)
-    void window.sill?.setLayout(next)
-  }, [])
+  const setLayout = useCallback(
+    (next: PanelLayout) => {
+      const normalized = normalizeLayout(next, registry.ids)
+      setLayoutState(normalized)
+      void window.sill?.setLayout(normalized)
+    },
+    [registry.ids]
+  )
 
   const resetLayout = useCallback(async () => {
     const saved = await window.sill?.resetLayout()
-    if (saved) setLayoutState(saved)
-  }, [])
+    if (saved) setLayoutState(normalizeLayout(saved, registry.ids))
+  }, [registry.ids])
 
   const toggleWidget = useCallback(
-    (id: CardId, shown: boolean) => {
+    (id: string, shown: boolean) => {
       const hidden = shown
         ? layout.hidden.filter((item) => item !== id)
         : [...layout.hidden, id]
@@ -320,12 +334,13 @@ export function useSillSettings(): SillSettingsController {
 
   const widgets = useMemo(
     () =>
-      layout.order.map((id) => ({
-        id,
-        label: t(language, WIDGET_BY_ID[id].nameKey),
-        hidden: layout.hidden.includes(id)
-      })),
-    [language, layout.order, layout.hidden]
+      layout.order.flatMap((id) => {
+        const definition = registry.byId[id]
+        if (!definition) return []
+        const label = definition.label ?? (definition.nameKey ? t(language, definition.nameKey) : id)
+        return [{ id, label, hidden: layout.hidden.includes(id) }]
+      }),
+    [language, layout.order, layout.hidden, registry.byId]
   )
 
   return {

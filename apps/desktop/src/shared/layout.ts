@@ -1,11 +1,10 @@
 /**
  * 面板尺寸：宽高连续可调，形状预设只是起点。
  *
- * 早期版本用四种固定形状（Rail / Compact / Board / Wide）决定窗口宽高与列数，
- * 结果是「想多放一列」只能换形状，窗口大小和内容排布都被锁死。现在：
- *   - 宽高是连续数值，拖窗口内侧边 / 底边即可改，设置里也有滑杆；
- *   - 列数由**实际宽度**推导（columnsForWidth），拖动过程中内容会自己重新落格；
- *   - 预设保留为四个「跳转点」，不是唯一合法值。
+ * 列数由实际宽度推导（columnsForWidth），拖动过程中内容会自己重新落格；
+ * 预设只是四个「跳转点」，不是唯一合法值。
+ *
+ * 卡片的 id 是字符串：内置组件有固定的五个 id，第三方组件用自己的 id。
  */
 
 export type PanelPresetId = 'rail' | 'compact' | 'board' | 'wide'
@@ -57,18 +56,16 @@ export function maxColumns(width: number): number {
 
 // ---------- 卡片布局 ----------
 
-/** 面板里的卡片。顺序与跨列都按 id 存，将来 widget 引擎沿用同一份形状。 */
+/** 内置组件的固定 id。第三方组件的 id 由 manifest 决定，也存进同一份布局。 */
 export const CARD_IDS = ['hero', 'system', 'processes', 'media', 'todo'] as const
-
-export type CardId = (typeof CARD_IDS)[number]
 
 export interface PanelLayout {
   version: 1
-  order: CardId[]
+  order: string[]
   /** 跨几列；渲染时按当前列数夹住。hero 默认占满 */
-  spans: Partial<Record<CardId, number>>
+  spans: Record<string, number>
   /** 被用户暂时隐藏的组件；只影响渲染，不删布局顺序与跨列 */
-  hidden: CardId[]
+  hidden: string[]
 }
 
 export const DEFAULT_LAYOUT: PanelLayout = {
@@ -78,34 +75,35 @@ export const DEFAULT_LAYOUT: PanelLayout = {
   hidden: []
 }
 
-function isCardId(value: unknown): value is CardId {
-  return typeof value === 'string' && (CARD_IDS as readonly string[]).includes(value)
-}
-
-/** 任意来源 → 合法布局：补全缺失卡片、去重、跨列夹在 1–3 */
-export function normalizeLayout(raw: unknown): PanelLayout {
+/** 任意来源 → 合法布局：只保留 knownIds，补全缺失卡片、去重、跨列夹在 1–3 */
+export function normalizeLayout(
+  raw: unknown,
+  knownIds: readonly string[] = CARD_IDS
+): PanelLayout {
+  const known = new Set(knownIds)
   const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
-  const order: CardId[] = []
+  const order: string[] = []
   if (Array.isArray(src.order)) {
     for (const id of src.order) {
-      if (isCardId(id) && !order.includes(id)) order.push(id)
+      if (typeof id === 'string' && known.has(id) && !order.includes(id)) order.push(id)
     }
   }
-  for (const id of CARD_IDS) {
+  for (const id of knownIds) {
     if (!order.includes(id)) order.push(id)
   }
 
-  const spans: Partial<Record<CardId, number>> = {}
-  const spansRaw = src.spans && typeof src.spans === 'object' ? (src.spans as Record<string, unknown>) : {}
-  for (const id of CARD_IDS) {
+  const spans: Record<string, number> = {}
+  const spansRaw =
+    src.spans && typeof src.spans === 'object' ? (src.spans as Record<string, unknown>) : {}
+  for (const id of knownIds) {
     const value = Number(spansRaw[id])
     if (Number.isFinite(value)) spans[id] = Math.max(1, Math.min(3, Math.round(value)))
   }
 
-  const hidden: CardId[] = []
+  const hidden: string[] = []
   if (Array.isArray(src.hidden)) {
     for (const id of src.hidden) {
-      if (isCardId(id) && !hidden.includes(id)) hidden.push(id)
+      if (typeof id === 'string' && known.has(id) && !hidden.includes(id)) hidden.push(id)
     }
   }
 

@@ -78,11 +78,10 @@ function formatValue(value: unknown): string {
 }
 
 /**
- * Dev-only template card. The template HTML/CSS is mounted into a shadow root
- * inside a normal .card, so the card's real glass and the rail atmosphere show
- * through. No iframe, no simulated surface, no arbitrary JS.
+ * Template content. It renders inside a normal .card, so the card supplies the
+ * glass, radius, padding and atmosphere. No iframe and no simulated surface.
  */
-export function DevWidgetCard({ widget, now, language }: Props): React.JSX.Element {
+export function TemplateWidget({ widget, now, language }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const shadow = useRef<ShadowRoot | null>(null)
   const state = useRef({
@@ -127,9 +126,5 @@ export function DevWidgetCard({ widget, now, language }: Props): React.JSX.Eleme
     apply()
   }, [now, language, apply])
 
-  return (
-    <section className="card" data-card={widget.id}>
-      <div ref={host} />
-    </section>
-  )
+  return <div ref={host} />
 }

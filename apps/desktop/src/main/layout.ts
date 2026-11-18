@@ -1,19 +1,21 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { DEFAULT_LAYOUT, normalizeLayout, type PanelLayout } from '../shared/layout'
+import { CARD_IDS, DEFAULT_LAYOUT, normalizeLayout, type PanelLayout } from '../shared/layout'
+import { getDevWidget } from './dev-widget'
 import { USER_DATA_DIR } from './paths'
 
 const LAYOUT_FILE = join(USER_DATA_DIR, 'layout.json')
 
 let cache: PanelLayout | null = null
 
+/** Built-ins first, then the dev widget if SILL_DEV_WIDGET is set. */
+function knownIds(): string[] {
+  const dev = getDevWidget()
+  return dev ? [...CARD_IDS, dev.id] : [...CARD_IDS]
+}
+
 function cloneDefaults(): PanelLayout {
-  return {
-    version: 1,
-    order: [...DEFAULT_LAYOUT.order],
-    spans: { ...DEFAULT_LAYOUT.spans },
-    hidden: []
-  }
+  return normalizeLayout(DEFAULT_LAYOUT, knownIds())
 }
 
 function persist(layout: PanelLayout): void {
@@ -30,7 +32,7 @@ function persist(layout: PanelLayout): void {
 export function getLayout(): PanelLayout {
   if (cache) return cache
   try {
-    cache = normalizeLayout(JSON.parse(readFileSync(LAYOUT_FILE, 'utf8')))
+    cache = normalizeLayout(JSON.parse(readFileSync(LAYOUT_FILE, 'utf8')), knownIds())
   } catch {
     cache = cloneDefaults()
     persist(cache)
@@ -39,7 +41,7 @@ export function getLayout(): PanelLayout {
 }
 
 export function setLayout(raw: unknown): PanelLayout {
-  cache = normalizeLayout(raw)
+  cache = normalizeLayout(raw, knownIds())
   persist(cache)
   return cache
 }

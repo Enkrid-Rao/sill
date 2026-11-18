@@ -6,6 +6,7 @@
 export interface DevWidgetPayload {
   id: string
   name: string
+  span: number
   html: string
   css: string
 }

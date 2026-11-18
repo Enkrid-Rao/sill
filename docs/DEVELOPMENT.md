@@ -548,14 +548,16 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 
 ### 6.26 第三方组件模板实验（SILL_DEV_WIDGET）
 
-- `SILL_DEV_WIDGET` 指向一个文件夹时，面板末尾会多一张卡；不设置时行为不变。
+- `SILL_DEV_WIDGET` 指向一个文件夹时，面板会多一张模板卡；不设置时行为不变。
   文件夹结构：`widget.json`（`type: "template"`）+ `ui/index.html` + `ui/style.css`；
   示例见 [`examples/dev-widget`](../examples/dev-widget)。
+- 模板卡使用 manifest 的 `id` 进入 `layout.json`，和内置卡一样可拖拽、跨列、隐藏、重启保留；
+  去掉 `SILL_DEV_WIDGET` 后这个 id 会从布局里过滤掉。
 - 模板 HTML/CSS 挂在 `WidgetShell` 的 `.card` 里的 Shadow DOM 上。玻璃、圆角、边框、
   padding 和 atmosphere 都是卡片/面板自己的，组件只写内容，**不要再铺一层仿玻璃**。
 - v1 不执行任意 JS；文本用 `data-sill-text="now.time"` 这类绑定，宿主负责清洗 HTML/CSS。
 - 完整格式、token 和安全边界见 [WIDGET-SURFACE.md](WIDGET-SURFACE.md)。
-- 这还不是组件系统：没有 zip 安装、动态布局 id、安装 UI 和权限面板。
+- 这还不是组件系统：没有 zip 安装、安装 UI 和权限面板。
 
 ## 7. 视觉规范
 

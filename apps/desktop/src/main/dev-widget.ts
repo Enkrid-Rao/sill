@@ -57,6 +57,11 @@ export function getDevWidget(): DevWidgetPayload | null {
   const name = typeof manifest.name === 'string' ? manifest.name : ''
   const type = typeof manifest.type === 'string' ? manifest.type : ''
   const ui = typeof manifest.ui === 'string' ? manifest.ui : 'ui/index.html'
+  const spanRaw =
+    manifest.span && typeof manifest.span === 'object'
+      ? Number((manifest.span as Record<string, unknown>).default)
+      : NaN
+  const span = Number.isFinite(spanRaw) ? Math.max(1, Math.min(3, Math.round(spanRaw))) : 1
   if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(id)) return fail(`id 不合法：${id || '(空)'}`)
   if (!name) return fail('name 为空')
   if (type !== 'template') return fail(`type 只支持 template，收到 ${type || '(空)'}`)
@@ -72,5 +77,5 @@ export function getDevWidget(): DevWidgetPayload | null {
 
   const css = readText(join(uiDir, 'style.css'), total) ?? ''
 
-  return { id, name, html, css }
+  return { id, name, span, html, css }
 }

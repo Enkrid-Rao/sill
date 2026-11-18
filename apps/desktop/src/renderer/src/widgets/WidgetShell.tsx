@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { t, type Language } from '../../../shared/i18n'
-import { clampSpan, type CardId, type PanelLayout } from '../../../shared/layout'
+import { clampSpan, type PanelLayout } from '../../../shared/layout'
 import type { WidgetDefinition } from './types'
 
 interface Props {
@@ -8,13 +8,13 @@ interface Props {
   layout: PanelLayout
   columns: number
   editing: boolean
-  dragId: CardId | null
+  dragId: string | null
   language: Language
-  onMove: (id: CardId, direction: -1 | 1) => void
-  onSpan: (id: CardId, span: number) => void
-  onDragStart: (id: CardId) => void
+  onMove: (id: string, direction: -1 | 1) => void
+  onSpan: (id: string, span: number) => void
+  onDragStart: (id: string) => void
   onDragEnd: () => void
-  onDrop: (from: CardId, to: CardId) => void
+  onDrop: (from: string, to: string) => void
   children: ReactNode
 }
 
@@ -66,7 +66,7 @@ export function WidgetShell({
       onDrop={(event) => {
         if (!editing) return
         event.preventDefault()
-        const from = (event.dataTransfer.getData('text/plain') || dragId) as CardId
+        const from = (event.dataTransfer.getData('text/plain') || dragId) as string
         if (from) onDrop(from, id)
         onDragEnd()
       }}
