@@ -24,6 +24,7 @@ import {
 } from '../../../shared/theme'
 import { formatHotkey } from '../lib/hotkey'
 import { useWidgetRegistry } from '../widgets/WidgetRegistryProvider'
+import type { ComponentProblem } from '../../../shared/widgets'
 
 type Tab = 'appearance' | 'panel' | 'widgets' | 'data' | 'general'
 
@@ -471,6 +472,20 @@ export function CustomizeSheet({
   const [installError, setInstallError] = useState('')
   const [associated, setAssociated] = useState(false)
   const [assocBusy, setAssocBusy] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [problems, setProblems] = useState<ComponentProblem[]>([])
+
+  const loadDiagnostics = async (): Promise<void> => {
+    const next = await window.sill?.getComponentDiagnostics?.()
+    if (next) setProblems(next.problems)
+  }
+
+  useEffect(() => {
+    void loadDiagnostics()
+    // 修好 skins 里的文件后，诊断列表跟着刷新
+    const off = window.sill?.onWidgetsChanged?.(() => void loadDiagnostics())
+    return () => off?.()
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -498,6 +513,22 @@ export function CustomizeSheet({
     if (result && !result.ok && result.error !== '已取消') {
       setInstallError(result.error ?? t(language, 'widgets.installFailed'))
     }
+    void loadDiagnostics()
+  }
+
+  const createComponent = async (): Promise<void> => {
+    setInstallError('')
+    setCreating(true)
+    const result = await window.sill?.createWidget?.()
+    setCreating(false)
+    if (result && !result.ok && result.error !== '已取消') {
+      setInstallError(result.error ?? t(language, 'widgets.createFailed'))
+    }
+    void loadDiagnostics()
+  }
+
+  const revealComponent = (dir: string): void => {
+    void window.sill?.revealComponentFolder?.(dir)
   }
 
   const uninstall = async (id: string): Promise<void> => {
@@ -508,6 +539,7 @@ export function CustomizeSheet({
     if (result && !result.ok) {
       setInstallError(result.error ?? t(language, 'widgets.installFailed'))
     }
+    void loadDiagnostics()
   }
 
   const toggleAssociation = async (): Promise<void> => {
@@ -924,6 +956,21 @@ export function CustomizeSheet({
 
             <div className="cz-setrow">
               <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'widgets.create')}</span>
+                <span className="cz-setrow__note">{t(language, 'widgets.createNote')}</span>
+              </div>
+              <button
+                className="cz-action"
+                type="button"
+                disabled={creating}
+                onClick={() => void createComponent()}
+              >
+                {creating ? '…' : t(language, 'widgets.createAction')}
+              </button>
+            </div>
+
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
                 <span className="cz-setrow__name">{t(language, 'widgets.skinsFolder')}</span>
                 <span className="cz-setrow__note">{t(language, 'widgets.skinsFolderNote')}</span>
               </div>
@@ -956,6 +1003,30 @@ export function CustomizeSheet({
             </div>
 
             {installError ? <p className="cz-error">{installError}</p> : null}
+
+            {problems.length ? (
+              <>
+                <p className="cz-group">{t(language, 'widgets.problems')}</p>
+                <p className="cz-note" style={{ margin: '0 2px 6px' }}>
+                  {t(language, 'widgets.problemsNote')}
+                </p>
+                {problems.map((problem) => (
+                  <div className="cz-setrow" key={`${problem.source}:${problem.dir}`}>
+                    <div className="cz-setrow__copy">
+                      <span className="cz-setrow__name">{problem.folder}</span>
+                      <span className="cz-setrow__note">{problem.error}</span>
+                    </div>
+                    <button
+                      className="cz-action"
+                      type="button"
+                      onClick={() => revealComponent(problem.dir)}
+                    >
+                      {t(language, 'widgets.reveal')}
+                    </button>
+                  </div>
+                ))}
+              </>
+            ) : null}
 
             <p className="cz-group">{t(language, 'widgets.visibility')}</p>
             <p className="cz-note" style={{ margin: '0 2px 6px' }}>

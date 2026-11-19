@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "id": "{{id}}",
+  "name": "{{name}}",
+  "version": "1.0.0",
+  "author": "you",
+  "description": "A Sill component.",
+  "type": "template",
+  "size": { "w": 384, "h": 190 },
+  "span": { "default": 1 },
+  "permissions": ["data.time"],
+  "data": [{ "id": "now", "source": "time.now" }],
+  "strings": {
+    "en": { "title": "LOCAL TIME", "hint": "hello from Sill" },
+    "zh": { "title": "本地时间", "hint": "来自 Sill 的问候" }
+  },
+  "ui": "ui/index.html"
+}

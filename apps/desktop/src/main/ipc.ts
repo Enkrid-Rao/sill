@@ -1,5 +1,5 @@
-import { app, BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions } from 'electron'
-import { join } from 'node:path'
+import { app, BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
+import { basename, join, resolve } from 'node:path'
 import { broadcast } from './broadcast'
 import {
   isSillAssociation,
@@ -15,7 +15,9 @@ import { COMPONENTS_DIR, getLayout, resetLayout, setLayout } from './layout'
 import { ensureSkinsDir, SKINS_DIR } from './skins'
 import { readWidgetData, writeWidgetData } from './widget-data'
 import { afterWidgetsChanged, installWidgetFile } from './widget-install'
+import { createWidgetFolder, idFromFolder, nameFromId } from './widget-scaffold'
 import {
+  getComponentDiagnostics,
   listInstalled,
   listSkins,
   loadInstalled,
@@ -160,6 +162,52 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle('widgets:open-skins', async () => {
     ensureSkinsDir()
     return shell.openPath(SKINS_DIR)
+  })
+
+  // 哪些 skins / 已安装目录读不出来（manifest 坏、缺 index.html…）
+  ipcMain.handle('widgets:diagnostics', () => getComponentDiagnostics(COMPONENTS_DIR, SKINS_DIR))
+
+  // 设置 → 组件 → 新建组件：在 skins 里生成脚手架并打开文件夹
+  ipcMain.handle('widgets:create', async (event) => {
+    ensureSkinsDir()
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const options: SaveDialogOptions = {
+      title: '新建 Sill 组件',
+      defaultPath: join(SKINS_DIR, 'my-widget'),
+      buttonLabel: '创建',
+      properties: ['createDirectory']
+    }
+    const picked = win
+      ? await dialog.showSaveDialog(win, options)
+      : await dialog.showSaveDialog(options)
+    if (picked.canceled || !picked.filePath) return { ok: false, error: '已取消' }
+
+    const target = resolve(picked.filePath)
+    const id = idFromFolder(basename(target))
+    if (!id) {
+      return { ok: false, error: '文件夹名只能用小写字母、数字、点、下划线、短横线（2–64 字符）' }
+    }
+    const result = createWidgetFolder(target, 'template', id, nameFromId(id))
+    if (result.ok) {
+      afterWidgetsChanged()
+      if (result.dir) void shell.openPath(result.dir)
+    }
+    return result
+  })
+
+  // 在资源管理器里打开组件目录（诊断列表用），只接受组件目录内的路径
+  ipcMain.handle('widgets:reveal', (_event, dir: unknown) => {
+    if (typeof dir !== 'string') return { ok: false, error: '无效路径' }
+    const target = resolve(dir)
+    const inside = (root: string): boolean => {
+      const base = resolve(root)
+      return target === base || target.startsWith(`${base}\\`) || target.startsWith(`${base}/`)
+    }
+    if (!inside(SKINS_DIR) && !inside(COMPONENTS_DIR)) {
+      return { ok: false, error: '路径不在组件目录里' }
+    }
+    void shell.openPath(target)
+    return { ok: true }
   })
 
   ipcMain.handle('widgets:data-get', (_event, id: unknown) =>

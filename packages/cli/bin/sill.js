@@ -171,252 +171,54 @@ function pack(dir, out) {
   console.log(target)
 }
 
+function templateRoot() {
+  return join(dirname(fileURLToPath(import.meta.url)), '..', 'templates')
+}
+
+function applyPlaceholders(text, id, name) {
+  return text.replace(/\{\{id\}\}/g, id).replace(/\{\{name\}\}/g, name)
+}
+
+/** 模板目录和宿主共用：packages/cli/templates/<kind>/；新增文件不用改代码。 */
+function copyTemplate(kind, target, id, name) {
+  const source = join(templateRoot(), kind)
+  if (!existsSync(source)) return false
+  const walk = (current, relative) => {
+    for (const entry of readdirSync(current)) {
+      const file = join(current, entry)
+      const next = relative ? `${relative}/${entry}` : entry
+      if (statSync(file).isDirectory()) {
+        walk(file, next)
+        continue
+      }
+      const out = join(target, next)
+      mkdirSync(dirname(out), { recursive: true })
+      writeFileSync(out, applyPlaceholders(readFileSync(file, 'utf8'), id, name))
+    }
+  }
+  walk(source, '')
+  return true
+}
+
 function newWidget(id, dir, web) {
   if (!ID.test(id) || id.length < 2) {
     return fail('id 只能用小写字母、数字、点、下划线、短横线；例如 "clock" 或 "com.you.clock"')
   }
   const target = resolve(dir || id)
   if (existsSync(target)) return fail(`目录已存在：${target}`)
-  mkdirSync(join(target, 'ui'), { recursive: true })
+  const kind = web ? 'web' : 'template'
   const name = id.split('.').pop().replace(/[-_]/g, ' ').replace(/^./, (c) => c.toUpperCase())
 
-  const manifest = {
-    schema: 1,
-    id,
-    name,
-    version: '1.0.0',
-    author: 'you',
-    type: web ? 'web' : 'template',
-    ...(web ? { trust: 'trusted' } : {}),
-    size: { w: 384, h: 190 },
-    span: { default: 1 },
-    permissions: ['data.time'],
-    data: [{ id: 'now', source: 'time.now' }],
-    strings: {
-      en: { title: 'LOCAL TIME', hint: 'hello from Sill' },
-      zh: { title: '本地时间', hint: '来自 Sill 的问候' }
-    },
-    ui: 'ui/index.html'
+  mkdirSync(target, { recursive: true })
+  if (!copyTemplate(kind, target, id, name)) {
+    return fail(`找不到模板目录：${join(templateRoot(), kind)}`)
   }
 
-  const html = [
-    '<div class="widget">',
-    '  <header class="widget__head">',
-    '    <span class="widget__title" data-sill-i18n="title">LOCAL TIME</span>',
-    '    <span class="widget__dot" aria-hidden="true"></span>',
-    '  </header>',
-    '',
-    '  <div class="widget__hero">',
-    '    <span class="widget__time" id="time">--:--</span>',
-    '    <span class="widget__date" id="date"></span>',
-    '  </div>',
-    '',
-    '  <footer class="widget__foot">',
-    '    <span class="widget__hint" data-sill-i18n="hint">hello from Sill</span>',
-    '    <button class="widget__pill" id="counter" type="button">0</button>',
-    '  </footer>',
-    '</div>',
-    ''
-  ].join('\n')
-
-  const css = [
-    ':host { display: block; }',
-    '',
-    '.widget {',
-    '  display: flex;',
-    '  flex-direction: column;',
-    '  gap: 10px;',
-    '  color: var(--ink);',
-    '  font-family: var(--sans);',
-    '}',
-    '',
-    '.widget__head {',
-    '  display: flex;',
-    '  align-items: center;',
-    '  justify-content: space-between;',
-    '}',
-    '',
-    '.widget__title {',
-    '  color: var(--ink-faint);',
-    '  font-size: 10px;',
-    '  letter-spacing: 0.18em;',
-    '  text-transform: uppercase;',
-    '}',
-    '',
-    '.widget__dot {',
-    '  width: 6px;',
-    '  height: 6px;',
-    '  border-radius: 999px;',
-    '  background: var(--accent);',
-    '  box-shadow: 0 0 10px var(--accent-glow, var(--accent));',
-    '}',
-    '',
-    '.widget__hero {',
-    '  display: flex;',
-    '  align-items: baseline;',
-    '  gap: 10px;',
-    '}',
-    '',
-    '.widget__time {',
-    '  font-family: var(--serif);',
-    '  font-size: 46px;',
-    '  font-style: italic;',
-    '  line-height: 1;',
-    '  font-variant-numeric: tabular-nums;',
-    '  letter-spacing: -0.02em;',
-    '}',
-    '',
-    '.widget__date {',
-    '  color: var(--ink-dim);',
-    '  font-size: 12px;',
-    '}',
-    '',
-    '.widget__foot {',
-    '  display: flex;',
-    '  align-items: center;',
-    '  justify-content: space-between;',
-    '  padding-top: 8px;',
-    '  border-top: 1px solid rgba(255, 255, 255, 0.08);',
-    '}',
-    '',
-    '.widget__hint {',
-    '  color: var(--ink-faint);',
-    '  font-size: 11px;',
-    '}',
-    '',
-    '.widget__pill {',
-    '  appearance: none;',
-    '  border: 1px solid rgba(255, 255, 255, 0.14);',
-    '  background: rgba(255, 255, 255, 0.06);',
-    '  color: var(--ink-soft);',
-    '  border-radius: 999px;',
-    '  padding: 3px 10px;',
-    '  font: inherit;',
-    '  font-size: 11px;',
-    '  cursor: pointer;',
-    '  transition: background 160ms var(--ease-out), color 160ms var(--ease-out);',
-    '}',
-    '',
-    '.widget__pill:hover {',
-    '  background: var(--accent-soft);',
-    '  color: var(--accent-ink, #fff);',
-    '}',
-    '',
-    '.widget__pill:focus-visible {',
-    '  outline: 2px solid var(--accent);',
-    '  outline-offset: 2px;',
-    '}',
-    ''
-  ].join('\n')
-
-  const templateJs = [
-    '// ui/main.js 在面板页面里执行一次。宿主注入两个参数：',
-    '//   sill —— 数据 / 存储 / 动作 / 生命周期',
-    '//   root —— 这张卡的 shadow root',
-    '// 保存文件会自动热重载；面板上按 F12 打开 DevTools 看 console。',
-    '',
-    'const timeEl = root.getElementById("time")',
-    'const dateEl = root.getElementById("date")',
-    'const counterEl = root.getElementById("counter")',
-    '',
-    '// 1) 数据：manifest 里 data[].id 就是这里的 key（示例是 now）',
-    'sill.onData(({ data }) => {',
-    '  if (timeEl) timeEl.textContent = data.now?.time ?? "--:--"',
-    '  if (dateEl) dateEl.textContent = data.now?.dateLabel ?? ""',
-    '})',
-    '',
-    '// 2) 私有存储：<userData>/widget-data/<id>.json',
-    'let clicks = 0',
-    'sill.storage.get().then((saved) => {',
-    '  clicks = Number(saved.clicks) || 0',
-    '  if (counterEl) counterEl.textContent = String(clicks)',
-    '})',
-    '',
-    'counterEl?.addEventListener("click", () => {',
-    '  clicks += 1',
-    '  counterEl.textContent = String(clicks)',
-    '  sill.storage.patch({ clicks })',
-    '})',
-    '',
-    '// 3) 清理：卡片卸载或热重载前调用，定时器 / 监听写在这里',
-    'const onResize = () => {',
-    '  root.host?.toggleAttribute("data-narrow", (root.host?.clientWidth ?? 0) < 240)',
-    '}',
-    'window.addEventListener("resize", onResize)',
-    'sill.onDispose(() => window.removeEventListener("resize", onResize))',
-    ''
-  ].join('\n')
-
-  const webJs = [
-    '// web 组件在独立 guest 里运行，trust: trusted 时可以直接用 Node。',
-    'const os = require("node:os")',
-    '',
-    'sill.ready(({ data }) => {',
-    '  document.getElementById("time").textContent = data.now?.time ?? "--:--"',
-    '  document.getElementById("date").textContent = os.hostname()',
-    '})',
-    ''
-  ].join('\n')
-
-  const readme = [
-    '# ' + name,
-    '',
-    'Sill 组件。开发三步：',
-    '',
-    '1. 把这个文件夹放进 `%APPDATA%\\Sill\\skins\\`（便携版是 `Sill-data\\skins\\`）。',
-    '2. 打开 Sill → 设置 → 组件 → 打开组件文件夹；保存文件会自动刷新。',
-    '3. 做好了打包：`sill pack`，然后双击 `.sill` 安装。',
-    '',
-    '## 文件',
-    '',
-    '| 文件 | 作用 |',
-    '| --- | --- |',
-    '| `widget.json` | 元数据、数据绑定、权限提示 |',
-    '| `ui/index.html` | 结构（就是普通 HTML） |',
-    '| `ui/style.css` | 样式（普通 CSS，可用主题变量） |',
-    '| `ui/main.js` | 可选逻辑（普通 JS，宿主注入 `sill` / `root`） |',
-    '| `ui/assets/**` | 图片 / 字体，HTML 里直接写 `assets/x.png` |',
-    '',
-    '调试：面板上按 `F12` 打开 DevTools；`main.js` 抛错会在卡里显示。',
-    '完整文档：https://github.com/Enkrid-Rao/sill-components/blob/main/docs/authoring.md',
-    ''
-  ].join('\n')
-
-  const types = [
-    '// 可选：放进项目根目录，编辑器会给 ui/main.js 里的 sill / root 补全。',
-    'declare const root: ShadowRoot',
-    'declare const sill: {',
-    '  id: string',
-    '  root: ShadowRoot',
-    '  host: unknown',
-    '  data: () => Record<string, unknown>',
-    '  onData: (callback: (payload: {',
-    '    data: Record<string, unknown>',
-    '    language: string',
-    '    tokens: Record<string, string>',
-    '  }) => void) => void',
-    '  onDispose: (callback: () => void) => void',
-    '  command: (action: string, arg?: unknown) => void',
-    '  storage: {',
-    '    get: () => Promise<Record<string, unknown>>',
-    '    set: (value: unknown) => Promise<Record<string, unknown>>',
-    '    patch: (value: Record<string, unknown>) => Promise<Record<string, unknown>>',
-    '  }',
-    '}',
-    ''
-  ].join('\n')
-
-  writeFileSync(join(target, 'widget.json'), `${JSON.stringify(manifest, null, 2)}\n`)
-  writeFileSync(join(target, 'ui/index.html'), html)
-  writeFileSync(join(target, 'ui/style.css'), css)
-  writeFileSync(join(target, 'ui/main.js'), web ? webJs : templateJs)
-  writeFileSync(join(target, 'README.md'), readme)
-  writeFileSync(join(target, 'ui/sill.d.ts'), types)
   console.log(target)
   console.log('')
   console.log('下一步：')
-  console.log(`  1. 把这个文件夹放进 skins 目录（设置 → 组件 → 打开组件文件夹）`)
-  console.log(`  2. 保存文件即热重载；面板上按 F12 看 console`)
+  console.log('  1. 把这个文件夹放进 skins 目录（设置 → 组件 → 打开组件文件夹）')
+  console.log('  2. 保存文件即热重载；面板上按 F12 看 console')
   console.log(`  3. 打包：sill pack "${target}"`)
 }
 

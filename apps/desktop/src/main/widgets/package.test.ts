@@ -1,9 +1,16 @@
 import AdmZip from 'adm-zip'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  getComponentDiagnostics,
   inspectPackage,
   installPackage,
   listInstalled,
@@ -197,5 +204,32 @@ describe('installPackage', () => {
       ok: false,
       error: '这个组件已经安装'
     })
+  })
+
+  it('reports folders that cannot load', () => {
+    const components = join(root, 'components')
+    const skins = join(root, 'skins')
+    const good = join(components, 'com.example.clock@1.0.0')
+    mkdirSync(join(good, 'ui'), { recursive: true })
+    writeFileSync(join(good, 'widget.json'), JSON.stringify(manifest))
+    writeFileSync(join(good, 'ui/index.html'), html)
+
+    mkdirSync(join(skins, 'broken'), { recursive: true })
+    writeFileSync(join(skins, 'broken', 'widget.json'), '{ not json')
+    mkdirSync(join(skins, 'noindex'), { recursive: true })
+    writeFileSync(
+      join(skins, 'noindex', 'widget.json'),
+      JSON.stringify({ ...manifest, id: 'noindex' })
+    )
+
+    const diag = getComponentDiagnostics(components, skins)
+    expect(diag.installed).toBe(1)
+    expect(diag.skins).toBe(2)
+    expect(diag.problems.map((item) => item.folder).sort()).toEqual(['broken', 'noindex'])
+    expect(diag.problems.find((item) => item.folder === 'broken')?.error).toContain('JSON')
+    expect(diag.problems.find((item) => item.folder === 'noindex')?.error).toContain(
+      'ui/index.html'
+    )
+    expect(diag.problems.every((item) => item.source === 'skins')).toBe(true)
   })
 })

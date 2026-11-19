@@ -37,6 +37,9 @@ extraResources:
       - "*.ico"
       - "*.png"
       - "*.ps1"
+  # 组件脚手架：设置里的「新建组件」和 CLI 共用同一份模板
+  - from: ../../packages/cli/templates
+    to: templates
 
 asar: true
 

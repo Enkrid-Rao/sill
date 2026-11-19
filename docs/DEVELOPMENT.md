@@ -566,6 +566,10 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 - 包内资源放 `ui/**`，相对路径由宿主改写成 `sill-asset://<id>/ui/...`。
 - `%APPDATA%\Sill\skins\<名字>\`（便携版在 `Sill-data/skins`）是 Rainmeter 式组件目录：
   放进去就出现在设置 → 组件里，保存即重载该组件，不需要打包或安装。
+- 设置 → 组件 → 新建组件…：在 `skins/` 里生成脚手架并打开（模板在
+  `packages/cli/templates/`，和 CLI 共用；打包后落在 `resources/templates`）。
+- 设置 → 组件 → 未加载的组件：显示 `skins/` / `components/` 里读不出来的目录和原因，
+  可以直接打开修复；文件保存后列表自动刷新。
 - 设置 → 组件 → 从 .sill 文件安装… 可以安装本地 `.sill`（zip，接受
   `widget.json` + 根目录 `README/LICENSE` + 任意 `ui/**`，其中 `ui/index.html` 必需）。
   安装前确认 id / 版本 / 作者 / 类型；安装后进入布局，可卸载。

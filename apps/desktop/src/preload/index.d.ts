@@ -6,7 +6,12 @@ import type { ShelfShortcut } from '../shared/shelf'
 import type { Theme } from '../shared/theme'
 import type { UninstallInfo, UninstallResult } from '../shared/uninstall'
 import type { UpdateState } from '../shared/update'
-import type { InstallOutcome, InstalledWidgetInfo } from '../shared/widgets'
+import type {
+  ComponentDiagnostics,
+  CreateWidgetResult,
+  InstallOutcome,
+  InstalledWidgetInfo
+} from '../shared/widgets'
 
 export interface SillSettings {
   hotkey: string
@@ -44,6 +49,9 @@ export interface SillApi {
   installWidget: () => Promise<InstallOutcome>
   uninstallWidget: (id: string) => Promise<InstallOutcome>
   openSkinsFolder: () => Promise<string>
+  getComponentDiagnostics: () => Promise<ComponentDiagnostics>
+  createWidget: () => Promise<CreateWidgetResult>
+  revealComponentFolder: (dir: string) => Promise<{ ok: boolean; error?: string }>
   getSillAssociation: () => Promise<boolean>
   setSillAssociation: (enabled: boolean) => Promise<{ ok: boolean; enabled?: boolean; error?: string }>
   getWidgetData: (id: string) => Promise<Record<string, unknown>>

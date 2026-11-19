@@ -36,11 +36,13 @@
 | 项 | 证据 |
 |---|---|
 | `pnpm typecheck` | 通过 |
-| `pnpm test` | 19 个测试通过 |
+| `pnpm test` | 26 个测试通过 |
 | `pnpm build` | 通过 |
 | `pnpm smoke` | 截图输出正常（0.6.0-dev.2） |
 | 脚手架组件 | `sill new demo` 生成的卡片在面板里正常渲染（本地时间 / 日期 / 存储计数） |
 | 错误提示 | `main.js` 抛错时卡片内出现红色错误条 |
+| 新建组件 | 设置 → 组件 →「创建…」在 skins 里生成脚手架（单测覆盖；模板与 CLI 共用） |
+| 组件诊断 | skins 里 `widget.json` 坏的目录出现在「未加载的组件」并可直接打开（Playwright 截图核对） |
 | 热重载作用域 | 只改 a 的样式，a 重新执行、b 不重新执行（boot 计数 2 / 1） |
 | 自由布局补种 | `boxes:{}` 的 free 布局启动后自动补出全部 box，不再退回 flow |
 | 布局高度修正 | 媒体/进程卡在数据到达后自动长高，不再被裁切 |
@@ -54,10 +56,9 @@
 - 目录下载 / 自动更新组件 / 版本升级（同 id 只能装一个版本，卸载再装体验差）。
 - 签名 / 哈希；安装器只做静态校验 + 权限提示。
 - 信任分级：现在所有 `.sill` 是同一个确认框，没有「静态组件不提示」「记住信任」。
-- `sill create` 只有 CLI；设置里还没有「新建组件」入口。
+- 组件级设置 UI（`sill.settings` 一类）还没做。
 - 内置六个组件仍是 React，不是模板。
 - `web` 组件的 `sandboxed` 层几乎没有 API（无 storage / fetch），定位待定。
-- 组件级设置 UI（`sill.settings` 一类）还没做。
 - npm 上的 `@heavenlydemon/sill-cli` 还是 0.2.2，不认识 `template + main.js + ui/assets`；
   源码已是 0.3.0，需要重新发布。
 - 文档：`DEVPLAN.md` 的 IR / rmskin 章节是历史规划；`docs/WEB-WIDGETS.md` 部分内容过期。

@@ -11,7 +11,12 @@ import {
 } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import type { DevWidgetPayload, WidgetDataBinding } from '../../shared/dev-widget'
-import type { InstallOutcome, InstalledWidgetInfo } from '../../shared/widgets'
+import type {
+  ComponentDiagnostics,
+  ComponentProblem,
+  InstallOutcome,
+  InstalledWidgetInfo
+} from '../../shared/widgets'
 
 const MAX_ARCHIVE = 50 * 1024 * 1024
 const MAX_FILES = 500
@@ -245,6 +250,61 @@ export function inspectPackage(file: string): InstallOutcome {
   const result = readPackage(file)
   if ('error' in result) return fail(result.error)
   return { ok: true, widget: info(result.data.manifest) }
+}
+
+/** 一个组件目录为什么加载不了；能加载返回 null。 */
+function componentError(dir: string): string | null {
+  let raw: Record<string, unknown>
+  try {
+    raw = JSON.parse(readFileSync(join(dir, 'widget.json'), 'utf8')) as Record<string, unknown>
+  } catch {
+    return 'widget.json 缺失或不是合法 JSON'
+  }
+  if (!parseManifest(raw)) {
+    return 'widget.json 字段不合法（需要 schema / id / name / version / type / ui）'
+  }
+  try {
+    if (!statSync(join(dir, 'ui/index.html')).isFile()) return '缺少 ui/index.html'
+  } catch {
+    return '缺少 ui/index.html'
+  }
+  return null
+}
+
+function scanComponents(
+  root: string,
+  source: ComponentProblem['source']
+): { total: number; problems: ComponentProblem[] } {
+  if (!existsSync(root)) return { total: 0, problems: [] }
+  let total = 0
+  const problems: ComponentProblem[] = []
+  for (const name of readdirSync(root)) {
+    if (name.startsWith('.')) continue
+    const dir = join(root, name)
+    try {
+      if (!statSync(dir).isDirectory()) continue
+    } catch {
+      continue
+    }
+    total += 1
+    const error = componentError(dir)
+    if (error) problems.push({ source, folder: name, dir, error })
+  }
+  return { total, problems }
+}
+
+/** skins / components 的健康度，给设置里的「未加载的组件」用。 */
+export function getComponentDiagnostics(
+  componentsRoot: string,
+  skinsRoot: string
+): ComponentDiagnostics {
+  const installed = scanComponents(componentsRoot, 'installed')
+  const skins = scanComponents(skinsRoot, 'skins')
+  return {
+    skins: skins.total,
+    installed: installed.total,
+    problems: [...skins.problems, ...installed.problems]
+  }
 }
 
 export function listInstalled(root: string): InstalledWidgetInfo[] {
