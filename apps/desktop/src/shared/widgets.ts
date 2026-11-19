@@ -17,6 +17,9 @@ export interface InstallOutcome {
   ok: boolean
   error?: string
   widget?: InstalledWidgetInfo
+  /** 覆盖了同 id 的旧版本（布局槽位保留）。 */
+  upgraded?: boolean
+  replacedVersion?: string
 }
 
 /** skins / components 里读取失败的目录：给「设置 → 组件」展示，开发时能看见哪里写错了。 */

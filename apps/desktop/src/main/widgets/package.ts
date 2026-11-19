@@ -445,11 +445,20 @@ export function installPackage(file: string, root: string): InstallOutcome {
   if ('error' in result) return fail(result.error)
   const { manifest, files, tier } = result.data
 
+  const existing = packageDirs(root, manifest.id)
+  if (existing.length > 1) return fail('这个组件存在多个版本，请先卸载再安装')
+  const currentDir = existing[0]
+  const currentName = currentDir?.split(/[\\/]/).pop()
+  if (currentDir && currentName === `${manifest.id}@${manifest.version}`) {
+    return fail('这个版本已经安装')
+  }
+  const replacedVersion = currentDir ? readManifest(currentDir)?.version : undefined
+
   const target = join(root, `${manifest.id}@${manifest.version}`)
   if (!within(root, target)) return fail('安装路径非法')
-  if (packageDirs(root, manifest.id).length > 0) return fail('这个组件已经安装')
 
   const temp = join(root, `.tmp-${process.pid}-${Date.now()}`)
+  let backup: string | null = null
   try {
     mkdirSync(join(temp, 'ui'), { recursive: true })
     for (const [name, data] of files) {
@@ -457,8 +466,23 @@ export function installPackage(file: string, root: string): InstallOutcome {
       mkdirSync(dirname(targetFile), { recursive: true })
       writeFileSync(targetFile, data)
     }
+    // 升级：先把旧目录挪开，再把新目录 rename 到位；失败就换回来。
+    if (currentDir) {
+      backup = join(root, `.old-${process.pid}-${Date.now()}`)
+      renameSync(currentDir, backup)
+    }
     renameSync(temp, target)
   } catch (error) {
+    try {
+      if (existsSync(target)) rmSync(target, { recursive: true, force: true })
+    } catch {
+      // ignore
+    }
+    try {
+      if (backup && currentDir && existsSync(backup)) renameSync(backup, currentDir)
+    } catch {
+      // ignore
+    }
     try {
       rmSync(temp, { recursive: true, force: true })
     } catch {
@@ -467,7 +491,20 @@ export function installPackage(file: string, root: string): InstallOutcome {
     return fail(error instanceof Error ? error.message : '安装失败')
   }
 
-  return { ok: true, widget: info(manifest, tier) }
+  if (backup) {
+    try {
+      rmSync(backup, { recursive: true, force: true })
+    } catch {
+      // 旧版本目录留着不影响启动，下次安装会当多版本处理
+    }
+  }
+
+  return {
+    ok: true,
+    widget: info(manifest, tier),
+    upgraded: Boolean(currentDir),
+    replacedVersion
+  }
 }
 
 export function uninstallPackage(root: string, id: string): InstallOutcome {

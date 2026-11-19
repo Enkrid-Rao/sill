@@ -109,7 +109,7 @@ hygiene, not containment:
 | New action | `TemplateWidget.tsx` + main IPC | permission + allowlist + docs |
 | New package rule | `main/widgets/package.ts` + CLI + spec | keep installer/CLI/spec in sync |
 | New UI surface | renderer | reuse `.card` glass and CSS tokens |
-| Web component | `WebWidget.tsx` + `preload/widget.ts` | bridge, or full Node when `trust: "trusted"` |
+| Web component | `WebWidget.tsx` + `preload/widget.ts` | isolated guest (bridge + storage) or full Node when `trust: "trusted"` |
 | Free layout | `shared/layout.ts` + `WidgetShell.tsx` | absolute boxes; auto-seeded from the flow grid |
 | New theme token | `lib/tokens.ts` + `panel.css` | add to `THEME_TOKENS` so guests see it too |
 

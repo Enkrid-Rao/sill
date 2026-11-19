@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   rmSync,
   writeFileSync
 } from 'node:fs'
@@ -196,14 +197,30 @@ describe('installPackage', () => {
     expect(installPackage(file, join(root, 'components')).ok).toBe(true)
   })
 
-  it('rejects a second version of the same id', () => {
-    const file = makePackage(validFiles())
+  it('keeps one version per id and upgrades in place', () => {
     const components = join(root, 'components')
-    expect(installPackage(file, components).ok).toBe(true)
-    expect(installPackage(file, components)).toEqual({
+    const v1 = makePackage(validFiles())
+    expect(installPackage(v1, components).ok).toBe(true)
+
+    // 同一个版本再装：拒绝，避免误覆盖
+    expect(installPackage(v1, components)).toEqual({
       ok: false,
-      error: '这个组件已经安装'
+      error: '这个版本已经安装'
     })
+
+    // 新版本：覆盖旧目录，id 不变，布局槽位自然保留
+    const v2 = makePackage({
+      ...validFiles(),
+      'widget.json': JSON.stringify({ ...manifest, version: '2.0.0' }),
+      'ui/index.html': '<div data-sill-text="now.time">v2</div>'
+    })
+    const upgraded = installPackage(v2, components)
+    expect(upgraded.ok).toBe(true)
+    expect(upgraded).toMatchObject({ upgraded: true, replacedVersion: '1.0.0' })
+    expect(upgraded.widget?.version).toBe('2.0.0')
+    expect(listInstalled(components)).toHaveLength(1)
+    expect(loadInstalled(components, 'com.example.clock')?.html).toContain('v2')
+    expect(readdirSync(components)).toEqual(['com.example.clock@2.0.0'])
   })
 
   it('computes static / script / isolated / node tiers from contents', () => {

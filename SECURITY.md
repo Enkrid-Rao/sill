@@ -12,7 +12,7 @@ The job of the installer is to make the decision informed and the failure modes 
 | Type | Where it runs | What it can do |
 |---|---|---|
 | `template` | In the panel page (Shadow DOM) | Full host API: `window.sill` IPC, storage, network, DOM of its own shadow root. Optional `ui/main.js` runs in the panel page. |
-| `web` + `trust: "sandboxed"` | Own webview guest | The `sill` bridge only; no Node, no host DOM. |
+| `web` + `trust: "sandboxed"` | Own webview guest | `sill` bridge + `sill.storage` + `https:` network; no Node, no host DOM. |
 | `web` + `trust: "trusted"` | Own webview guest | Full Node: filesystem, `child_process`, native addons, network, Win32. |
 
 `permissions` in `widget.json` is **metadata for the install prompt and the catalogue**, not a

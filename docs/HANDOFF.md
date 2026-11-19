@@ -45,6 +45,8 @@
 | 新建组件 | 设置 → 组件 →「创建…」在 skins 里生成脚手架（单测覆盖；模板与 CLI 共用） |
 | 组件诊断 | skins 里 `widget.json` 坏的目录出现在「未加载的组件」并可直接打开（Playwright 截图核对） |
 | 信任分级 | 档位计算与 `trust.json` 单测覆盖；设置里显示「静态 / 脚本 / 完整 Node」（Playwright 核对） |
+| 组件升级 | 同 id 新版本覆盖旧目录、布局槽位保留（单测覆盖） |
+| Web 隔离层 | 非 Node guest 拥有 `sill.storage` 与 `https:` 网络；每个组件独立 partition（实测写入 widget-data） |
 | 热重载作用域 | 只改 a 的样式，a 重新执行、b 不重新执行（boot 计数 2 / 1） |
 | 自由布局补种 | `boxes:{}` 的 free 布局启动后自动补出全部 box，不再退回 flow |
 | 布局高度修正 | 媒体/进程卡在数据到达后自动长高，不再被裁切 |
@@ -55,12 +57,11 @@
 
 ## 未完成
 
-- 目录下载 / 自动更新组件 / 版本升级（同 id 只能装一个版本，卸载再装体验差）。
+- 目录下载 / 自动更新组件；升级是覆盖式（不做版本回滚提示，降级也能装）。
 - 签名 / 哈希；安装器只做静态校验 + 权限提示。
 - 组件级设置 UI（`sill.settings` 一类）还没做。
 - 内置六个组件仍是 React，不是模板。
-- `web` 组件的 `sandboxed` 层几乎没有 API（无 storage / fetch），定位待定。
-- 文档：`DEVPLAN.md` 的 IR / rmskin 章节是历史规划；`docs/WEB-WIDGETS.md` 部分内容过期。
+- 文档：`DEVPLAN.md` 的 IR / rmskin 章节是历史规划。
 
 ## 下一条命令
 
@@ -86,10 +87,10 @@ pnpm sill pack .\clock -o clock.sill
 
 ## 建议顺序
 
-1. 目录下载 / 组件更新。
-2. 信任分级 + `trust.json`（静态组件直接装、脚本组件红色确认、升级只在能力变化时再问）。
-3. 组件页「新建组件」+ 目录下载（先只读索引，再下载）。
-4. 版本升级（保留布局的 upgrade-in-place）。
-5. 把 system / processes 迁到模板，验证模板能力足够。
-6. 决定 `web` 的 `sandboxed` 层：改成「隔离模式」并补 storage/fetch，或删掉。
+1. 目录下载 / 组件更新（先只读索引，再下载）。
+2. 组件级设置 API（`sill.settings` 或约定的设置 UI）。
+3. 把 system / processes 迁到模板，验证模板能力足够。
+4. 签名 / 哈希。
+5. `webview` → `WebContentsView` 迁移。
+
 

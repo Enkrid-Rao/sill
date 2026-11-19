@@ -93,7 +93,8 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
 
     const guest = document.createElement('webview') as GuestView
     guest.setAttribute('preload', preload)
-    guest.setAttribute('partition', trusted ? 'sill-trusted' : 'sill-widget')
+    // 隔离模式的 guest 每个组件一个 in-memory partition，互相看不到 localStorage。
+    guest.setAttribute('partition', trusted ? 'sill-trusted' : `sill-widget-${widget.id}`)
     guest.setAttribute(
       'webpreferences',
       trusted
@@ -126,6 +127,32 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
           const clamped = Math.max(48, Math.min(1200, Math.round(next)))
           host.style.setProperty('--webguest-h', `${clamped}px`)
         }
+        return
+      }
+      // 组件私有存储：guest 里的 sill.storage 通过这里落到 widget-data/<id>.json
+      if (event.channel === 'sill:storage') {
+        const payload = event.args[0] as
+          | { id?: number; op?: string; value?: unknown }
+          | undefined
+        if (!payload || typeof payload.id !== 'number') return
+        void (async () => {
+          const current = (await window.sill?.getWidgetData(widget.id)) ?? {}
+          let next: Record<string, unknown> = current
+          if (payload.op === 'set') {
+            next = (await window.sill?.setWidgetData(widget.id, payload.value)) ?? {}
+          } else if (payload.op === 'patch' && payload.value && typeof payload.value === 'object') {
+            next =
+              (await window.sill?.setWidgetData(widget.id, {
+                ...current,
+                ...(payload.value as Record<string, unknown>)
+              })) ?? {}
+          }
+          try {
+            guest.send('sill:storage-reply', { id: payload.id, value: next })
+          } catch {
+            // guest 已经开始销毁
+          }
+        })()
         return
       }
       if (event.channel !== 'sill:command') return

@@ -3,12 +3,12 @@
 Status: **developer preview** in `0.6.0-dev.2`. Local `.sill` install works; directory download /
 auto-update do not. The stable 0.5.4 release has no component platform.
 
-A `web` component runs in its own webview guest instead of the panel page. Two trust levels:
+A `web` component runs in its own webview guest instead of the panel page. Two modes:
 
 | trust | JavaScript | Node / Win32 | Use |
 |---|---|---|---|
-| `sandboxed` (default) | yes, own realm | no, bridge only | prototypes; the bridge is intentionally small |
-| `trusted` | yes | **full Node** | local/personal plugins, native helpers |
+| `sandboxed` (default, “isolated”) | yes, own realm | no Node; bridge + `sill.storage`; network via `https:` | heavy UI, crash isolation |
+| `trusted` (“Node plugin”) | yes | **full Node** | local/personal plugins, native helpers |
 
 The guest is transparent, so the host `.card` still supplies glass and atmosphere.
 
@@ -70,7 +70,7 @@ For full access:
 Trusted widgets can use `require('node:fs')`, `child_process`, native addons and Windows APIs.
 They are **not** sandboxed. Only run code you wrote or reviewed.
 
-## Bridge (sandboxed)
+## Bridge (isolated mode)
 
 The guest preload exposes:
 
@@ -84,6 +84,10 @@ sill.onData(({ data, language }) => {
 })
 
 sill.command('media.playpause')
+
+// private storage: <userData>/widget-data/<id>.json
+const saved = await sill.storage.get()
+await sill.storage.patch({ lastPlayed: Date.now() })
 ```
 
 - `data` uses the same manifest `data[].id` aliases as templates.
@@ -91,7 +95,7 @@ sill.command('media.playpause')
 - `dir` is the package/dev folder; trusted only. Use it with `ui/assets/**`.
 - Host tokens (`--ink`, `--serif`, `--accent`, ...) are written onto the guest `<html>`.
 - `command` is checked against the host action allowlist and manifest permissions.
-- No Node, no `require`, no `fs`, no direct network.
+- No Node, no `require`, no `fs`; `fetch` / remote images / fonts over `https:` are allowed.
 
 ## Trusted widgets
 
@@ -116,7 +120,9 @@ document.querySelector('#who').textContent = execSync('whoami').toString()
 - Guest `contextIsolation`, `nodeIntegration=false`, `sandbox`.
 - Main-process `will-attach-webview` forces the widget preload; only the host-set partition decides
   trusted vs sandboxed.
-- Guest document has a strict CSP: no network, no remote images/fonts, inline style/script only.
+- Guest CSP blocks remote scripts; `https:` fetch, images, fonts and media are allowed, and
+  `ui/**` modules load through `sill-asset:`. Each isolated component gets its own
+  `sill-widget-<id>` partition.
 - `will-navigate` blocks navigation; the guest is a data URL with no remote origin.
 - Local `.sill` install is implemented; directory download / auto-update are not.
 
@@ -133,8 +139,7 @@ pnpm sill dev .\examples\dev-trusted   # trusted full Node
 ## Missing
 
 - Directory download / auto-update.
-- Sandboxed assets still need a custom protocol; trusted assets work through `dir`.
-- `sill.fetch` / `sill.storage`.
+- `sill.fetch` (use the browser `fetch`; a host proxy only if CORS becomes a real problem).
 - Host audio APIs; trusted components can ship their own WASAPI helper.
 - `WebContentsView` migration.
 
@@ -142,5 +147,6 @@ pnpm sill dev .\examples\dev-trusted   # trusted full Node
 
 - **trusted widget**: can call WASAPI through a bundled helper, PowerShell C# or a native addon.
   This is the Rainmeter-plugin equivalent; fastest path for a personal component.
-- **sandboxed widget**: needs `audio.sessions` / `action.audio` from the host; otherwise it cannot
-  read or change other applications' audio sessions.
+- **isolated widget**: needs host `audio.sessions` / `action.audio`; otherwise it cannot read or
+  change other applications' audio sessions.
+

@@ -3,7 +3,7 @@ import type { WidgetTier } from '../shared/widgets'
 import { broadcast } from './broadcast'
 import { COMPONENTS_DIR, getLayout, invalidateLayout } from './layout'
 import { rememberTrust, isAlreadyTrusted } from './trust'
-import { inspectPackage, installPackage } from './widgets/package'
+import { inspectPackage, installPackage, listInstalled } from './widgets/package'
 import type { InstallOutcome } from '../shared/widgets'
 
 /** 组件安装/卸载后，布局与组件列表一起刷新。 */
@@ -21,7 +21,7 @@ function tierCopy(tier: WidgetTier): { trust: string; note: string } {
     case 'isolated':
       return {
         trust: '隔离（独立 webview，无 Node）',
-        note: '在独立 guest 里运行，只能通过组件桥读数据、触发动作。'
+        note: '在独立 guest 里运行，没有 Node；可以通过组件桥读数据、触发动作、读写自己的存储。'
       }
     case 'script':
       return {
@@ -66,6 +66,8 @@ export async function installWidgetFile(
   const widget = inspected.widget
   const tier = widget.tier
   const { trust, note } = tierCopy(tier)
+  // 同 id 已安装：这是升级，布局槽位（order / span / box / hidden）保持不动。
+  const current = listInstalled(COMPONENTS_DIR).find((item) => item.id === widget.id)
 
   if (tier === 'static' || isAlreadyTrusted(widget.id, tier)) {
     return installNow(
@@ -77,13 +79,21 @@ export async function installWidgetFile(
   }
 
   const permissions = widget.permissions.length ? widget.permissions.join('\n') : '无'
+  const versionLine = current
+    ? `版本: ${widget.version}（从 ${current.version} 升级，布局位置保留）`
+    : `版本: ${widget.version}`
+  const tierLine =
+    current && current.tier !== tier
+      ? [`能力变化: ${tierCopy(current.tier).trust} → ${trust}`, '']
+      : []
   const detail = [
     `id: ${widget.id}`,
-    `版本: ${widget.version}`,
+    versionLine,
     `作者: ${widget.author}`,
     `能力: ${trust}`,
     `读取: ${permissions}`,
     '',
+    ...tierLine,
     note,
     '',
     '确认后记住这个选择；同一个组件（能力不变）以后不再询问。'
@@ -91,10 +101,10 @@ export async function installWidgetFile(
 
   const confirmOptions: MessageBoxOptions = {
     type: tier === 'isolated' ? 'question' : 'warning',
-    title: '安装组件',
+    title: current ? '升级组件' : '安装组件',
     message: `${widget.name} ${widget.version}`,
     detail,
-    buttons: ['安装', '取消'],
+    buttons: [current ? '升级' : '安装', '取消'],
     defaultId: tier === 'node' ? 1 : 0,
     cancelId: 1,
     noLink: true,

@@ -11,6 +11,41 @@ interface WidgetData {
 let latest: WidgetData | null = null
 const listeners = new Set<(payload: WidgetData) => void>()
 
+/** sill.storage：请求/响应走宿主，落盘在 <userData>/widget-data/<id>.json。 */
+type StorageValue = Record<string, unknown>
+const storagePending = new Map<number, (value: StorageValue) => void>()
+let storageSeq = 0
+
+ipcRenderer.on('sill:storage-reply', (_event, payload: { id?: number; value?: unknown }) => {
+  if (!payload || typeof payload.id !== 'number') return
+  const resolve = storagePending.get(payload.id)
+  if (!resolve) return
+  storagePending.delete(payload.id)
+  resolve(
+    payload.value && typeof payload.value === 'object'
+      ? (payload.value as StorageValue)
+      : {}
+  )
+})
+
+function storageCall(op: 'get' | 'set' | 'patch', value?: unknown): Promise<StorageValue> {
+  return new Promise((resolve) => {
+    const id = ++storageSeq
+    storagePending.set(id, resolve)
+    try {
+      ipcRenderer.sendToHost('sill:storage', { id, op, value })
+    } catch {
+      storagePending.delete(id)
+      resolve({})
+      return
+    }
+    setTimeout(() => {
+      if (!storagePending.delete(id)) return
+      resolve({})
+    }, 5000)
+  })
+}
+
 ipcRenderer.on('sill:data', (_event, payload: WidgetData) => {
   const root = (globalThis as unknown as { document?: { documentElement: { style: { setProperty: (name: string, value: string) => void } } } }).document?.documentElement
   if (payload.tokens && root) {
@@ -33,6 +68,11 @@ const api = {
   },
   command: (action: string, arg?: unknown) => {
     ipcRenderer.sendToHost('sill:command', action, arg)
+  },
+  storage: {
+    get: () => storageCall('get'),
+    set: (value: unknown) => storageCall('set', value),
+    patch: (value: Record<string, unknown>) => storageCall('patch', value)
   }
 }
 
