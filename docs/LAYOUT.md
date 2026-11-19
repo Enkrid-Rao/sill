@@ -1,6 +1,6 @@
 # Layout
 
-`layout.json` has two modes. New installs default to **free**; flow is still available in Settings → Behavior →
+`layout.json` has two modes. New installs default to **free**; flow is still available in Settings → Panel →
 Layout mode. Existing v1 files migrate to flow; `version` becomes `2`.
 
 ## flow
@@ -41,7 +41,7 @@ Layout mode. Existing v1 files migrate to flow; `version` becomes `2`.
 
 ### Enabling
 
-Settings → Behavior → **布局模式 / Layout mode**（默认自由）, or the layout bar toggle. When boxes are
+Settings → Panel → **布局模式 / Layout mode**（默认自由）, or the layout bar toggle. When boxes are
 missing, Sill measures the current flow layout after the first data sample and writes real boxes.
 Drag the grip to move; drag the bottom-right corner to resize. **流式 / Flow** switches back.
 

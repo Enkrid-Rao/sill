@@ -25,7 +25,7 @@ import {
 import { formatHotkey } from '../lib/hotkey'
 import { useWidgetRegistry } from '../widgets/WidgetRegistryProvider'
 
-type Tab = 'appearance' | 'panel' | 'data' | 'system' | 'general'
+type Tab = 'appearance' | 'panel' | 'widgets' | 'data' | 'general'
 
 interface Props {
   theme: Theme
@@ -209,20 +209,6 @@ function UninstallSection({ language }: { language: Language }): React.JSX.Eleme
   return (
     <>
       <p className="cz-group">{t(language, 'general.dataUninstall')}</p>
-
-      <div className="cz-setrow">
-        <div className="cz-setrow__copy">
-          <span className="cz-setrow__name">{t(language, 'general.skinsFolder')}</span>
-          <span className="cz-setrow__note">{t(language, 'general.skinsFolderNote')}</span>
-        </div>
-        <button
-          className="cz-action"
-          type="button"
-          onClick={() => void window.sill?.openSkinsFolder()}
-        >
-          {t(language, 'general.openSkinsFolder')}
-        </button>
-      </div>
 
       <div className="cz-setrow">
         <div className="cz-setrow__copy">
@@ -495,7 +481,7 @@ export function CustomizeSheet({
     const result = await window.sill?.installWidget()
     setInstalling(false)
     if (result && !result.ok && result.error !== '已取消') {
-      setInstallError(result.error ?? t(language, 'behavior.installFailed'))
+      setInstallError(result.error ?? t(language, 'widgets.installFailed'))
     }
   }
 
@@ -505,7 +491,7 @@ export function CustomizeSheet({
     const result = await window.sill?.uninstallWidget(id)
     setUninstalling(null)
     if (result && !result.ok) {
-      setInstallError(result.error ?? t(language, 'behavior.installFailed'))
+      setInstallError(result.error ?? t(language, 'widgets.installFailed'))
     }
   }
 
@@ -593,7 +579,7 @@ export function CustomizeSheet({
       </header>
 
       <div className="cz-tabs" role="tablist" aria-label={t(language, 'settings.title')}>
-        {(['appearance', 'panel', 'data', 'system', 'general'] as const).map((id) => (
+        {(['appearance', 'panel', 'widgets', 'data', 'general'] as const).map((id) => (
           <button
             key={id}
             className="cz-tab"
@@ -891,50 +877,83 @@ export function CustomizeSheet({
               onChange={onEdgeGapChange}
             />
 
-            <Details label={t(language, 'behavior.widgets')}>
-              <p className="cz-note" style={{ margin: '0 2px 6px' }}>
-                {t(language, 'behavior.widgetsNote')}
-              </p>
-              {widgets.map((widget) => (
-                <Switch
-                  key={widget.id}
-                  id={`cz-widget-${widget.id}`}
-                  label={widget.label}
-                  note=""
-                  checked={!widget.hidden}
-                  onChange={(value) => onToggleWidget(widget.id, value)}
-                />
-              ))}
-              <div className="cz-widget-actions">
-                <button className="cz-action" type="button" disabled={installing} onClick={() => void install()}>
-                  {installing ? '…' : t(language, 'behavior.installWidget')}
-                </button>
+          </>
+        ) : null}
+
+        {tab === 'widgets' ? (
+          <>
+            <p className="cz-group">{t(language, 'widgets.install')}</p>
+
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'widgets.installWidget')}</span>
+                <span className="cz-setrow__note">{t(language, 'widgets.installNote')}</span>
               </div>
-              {installError ? <p className="cz-error">{installError}</p> : null}
-              {registry.installed.length ? (
-                <>
-                  <p className="cz-group">{t(language, 'behavior.installedWidgets')}</p>
-                  {registry.installed.map((item) => (
-                    <div className="cz-setrow" key={item.id}>
-                      <div className="cz-setrow__copy">
-                        <span className="cz-setrow__name">{item.name}</span>
-                        <span className="cz-setrow__note">
-                          {item.id} · v{item.version} · {item.kind}/{item.trust} · {item.permissions.join(' / ') || '—'}
-                        </span>
-                      </div>
-                      <button
-                        className="cz-action"
-                        type="button"
-                        disabled={uninstalling === item.id}
-                        onClick={() => void uninstall(item.id)}
-                      >
-                        {t(language, 'behavior.uninstallWidget')}
-                      </button>
-                    </div>
-                  ))}
-                </>
-              ) : null}
-            </Details>
+              <button
+                className="cz-action"
+                type="button"
+                disabled={installing}
+                onClick={() => void install()}
+              >
+                {installing ? '…' : t(language, 'widgets.installAction')}
+              </button>
+            </div>
+
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'widgets.skinsFolder')}</span>
+                <span className="cz-setrow__note">{t(language, 'widgets.skinsFolderNote')}</span>
+              </div>
+              <button
+                className="cz-action"
+                type="button"
+                onClick={() => void window.sill?.openSkinsFolder()}
+              >
+                {t(language, 'widgets.openSkinsFolder')}
+              </button>
+            </div>
+
+            {installError ? <p className="cz-error">{installError}</p> : null}
+
+            <p className="cz-group">{t(language, 'widgets.visibility')}</p>
+            <p className="cz-note" style={{ margin: '0 2px 6px' }}>
+              {t(language, 'widgets.visibilityNote')}
+            </p>
+            {widgets.map((widget) => (
+              <Switch
+                key={widget.id}
+                id={`cz-widget-${widget.id}`}
+                label={widget.label}
+                note=""
+                checked={!widget.hidden}
+                onChange={(value) => onToggleWidget(widget.id, value)}
+              />
+            ))}
+
+            <p className="cz-group">{t(language, 'widgets.installed')}</p>
+            {registry.installed.length ? (
+              registry.installed.map((item) => (
+                <div className="cz-setrow" key={item.id}>
+                  <div className="cz-setrow__copy">
+                    <span className="cz-setrow__name">{item.name}</span>
+                    <span className="cz-setrow__note">
+                      {item.id} · v{item.version} · {item.kind}/{item.trust} ·{' '}
+                      {item.permissions.join(' / ') || '—'}
+                    </span>
+                  </div>
+                  <button
+                    className="cz-action"
+                    type="button"
+                    disabled={uninstalling === item.id}
+                    onClick={() => void uninstall(item.id)}
+                  >
+                    {t(language, 'widgets.uninstall')}
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="cz-note">{t(language, 'widgets.installedEmpty')}</p>
+            )}
           </>
         ) : null}
 
@@ -998,8 +1017,36 @@ export function CustomizeSheet({
           </>
         ) : null}
 
-        {tab === 'system' ? (
+        {tab === 'general' ? (
           <>
+            <p className="cz-group">{t(language, 'general.interface')}</p>
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'general.language')}</span>
+                <span className="cz-setrow__note">{t(language, 'general.languageNote')}</span>
+              </div>
+              <div className="cz-seg" role="group" aria-label={t(language, 'general.language')}>
+                {LANGUAGES.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={language === item.id}
+                    onClick={() => onLanguageChange(item.id)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Switch
+              id="cz-settings-window"
+              label={t(language, 'general.settingsWindow')}
+              note={t(language, 'general.settingsWindowNote')}
+              checked={settingsInWindow}
+              onChange={onSettingsInWindowChange}
+            />
+
             <p className="cz-group">{t(language, 'behavior.system')}</p>
             <Switch
               id="cz-autostart"
@@ -1034,38 +1081,6 @@ export function CustomizeSheet({
               </button>
             </div>
             <p className="cz-note">{t(language, 'general.updateHint')}</p>
-          </>
-        ) : null}
-
-        {tab === 'general' ? (
-          <>
-            <p className="cz-group">{t(language, 'general.interface')}</p>
-            <div className="cz-setrow">
-              <div className="cz-setrow__copy">
-                <span className="cz-setrow__name">{t(language, 'general.language')}</span>
-                <span className="cz-setrow__note">{t(language, 'general.languageNote')}</span>
-              </div>
-              <div className="cz-seg" role="group" aria-label={t(language, 'general.language')}>
-                {LANGUAGES.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-pressed={language === item.id}
-                    onClick={() => onLanguageChange(item.id)}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <Switch
-              id="cz-settings-window"
-              label={t(language, 'general.settingsWindow')}
-              note={t(language, 'general.settingsWindowNote')}
-              checked={settingsInWindow}
-              onChange={onSettingsInWindowChange}
-            />
 
             <p className="cz-group">{t(language, 'general.about')}</p>
             <div className="cz-setrow">

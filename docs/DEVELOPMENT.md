@@ -160,7 +160,7 @@ Sill/
             ├─ lib/useSillSettings.ts 面板与设置窗口共享的设置状态 + 广播订阅
             ├─ lib/hotkey.ts    accelerator → 显示用文案（Alt + Q）
             ├─ components/
-            │  ├─ CustomizeSheet.tsx  Settings 表面（外观 / 面板 / 数据 / 系统 / 通用五段）
+            │  ├─ CustomizeSheet.tsx  Settings 表面（外观 / 面板 / 组件 / 数据 / 通用五段）
             │  ├─ SettingsWindow.tsx  独立设置窗口根
             │  ├─ ResizeHandles.tsx   内侧边 / 底边 / 内下角缩放把手 + HUD
             │  └─ widgets/
@@ -563,7 +563,7 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 - 包内资源放 `ui/assets/`，相对路径由宿主改写成 `sill-asset://<id>/ui/...`。
 - `%APPDATA%\Sill\skins\<名字>\`（便携版在 `Sill-data/skins`）是 Rainmeter 式组件目录：
   放进去就出现在设置 → 组件里，保存即刷新，不需要打包或安装。
-- 设置 → 行为 → 组件 → 安装组件… 可以安装本地 `.sill`（zip，接受
+- 设置 → 组件 → 安装组件… 可以安装本地 `.sill`（zip，接受
   `widget.json` + `ui/index.html` + `ui/style.css` + 可选 `ui/main.js` + `ui/assets/**`）。
   安装前确认 id / 版本 / 作者 / 类型；安装后进入布局，可卸载。
 - 完整格式、token 和安全边界见 [WIDGET-SURFACE.md](WIDGET-SURFACE.md)。

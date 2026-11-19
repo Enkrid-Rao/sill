@@ -17,7 +17,7 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
     <td align="center"><img src="docs/media/panel-preview.webp" width="320" alt="Sill panel"><br>
       <sub>The rail: live system, media and todo data on one piece of glass</sub></td>
     <td align="center"><img src="docs/media/settings-preview.webp" width="320" alt="Sill settings"><br>
-      <sub>Settings: appearance / behavior / general</sub></td>
+      <sub>Settings: appearance / panel / widgets</sub></td>
   </tr>
 </table>
 
@@ -27,12 +27,12 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
   `Alt+Q`, dismissed with `Esc` or a click outside. **Resize it like an iPad panel**: drag the inner edge, the bottom edge
   or the bottom corner; four presets (rail / compact / board / wide) are just starting points.
   The content reflows from one to three columns as it widens.
-- **Settings — in.** Five sections (Appearance / Panel / Data / System / General), 8 theme presets,
+- **Settings — in.** Five sections (Appearance / Panel / Widgets / Data / General), 8 theme presets,
   accent colours, hotkey recorder, free panel size (drag, sliders, presets, fill-height), dock side,
   edge distance, zh/en switch, weather location (auto or 28 cities), monitor refresh, per-widget
   visibility, an option to open Settings in its own window, and automatic updates.
 - **Layout — flow or free.** New installs default to free: every card can sit at any x/y/w/h and is
-  draggable/resizable in layout editing. Flow (the old grid) is selectable in Settings → Behavior.
+  draggable/resizable in layout editing. Flow (the old grid) is selectable in Settings → Panel.
   Both live in `layout.json`; hidden widgets keep their slot.
 - **Shortcut shelf — in.** A shelf card stores `.lnk` / `.exe` shortcuts with native icons, opens them,
   and removes them. It is a shelf, not a file manager.
