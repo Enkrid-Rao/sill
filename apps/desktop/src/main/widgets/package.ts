@@ -55,7 +55,11 @@ function fail(error: string): InstallOutcome {
   return { ok: false, error }
 }
 
-function info(manifest: Manifest, tier: WidgetTier): InstalledWidgetInfo {
+function info(
+  manifest: Manifest,
+  tier: WidgetTier,
+  source: InstalledWidgetInfo['source'] = 'installed'
+): InstalledWidgetInfo {
   return {
     id: manifest.id,
     name: manifest.name,
@@ -66,6 +70,7 @@ function info(manifest: Manifest, tier: WidgetTier): InstalledWidgetInfo {
     kind: manifest.kind,
     trust: manifest.trust,
     tier,
+    source,
     settings: manifest.settings
   }
 }
@@ -283,9 +288,12 @@ function readManifest(dir: string): Manifest | null {
   }
 }
 
-function infoFromDir(dir: string): InstalledWidgetInfo | null {
+function infoFromDir(
+  dir: string,
+  source: InstalledWidgetInfo['source']
+): InstalledWidgetInfo | null {
   const manifest = readManifest(dir)
-  return manifest ? info(manifest, tierFromDir(dir, manifest)) : null
+  return manifest ? info(manifest, tierFromDir(dir, manifest), source) : null
 }
 
 function packageDirs(root: string, id?: string): string[] {
@@ -422,10 +430,9 @@ export function getComponentDiagnostics(
     problems: [...skins.problems, ...installed.problems]
   }
 }
-
 export function listInstalled(root: string): InstalledWidgetInfo[] {
   return packageDirs(root)
-    .map(infoFromDir)
+    .map((dir) => infoFromDir(dir, 'installed'))
     .filter((item): item is InstalledWidgetInfo => item !== null)
     .sort((a, b) => a.name.localeCompare(b.name))
 }
@@ -477,7 +484,7 @@ export function listSkins(root: string): InstalledWidgetInfo[] {
         return false
       }
     })
-    .map(infoFromDir)
+    .map((dir) => infoFromDir(dir, 'skins'))
     .filter((item): item is InstalledWidgetInfo => item !== null)
     .sort((a, b) => a.name.localeCompare(b.name))
 }

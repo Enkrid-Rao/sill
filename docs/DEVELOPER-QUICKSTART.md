@@ -104,8 +104,9 @@ command`，`root` 是这张卡的 ShadowRoot。API 细节见 authoring.md。
 
 ## 当前限制
 
-- 组件自动更新还没做（URL 安装与只读目录已可用）；
+- 打开组件页会对比目录版本、提示更新；后台自动检查还没做；
 - web 组件的 `sandboxed` 桥能力有限（没有 storage / fetch），重组件建议直接用 `template` 或
   `web + trusted`；
 - 0.6 仍是开发版，不是正式发布。
+
 

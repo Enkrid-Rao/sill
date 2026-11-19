@@ -32,6 +32,8 @@ export interface InstalledWidgetInfo {
   kind: 'template' | 'web'
   trust: 'sandboxed' | 'trusted'
   tier: WidgetTier
+  /** installed = 安装目录里的包；skins = 开发目录里的文件夹。 */
+  source: 'installed' | 'skins'
   settings: WidgetSettingField[]
 }
 

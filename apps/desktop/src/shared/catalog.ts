@@ -23,6 +23,58 @@ export interface CatalogResult {
   entries: CatalogEntry[]
 }
 
+export interface CatalogUpdate {
+  id: string
+  name: CatalogLocalized
+  from: string
+  to: string
+  download: string
+}
+
+/** 只比较 major.minor.patch；prerelease 低于同号正式版，build metadata 忽略。 */
+export function compareSemver(a: string, b: string): number | null {
+  const parse = (value: string): { numbers: number[]; pre: string } | null => {
+    const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(value)
+    if (!match) return null
+    return { numbers: [Number(match[1]), Number(match[2]), Number(match[3])], pre: match[4] ?? '' }
+  }
+  const left = parse(a)
+  const right = parse(b)
+  if (!left || !right) return null
+  for (let index = 0; index < 3; index += 1) {
+    if (left.numbers[index] !== right.numbers[index]) {
+      return left.numbers[index] > right.numbers[index] ? 1 : -1
+    }
+  }
+  if (left.pre === right.pre) return 0
+  if (!left.pre) return 1
+  if (!right.pre) return -1
+  return left.pre > right.pre ? 1 : -1
+}
+
+/** 目录里比本地新的可用版本（只算 installable + download）。 */
+export function findUpdates(
+  installed: readonly { id: string; version: string }[],
+  catalog: readonly CatalogEntry[]
+): CatalogUpdate[] {
+  const local = new Map(installed.map((item) => [item.id, item.version]))
+  const updates: CatalogUpdate[] = []
+  for (const entry of catalog) {
+    const current = local.get(entry.id)
+    if (!current || !entry.installable || !entry.download) continue
+    const order = compareSemver(entry.version, current)
+    if (order === null || order <= 0) continue
+    updates.push({
+      id: entry.id,
+      name: entry.name,
+      from: current,
+      to: entry.version,
+      download: entry.download
+    })
+  }
+  return updates
+}
+
 export function pickLocalized(
   value: CatalogLocalized | undefined,
   language: 'en' | 'zh'

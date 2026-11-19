@@ -25,7 +25,7 @@ import {
 import { formatHotkey } from '../lib/hotkey'
 import { useWidgetRegistry } from '../widgets/WidgetRegistryProvider'
 import type { ComponentProblem } from '../../../shared/widgets'
-import { pickLocalized, type CatalogEntry } from '../../../shared/catalog'
+import { pickLocalized, findUpdates, type CatalogEntry, type CatalogUpdate } from '../../../shared/catalog'
 
 type Tab = 'appearance' | 'panel' | 'widgets' | 'data' | 'general'
 
@@ -494,6 +494,7 @@ export function CustomizeSheet({
   const [catalog, setCatalog] = useState<CatalogEntry[]>([])
   const [catalogBusy, setCatalogBusy] = useState(false)
   const [catalogError, setCatalogError] = useState('')
+  const [updating, setUpdating] = useState<string | null>(null)
 
   const loadDiagnostics = async (): Promise<void> => {
     const next = await window.sill?.getComponentDiagnostics?.()
@@ -563,6 +564,13 @@ export function CustomizeSheet({
     }
     if (result?.ok) setUrlValue('')
     void loadDiagnostics()
+  }
+
+  const updateComponent = async (update: CatalogUpdate): Promise<void> => {
+    setUpdating(update.id)
+    await installFromUrl(update.download)
+    setUpdating(null)
+    void loadCatalog(true)
   }
 
   const loadCatalog = async (force = false): Promise<void> => {
@@ -661,6 +669,13 @@ export function CustomizeSheet({
           : update.status === 'downloading'
             ? `${update.progress ?? 0}%`
             : t(language, 'general.checkNow')
+
+  const catalogUpdates = findUpdates(
+    registry.installed
+      .filter((item) => item.source === 'installed')
+      .map((item) => ({ id: item.id, version: item.version })),
+    catalog
+  )
 
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true })
@@ -1191,6 +1206,34 @@ export function CustomizeSheet({
             ))}
 
             <p className="cz-group">{t(language, 'widgets.installed')}</p>
+            {catalogUpdates.length ? (
+              <>
+                <p className="cz-group">{t(language, 'widgets.updates')}</p>
+                <p className="cz-note" style={{ margin: '0 2px 6px' }}>
+                  {t(language, 'widgets.updatesNote')}
+                </p>
+                {catalogUpdates.map((update) => (
+                  <div className="cz-setrow" key={update.id}>
+                    <div className="cz-setrow__copy">
+                      <span className="cz-setrow__name">
+                        {pickLocalized(update.name, language)}
+                      </span>
+                      <span className="cz-setrow__note">
+                        v{update.from} → v{update.to}
+                      </span>
+                    </div>
+                    <button
+                      className="cz-action"
+                      type="button"
+                      disabled={urlBusy || updating === update.id}
+                      onClick={() => void updateComponent(update)}
+                    >
+                      {updating === update.id ? '…' : t(language, 'widgets.update')}
+                    </button>
+                  </div>
+                ))}
+              </>
+            ) : null}
             {registry.installed.length ? (
               registry.installed.map((item) => (
                 <div key={item.id}>
