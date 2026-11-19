@@ -29,7 +29,7 @@
 - **调试**：F12 / Ctrl+Shift+I 开 DevTools；`main.js` 同步异常在卡内显示错误条。
 - **安装**：`.sill`（zip）+ `.sill` 文件关联；安装提示按能力分档（static / script / isolated /
   node），纯静态组件直接装，确认过的 id 记在 `trust.json`，能力不变不再问。
-- **CLI**：`sill new / validate / pack / dev`（源码 0.3.0；npm 上仍是 0.2.2，见下）。
+- **CLI**：`sill new / validate / pack / dev`（npm 0.3.0 已发布）。
 - 测试：Vitest（安装器 + provider + 动作 + .sill 参数）+ GitHub Actions。
 
 ## 已实际验证
@@ -60,8 +60,6 @@
 - 组件级设置 UI（`sill.settings` 一类）还没做。
 - 内置六个组件仍是 React，不是模板。
 - `web` 组件的 `sandboxed` 层几乎没有 API（无 storage / fetch），定位待定。
-- npm 上的 `@heavenlydemon/sill-cli` 还是 0.2.2，不认识 `template + main.js + ui/assets`；
-  源码已是 0.3.0，需要重新发布。
 - 文档：`DEVPLAN.md` 的 IR / rmskin 章节是历史规划；`docs/WEB-WIDGETS.md` 部分内容过期。
 
 ## 下一条命令
@@ -88,9 +86,10 @@ pnpm sill pack .\clock -o clock.sill
 
 ## 建议顺序
 
-1. 发布 CLI 0.3.0（或先把 quickstart 的 npm 路径标注清楚）。
+1. 目录下载 / 组件更新。
 2. 信任分级 + `trust.json`（静态组件直接装、脚本组件红色确认、升级只在能力变化时再问）。
 3. 组件页「新建组件」+ 目录下载（先只读索引，再下载）。
 4. 版本升级（保留布局的 upgrade-in-place）。
 5. 把 system / processes 迁到模板，验证模板能力足够。
 6. 决定 `web` 的 `sandboxed` 层：改成「隔离模式」并补 storage/fetch，或删掉。
+

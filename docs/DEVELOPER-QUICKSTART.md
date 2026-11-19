@@ -49,7 +49,7 @@ hello/
 ## 路线 B：用 CLI 生成脚手架 / 打包
 
 ```powershell
-npm i -g @heavenlydemon/sill-cli   # 需要 0.3.0+；0.2.x 不认识新的 template+main.js/assets
+npm i -g @heavenlydemon/sill-cli   # 0.3.0+；0.2.x 不认识新的 template+main.js/assets
 sill new clock
 sill validate .\clock
 sill pack .\clock -o clock.sill
