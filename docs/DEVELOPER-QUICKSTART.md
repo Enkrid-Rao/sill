@@ -77,8 +77,9 @@ clock/
 - 把组件文件夹放进 `skins/` → 保存即热重载（只重载改动的那个组件）；
 - 面板上按 **F12** 打开 DevTools；`main.js` 抛错会在卡片里显示错误条；
 - 组件私有存储写在 `<userData>/widget-data/<id>.json`（`sill.storage`）；
-- 安装 `.sill`：设置 → 组件 → 从 .sill 文件安装，或者双击 `.sill`。纯静态组件直接装；
-  有代码的会按档位提示一次（静态 / 脚本 / 隔离 / 完整 Node），确认后同一组件不再问。
+- 安装 `.sill`：设置 → 组件 → 从 .sill 文件安装，或者双击 `.sill`；也可以粘贴 https 直链
+  （从 URL 安装），或从只读的组件目录里点安装。纯静态组件直接装；有代码的会按档位提示一次
+  （静态 / 脚本 / 隔离 / 完整 Node），确认后同一组件不再问。
 
 ## 两种组件类型
 
@@ -103,7 +104,7 @@ command`，`root` 是这张卡的 ShadowRoot。API 细节见 authoring.md。
 
 ## 当前限制
 
-- 目录下载 / 自动更新还没做；
+- 组件自动更新还没做（URL 安装与只读目录已可用）；
 - web 组件的 `sandboxed` 桥能力有限（没有 storage / fetch），重组件建议直接用 `template` 或
   `web + trusted`；
 - 0.6 仍是开发版，不是正式发布。

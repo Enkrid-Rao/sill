@@ -31,6 +31,8 @@
 - **调试**：F12 / Ctrl+Shift+I 开 DevTools；`main.js` 同步异常在卡内显示错误条。
 - **安装**：`.sill`（zip）+ `.sill` 文件关联；安装提示按能力分档（static / script / isolated /
   node），纯静态组件直接装，确认过的 id 记在 `trust.json`，能力不变不再问。
+- **分发**：https 直链安装（设置 → 组件 → 从 URL 安装）与只读组件目录（`catalog.json` 的
+  `installable + download`）；下载后按包内容重新校验。
 - **CLI**：`sill new / validate / pack / dev`（npm 0.3.1 已发布）。
 - 测试：Vitest（安装器 + provider + 动作 + .sill 参数）+ GitHub Actions。
 
@@ -39,7 +41,7 @@
 | 项 | 证据 |
 |---|---|
 | `pnpm typecheck` | 通过 |
-| `pnpm test` | 38 个测试通过 |
+| `pnpm test` | 46 个测试通过 |
 | `pnpm build` | 通过 |
 | `pnpm smoke` | 截图输出正常（0.6.0-dev.2） |
 | 脚手架组件 | `sill new demo` 生成的卡片在面板里正常渲染（本地时间 / 日期 / 存储计数） |
@@ -48,6 +50,7 @@
 | 组件诊断 | skins 里 `widget.json` 坏的目录出现在「未加载的组件」并可直接打开（Playwright 截图核对） |
 | 信任分级 | 档位计算与 `trust.json` 单测覆盖；设置里显示「静态 / 脚本 / 完整 Node」（Playwright 核对） |
 | 组件设置 | `widget.json` 的 `settings` 解析、默认值/范围/select 校验单测覆盖；宿主表单与 `sill.settings.onChange` 实测（选 °F 后组件收到更新） |
+| URL / 目录安装 | 本地 HTTP 源实测：URL 与目录条目各装一个静态组件；下载后按包内容校验（单测覆盖 URL 与目录规范化） |
 | 组件升级 | 同 id 新版本覆盖旧目录、布局槽位保留（单测覆盖） |
 | Web 隔离层 | 非 Node guest 拥有 `sill.storage` 与 `https:` 网络；每个组件独立 partition（实测写入 widget-data） |
 | 热重载作用域 | 只改 a 的样式，a 重新执行、b 不重新执行（boot 计数 2 / 1） |
@@ -60,7 +63,7 @@
 
 ## 未完成
 
-- 目录下载 / 自动更新组件；升级是覆盖式（不做版本回滚提示，降级也能装）。
+- 组件自动更新 / 目录托管与审核流水线；升级是覆盖式（不做版本回滚提示，降级也能装）。
 - 签名 / 哈希；安装器只做静态校验 + 权限提示。
 - 内置六个组件仍是 React，不是模板。
 - 文档：`DEVPLAN.md` 的 IR / rmskin 章节是历史规划。
@@ -89,10 +92,11 @@ pnpm sill pack .\clock -o clock.sill
 
 ## 建议顺序
 
-1. 目录下载 / 组件更新（先只读索引，再下载）。
+1. 组件自动更新（基于现有的目录 + download 字段）。
 3. 把 system / processes 迁到模板，验证模板能力足够。
 4. 签名 / 哈希。
 5. `webview` → `WebContentsView` 迁移。
+
 
 
 

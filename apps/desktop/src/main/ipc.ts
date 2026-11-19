@@ -1,6 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
+import { rmSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { broadcast } from './broadcast'
+import { fetchCatalog } from './catalog'
+import { downloadPackage } from './widget-download'
 import {
   isSillAssociation,
   registerSillAssociation,
@@ -248,6 +251,26 @@ export function registerIpc(deps: IpcDeps): void {
     if (picked.canceled || !picked.filePaths[0]) return { ok: false, error: '已取消' }
     return installWidgetFile(picked.filePaths[0], win)
   })
+
+  ipcMain.handle('widgets:install-url', async (event, raw: unknown) => {
+    if (typeof raw !== 'string' || !raw.trim()) return { ok: false, error: '无效链接' }
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const downloaded = await downloadPackage(raw)
+    if (!downloaded.ok || !downloaded.file) {
+      return { ok: false, error: downloaded.error ?? '下载失败' }
+    }
+    try {
+      return await installWidgetFile(downloaded.file, win)
+    } finally {
+      try {
+        rmSync(downloaded.file, { force: true })
+      } catch {
+        // 临时文件清不掉不影响安装结果
+      }
+    }
+  })
+
+  ipcMain.handle('widgets:catalog', (_event, force: unknown) => fetchCatalog(force === true))
 
   ipcMain.handle('widgets:assoc-get', async () => isSillAssociation())
 

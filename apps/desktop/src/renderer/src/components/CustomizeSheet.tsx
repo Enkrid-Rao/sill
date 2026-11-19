@@ -25,6 +25,7 @@ import {
 import { formatHotkey } from '../lib/hotkey'
 import { useWidgetRegistry } from '../widgets/WidgetRegistryProvider'
 import type { ComponentProblem } from '../../../shared/widgets'
+import { pickLocalized, type CatalogEntry } from '../../../shared/catalog'
 
 type Tab = 'appearance' | 'panel' | 'widgets' | 'data' | 'general'
 
@@ -488,6 +489,11 @@ export function CustomizeSheet({
   const [settingsFor, setSettingsFor] = useState<string | null>(null)
   const [settingsValues, setSettingsValues] = useState<Record<string, unknown>>({})
   const [settingsBusy, setSettingsBusy] = useState(false)
+  const [urlValue, setUrlValue] = useState('')
+  const [urlBusy, setUrlBusy] = useState(false)
+  const [catalog, setCatalog] = useState<CatalogEntry[]>([])
+  const [catalogBusy, setCatalogBusy] = useState(false)
+  const [catalogError, setCatalogError] = useState('')
 
   const loadDiagnostics = async (): Promise<void> => {
     const next = await window.sill?.getComponentDiagnostics?.()
@@ -544,6 +550,34 @@ export function CustomizeSheet({
   const revealComponent = (dir: string): void => {
     void window.sill?.revealComponentFolder?.(dir)
   }
+
+  const installFromUrl = async (url: string): Promise<void> => {
+    const trimmed = url.trim()
+    if (!trimmed) return
+    setInstallError('')
+    setUrlBusy(true)
+    const result = await window.sill?.installWidgetFromUrl?.(trimmed)
+    setUrlBusy(false)
+    if (result && !result.ok && result.error !== '已取消') {
+      setInstallError(result.error ?? t(language, 'widgets.installFailed'))
+    }
+    if (result?.ok) setUrlValue('')
+    void loadDiagnostics()
+  }
+
+  const loadCatalog = async (force = false): Promise<void> => {
+    setCatalogBusy(true)
+    setCatalogError('')
+    const result = await window.sill?.getWidgetCatalog?.(force)
+    setCatalogBusy(false)
+    if (!result) return
+    setCatalog(result.entries)
+    if (!result.ok) setCatalogError(result.error ?? t(language, 'widgets.catalogFailed'))
+  }
+
+  useEffect(() => {
+    if (tab === 'widgets') void loadCatalog(false)
+  }, [tab])
 
   const openWidgetSettings = async (id: string): Promise<void> => {
     if (settingsFor === id) {
@@ -989,6 +1023,33 @@ export function CustomizeSheet({
 
             <div className="cz-setrow">
               <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'widgets.installUrl')}</span>
+                <span className="cz-setrow__note">{t(language, 'widgets.installUrlNote')}</span>
+              </div>
+              <span className="cz-url">
+                <input
+                  className="cz-input"
+                  type="url"
+                  value={urlValue}
+                  placeholder="https://example.com/clock.sill"
+                  onChange={(event) => setUrlValue(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') void installFromUrl(urlValue)
+                  }}
+                />
+                <button
+                  className="cz-action"
+                  type="button"
+                  disabled={urlBusy || !urlValue.trim()}
+                  onClick={() => void installFromUrl(urlValue)}
+                >
+                  {urlBusy ? '…' : t(language, 'widgets.installUrlAction')}
+                </button>
+              </span>
+            </div>
+
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
                 <span className="cz-setrow__name">{t(language, 'widgets.create')}</span>
                 <span className="cz-setrow__note">{t(language, 'widgets.createNote')}</span>
               </div>
@@ -1036,6 +1097,59 @@ export function CustomizeSheet({
             </div>
 
             {installError ? <p className="cz-error">{installError}</p> : null}
+
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'widgets.catalog')}</span>
+                <span className="cz-setrow__note">{t(language, 'widgets.catalogNote')}</span>
+              </div>
+              <button
+                className="cz-action"
+                type="button"
+                disabled={catalogBusy}
+                onClick={() => void loadCatalog(true)}
+              >
+                {catalogBusy ? '…' : t(language, 'widgets.catalogRefresh')}
+              </button>
+            </div>
+
+            {catalog.length ? (
+              <ul className="cz-catalog">
+                {catalog.map((entry) => (
+                  <li className="cz-setrow" key={entry.id}>
+                    <div className="cz-setrow__copy">
+                      <span className="cz-setrow__name">
+                        {pickLocalized(entry.name, language)}
+                      </span>
+                      <span className="cz-setrow__note">
+                        {entry.id} · v{entry.version} ·{' '}
+                        {entry.status === 'builtin'
+                          ? t(language, 'widgets.catalogBuiltin')
+                          : entry.status}
+                        {pickLocalized(entry.summary, language)
+                          ? ` — ${pickLocalized(entry.summary, language)}`
+                          : ''}
+                      </span>
+                    </div>
+                    {entry.installable && entry.download ? (
+                      <button
+                        className="cz-action"
+                        type="button"
+                        disabled={urlBusy}
+                        onClick={() => void installFromUrl(entry.download!)}
+                      >
+                        {urlBusy ? '…' : t(language, 'widgets.catalogInstall')}
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {catalogError ? <p className="cz-error">{catalogError}</p> : null}
+            {!catalog.length && !catalogError && !catalogBusy ? (
+              <p className="cz-note">{t(language, 'widgets.catalogEmpty')}</p>
+            ) : null}
 
             {problems.length ? (
               <>

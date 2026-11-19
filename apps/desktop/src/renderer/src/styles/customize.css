@@ -1340,3 +1340,21 @@
   outline-offset: 1px;
 }
 
+
+/* 从 URL 安装 / 组件目录 */
+.cz-url {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cz-url .cz-input {
+  min-width: 220px;
+}
+
+.cz-catalog {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+}
+

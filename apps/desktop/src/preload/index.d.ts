@@ -12,6 +12,7 @@ import type {
   InstallOutcome,
   InstalledWidgetInfo
 } from '../shared/widgets'
+import type { CatalogResult } from '../shared/catalog'
 
 export interface SillSettings {
   hotkey: string
@@ -47,6 +48,8 @@ export interface SillApi {
   getInstalledWidgets: () => Promise<InstalledWidgetInfo[]>
   getInstalledWidget: (id: string) => Promise<DevWidgetPayload | null>
   installWidget: () => Promise<InstallOutcome>
+  installWidgetFromUrl: (url: string) => Promise<InstallOutcome>
+  getWidgetCatalog: (force?: boolean) => Promise<CatalogResult>
   uninstallWidget: (id: string) => Promise<InstallOutcome>
   openSkinsFolder: () => Promise<string>
   getComponentDiagnostics: () => Promise<ComponentDiagnostics>

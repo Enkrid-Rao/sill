@@ -15,6 +15,8 @@ const api = {
   getInstalledWidgets: () => ipcRenderer.invoke('widgets:list'),
   getInstalledWidget: (id: string) => ipcRenderer.invoke('widgets:load', id),
   installWidget: () => ipcRenderer.invoke('widgets:install'),
+  installWidgetFromUrl: (url: string) => ipcRenderer.invoke('widgets:install-url', url),
+  getWidgetCatalog: (force?: boolean) => ipcRenderer.invoke('widgets:catalog', force === true),
   uninstallWidget: (id: string) => ipcRenderer.invoke('widgets:uninstall', id),
   openSkinsFolder: () => ipcRenderer.invoke('widgets:open-skins'),
   getComponentDiagnostics: () => ipcRenderer.invoke('widgets:diagnostics'),
