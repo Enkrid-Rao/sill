@@ -4,7 +4,7 @@
 ![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
 ![Milestone](https://img.shields.io/badge/milestone-0.6%20%C2%B7%20components-F2A33C?style=flat-square)
-[![Release](https://img.shields.io/badge/release-v0.6.0-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+[![Release](https://img.shields.io/badge/release-v0.6.1-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
 ![License](https://img.shields.io/badge/license-MIT-2EA043?style=flat-square)
 [![verify](https://github.com/Enkrid-Rao/sill/actions/workflows/verify.yml/badge.svg)](https://github.com/Enkrid-Rao/sill/actions/workflows/verify.yml)
 
@@ -73,21 +73,20 @@ shelf and todo remain React definitions.
   optional checkbox to clear `%APPDATA%\Sill` too; portable builds quit and delete the whole folder,
   including `Sill-data`.
 
-## 0.6.0
+## 0.6.1
 
-`v0.6.0` is the first stable component platform: templates run inside the panel, `.sill` packages
-install with capability-based prompts, the catalog and updater work, and `system` / `processes` now
-ship as template packages.
+`v0.6.1` adds in-app update reminders on top of 0.6.0's stable component platform: a tray balloon
+and a persistent banner when a new version is available or downloaded.
 
-- [Sill-Setup-0.6.0.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0/Sill-Setup-0.6.0.exe)
-- [Sill-0.6.0-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0/Sill-0.6.0-portable-win64.zip)
+- [Sill-Setup-0.6.1.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.1/Sill-Setup-0.6.1.exe)
+- [Sill-0.6.1-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.1/Sill-0.6.1-portable-win64.zip)
 - CLI: `npm i -g @heavenlydemon/sill-cli` (0.3.1)
 
-See the [0.6.0 release notes](https://github.com/Enkrid-Rao/sill/releases/tag/v0.6.0) for the full list.
+See the [0.6.1 release notes](https://github.com/Enkrid-Rao/sill/releases/tag/v0.6.1) for the full list.
 
 ## Install
 
-Grab `Sill-Setup-0.6.0.exe` or the portable ZIP `Sill-0.6.0-portable-win64.zip`
+Grab `Sill-Setup-0.6.1.exe` or the portable ZIP `Sill-0.6.1-portable-win64.zip`
 from [Releases](https://github.com/Enkrid-Rao/sill/releases).
 It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
 so SmartScreen warns once — choose “More info → Run anyway”.
@@ -98,7 +97,7 @@ temporary extraction. It keeps `settings.json`, `todo.json`, `layout.json` and `
 visible `Sill-data` folder next to `Sill.exe`; moving the folder keeps the data with it. To remove it,
 use Settings → General → Data & uninstall (quits, then deletes the whole folder) or simply delete the
 folder after quitting. Do not put it in `Program Files` (it may be read-only).
-**v0.6.0** is the current release: the component platform (templates, `.sill` install, URL and
+**v0.6.1** is the current release: the component platform (templates, `.sill` install, URL and
 catalog installs, component settings/storage, trust tiers, updates) on top of the existing shell.
 Requires Windows 10/11 x64.
 
@@ -172,4 +171,6 @@ data under `%APPDATA%\Sill\`. The reasoning is in [DEVPLAN §2](DEVPLAN.md).
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
 

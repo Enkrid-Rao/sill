@@ -4,6 +4,7 @@ import type { UpdateState } from '../shared/update'
 import { broadcast } from './broadcast'
 import { IS_PORTABLE } from './paths'
 import { loadSettings } from './settings'
+import { notifyUpdate } from './tray'
 
 export type { UpdateState, UpdateStatus } from '../shared/update'
 
@@ -23,6 +24,33 @@ function publish(next: UpdateState): UpdateState {
 function errorReason(error: unknown): UpdateState['reason'] {
   const text = String(error)
   return /signature|code signing|publisher/i.test(text) ? 'signature' : 'network'
+}
+
+let lastNotice = ''
+
+/** 托盘气泡：available 只在手动模式下提醒，downloaded 总是提醒。 */
+function notifyOnce(kind: 'available' | 'downloaded', version?: string): void {
+  const key = `${kind}:${version ?? ''}`
+  if (key === lastNotice) return
+  lastNotice = key
+
+  const zh = loadSettings().language === 'zh'
+  const label = version ? `Sill ${version}` : 'Sill'
+  if (kind === 'downloaded') {
+    notifyUpdate(
+      zh ? '更新已就绪' : 'Update ready',
+      zh
+        ? `${label} 已下载，重启 Sill 即可安装。`
+        : `${label} has been downloaded. Restart Sill to install it.`
+    )
+    return
+  }
+  notifyUpdate(
+    zh ? 'Sill 有新版本' : 'Sill update available',
+    zh
+      ? `${label} 可用，打开设置 → 通用更新。`
+      : `${label} is available. Open Settings → General to update.`
+  )
 }
 
 function init(): void {
@@ -45,7 +73,9 @@ function init(): void {
       checkedAt: Date.now()
     })
     // autoUpdate 的真义是“自动下载并安装”，不是只弹一个可用提示。
-    if (loadSettings().autoUpdate) void downloadUpdate()
+    const auto = loadSettings().autoUpdate
+    if (auto) void downloadUpdate()
+    else notifyOnce('available', info.version)
   })
 
   autoUpdater.on('update-not-available', () => {
@@ -70,6 +100,7 @@ function init(): void {
       url: RELEASE_URL,
       checkedAt: Date.now()
     })
+    notifyOnce('downloaded', info.version)
   })
 
   autoUpdater.on('error', (error: Error) => {

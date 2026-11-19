@@ -11,6 +11,7 @@ interface TrayActions {
   toggle: () => void
   setSide: (side: 'left' | 'right') => void
   setAutostart: (enabled: boolean) => void
+  openSettings: () => void
 }
 
 function icon(): Electron.NativeImage {
@@ -53,9 +54,21 @@ export function createTray(actions: TrayActions): Tray {
 
   tray = new Tray(icon())
   tray.on('click', actions.toggle)
+  // 更新提醒的气泡：点一下直接打开设置
+  tray.on('balloon-click', () => actions.openSettings())
   rebuild()
 
   return tray
+}
+
+/** Windows 托盘气泡：面板收着、用户没开设置时也能看到更新提醒。 */
+export function notifyUpdate(title: string, content: string): void {
+  if (!tray || tray.isDestroyed()) return
+  try {
+    tray.displayBalloon({ title, content, iconType: 'info', respectQuietTime: true })
+  } catch (error) {
+    console.error('[sill] 无法显示更新提醒：', error)
+  }
 }
 
 export function refreshTray(): void {

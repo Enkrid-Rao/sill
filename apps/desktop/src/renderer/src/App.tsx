@@ -67,6 +67,7 @@ export default function App(): React.JSX.Element {
   const [editing, setEditing] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
   const [componentUpdates, setComponentUpdates] = useState(0)
+  const [dismissedUpdate, setDismissedUpdate] = useState<string | null>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
 
   const { layout, setLayout } = settings
@@ -269,6 +270,20 @@ export default function App(): React.JSX.Element {
     if (windowOpen || settings.settingsInWindow) void window.sill?.openSettingsWindow()
     else setCustomizing(true)
   }, [settings.settingsInWindow])
+
+  // 托盘更新气泡点击后打开设置（主进程发 settings:open）
+  useEffect(() => {
+    const off = window.sill?.onOpenSettings(() => void openSettings())
+    return () => off?.()
+  }, [openSettings])
+
+  const update = settings.update
+  const updateVisible =
+    (update.status === 'available' ||
+      update.status === 'downloading' ||
+      update.status === 'downloaded') &&
+    (!update.version || dismissedUpdate !== update.version)
+  const updateLabel = update.version ? `Sill ${update.version}` : 'Sill'
 
   const media = snapshot?.media ?? null
   const mediaPosition = useMemo(() => {
@@ -505,6 +520,50 @@ export default function App(): React.JSX.Element {
           ) : null}
         </div>
       </div>
+
+      {updateVisible ? (
+        <div className="update-banner" role="status">
+          <div className="update-banner__copy">
+            <span className="update-banner__title">
+              {update.status === 'available'
+                ? `${t(settings.language, 'general.updateAvailable')} · ${updateLabel}`
+                : update.status === 'downloading'
+                  ? `${t(settings.language, 'general.downloading')} ${update.progress ?? 0}%`
+                  : t(settings.language, 'general.updateReady')}
+            </span>
+            {update.status === 'downloaded' ? (
+              <span className="update-banner__note">
+                {t(settings.language, 'general.updateHint')}
+              </span>
+            ) : null}
+          </div>
+          {update.status === 'available' ? (
+            <button
+              className="update-banner__action"
+              type="button"
+              onClick={() => settings.downloadUpdate()}
+            >
+              {t(settings.language, 'general.download')}
+            </button>
+          ) : update.status === 'downloaded' ? (
+            <button
+              className="update-banner__action"
+              type="button"
+              onClick={() => settings.installUpdate()}
+            >
+              {t(settings.language, 'general.restartUpdate')}
+            </button>
+          ) : null}
+          <button
+            className="update-banner__dismiss"
+            type="button"
+            aria-label={t(settings.language, 'general.later')}
+            onClick={() => setDismissedUpdate(update.version ?? '')}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
 
       <div className="footer">
         <span className="sub">{t(settings.language, 'footer.dismiss')}</span>

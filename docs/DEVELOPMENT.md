@@ -2,7 +2,7 @@
 
 面向**动手改代码**的人。产品目标与架构规划在 [../DEVPLAN.md](../DEVPLAN.md)，进度与交接在 [HANDOFF.md](HANDOFF.md)。
 
-最后更新：2026-11-19（v0.6.0：组件平台稳定版；模板安装/设置/目录/更新；system + processes 模板化）
+最后更新：2026-11-19（v0.6.1：更新提醒；v0.6.0：组件平台稳定版）
 
 ---
 
@@ -731,8 +731,9 @@ release 需要一起上传；绿色 ZIP 不参与自动更新。
 绿色版退出后删除整个文件夹。
 **v0.6.0（已发布，2026-11-19）**：组件平台稳定版（模板、`.sill` 安装、组件设置/存储、URL 与目录安装、
 更新提示）；`system` / `processes` 迁到模板包；LICENSE 补为 MIT。
-当前源码版本 **0.6.0**，安装包输出 `apps/desktop/dist/Sill-Setup-0.6.0.exe`，绿色版输出
-`apps/desktop/dist/Sill-0.6.0-portable-win64.zip`；发布时 `latest.yml` 与 blockmap 要一起上传。
+**v0.6.1（已发布，2026-11-19）**：更新提醒（托盘气泡 + 面板底部提醒条，可直接下载 / 重启安装）。
+当前源码版本 **0.6.1**，安装包输出 `apps/desktop/dist/Sill-Setup-0.6.1.exe`，绿色版输出
+`apps/desktop/dist/Sill-0.6.1-portable-win64.zip`；发布时 `latest.yml` 与 blockmap 要一起上传。
 `media-control.ps1` / `mouse-watch.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：
@@ -747,4 +748,5 @@ release 需要一起上传；绿色 ZIP 不参与自动更新。
 - 主进程里**允许碰网络的只有 `updates.ts` 和 `weather.ts`**；渲染进程只消费
   `window.sill.update.*` / `snapshot.weather` 的状态。天气请求超时 12s、失败 30s 重试，不在渲染进程发请求
 - `package.json` 的 `version` 是 `latest.yml`、安装包文件名、面板页脚的唯一来源，发版前先核对它
+
 

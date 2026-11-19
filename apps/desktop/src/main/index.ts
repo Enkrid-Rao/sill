@@ -26,7 +26,7 @@ import {
   showPanel
 } from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
-import { closeSettingsWindow, hasSettingsWindow } from './settings-window'
+import { closeSettingsWindow, hasSettingsWindow, openSettingsWindow } from './settings-window'
 import { createTray, destroyTray, refreshTray } from './tray'
 import { checkForUpdates } from './updates'
 import type { UpdateState } from '../shared/update'
@@ -178,6 +178,14 @@ async function boot(): Promise<void> {
         const next = updateSettings({ startAtLogin: enabled })
         applyAutostart(next.startAtLogin)
         refreshTray()
+      },
+      openSettings: () => {
+        if (hasSettingsWindow() || loadSettings().settingsInWindow) {
+          openSettingsWindow()
+          return
+        }
+        showPanel()
+        getPanelWindow()?.webContents.send('settings:open')
       }
     })
 

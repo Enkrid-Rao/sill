@@ -105,6 +105,7 @@ export interface SillApi {
   commitPanelSize: (width?: number, height?: number) => Promise<SillSettings>
   getPanelSizeLimits: () => Promise<{ maxWidth: number; maxHeight: number; columns: number }>
   openSettingsWindow: () => Promise<void>
+  onOpenSettings: (callback: () => void) => () => void
   isSettingsWindowOpen: () => Promise<boolean>
   closeSettingsWindow: () => Promise<void>
   editLayout: () => Promise<void>

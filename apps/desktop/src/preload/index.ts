@@ -112,6 +112,11 @@ const api = {
   commitPanelSize: (width?: number, height?: number) =>
     ipcRenderer.invoke('panel:resize-commit', width, height),
   getPanelSizeLimits: () => ipcRenderer.invoke('panel:limits'),
+  onOpenSettings: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('settings:open', listener)
+    return () => ipcRenderer.removeListener('settings:open', listener)
+  },
   openSettingsWindow: () => ipcRenderer.invoke('settings:open-window'),
   isSettingsWindowOpen: () => ipcRenderer.invoke('settings:window-open'),
   closeSettingsWindow: () => ipcRenderer.invoke('settings:close-window'),
