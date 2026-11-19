@@ -44,6 +44,8 @@ export interface SillApi {
   installWidget: () => Promise<InstallOutcome>
   uninstallWidget: (id: string) => Promise<InstallOutcome>
   openSkinsFolder: () => Promise<string>
+  getSillAssociation: () => Promise<boolean>
+  setSillAssociation: (enabled: boolean) => Promise<{ ok: boolean; enabled?: boolean; error?: string }>
   getWidgetData: (id: string) => Promise<Record<string, unknown>>
   setWidgetData: (id: string, value: unknown) => Promise<Record<string, unknown>>
   onWidgetsChanged: (callback: () => void) => () => void

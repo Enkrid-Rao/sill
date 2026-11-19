@@ -44,6 +44,9 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
   `sill new / dev / pack`) can target an installed or
   portable Sill without the source repo; `sill dev` runs with separate `Sill-dev` data and hot reload.
   Local `.sill` install asks for id / version / author / permissions before writing.
+- **`.sill` association — in.** Installed builds register a per-user `.sill` association: double-click
+  or right-click → *Install with Sill*. Portable builds can opt in from Settings → Widgets. Both paths
+  use the same confirmation dialog as the in-app installer.
 - **Live data — in.** CPU, memory, GPU, network, top processes, Windows SMTC now-playing with
   play/pause, previous/next and system volume, real weather (Open-Meteo), and an editable todo list
   stored in `todo.json`. Completed tasks stay in place; deletes fade horizontally while the row

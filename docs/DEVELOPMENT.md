@@ -122,7 +122,7 @@ Sill/
 └─ apps/desktop/
   ├─ electron.vite.config.ts  三段构建配置（main / preload / renderer）
    ├─ electron-builder.yml     安装包配置（NSIS per-user、无签名、图标走 extraResources）
-   ├─ resources/               collector.ps1 / media-control.ps1 / mouse-watch.ps1 + 托盘图标
+   ├─ resources/               collector.ps1 / media-control.ps1 / mouse-watch.ps1 / sill-file-assoc.nsh + 托盘图标
    ├─ scripts/make-tray-icon.py 托盘图标生成器（Pillow，可重跑）
    └─ src/
       ├─ shared/
@@ -143,6 +143,8 @@ Sill/
       │  ├─ panel.ts            面板窗口：几何、缩放、滑入动画、显隐、Esc 分层、崩溃重载
       │  ├─ settings-window.ts  独立设置窗口的创建 / 定位 / 关闭，以及面板置顶临时让位
       │  ├─ broadcast.ts        settings/layout/update 变更广播给所有渲染窗口
+      │  ├─ file-assoc.ts       .sill 关联注册 / 取消、命令行文件参数筛选
+      │  ├─ widget-install.ts   .sill 安装确认与落盘，设置窗口与 Explorer 共用
       │  ├─ hotkey.ts           全局热键 + Esc 临时接管
       │  ├─ tray.ts             托盘图标与菜单
       │  ├─ autostart.ts        开机自启

@@ -38,6 +38,8 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
 - **组件 CLI——已落地。** 独立 `sill-cli`（`npm i -g @heavenlydemon/sill-cli`，命令 `sill new / dev / pack`）可以不碰源码，直接面向
   已安装或便携版 Sill；`sill dev` 用独立 `Sill-dev` 数据并热重载。本地 `.sill` 安装前会确认
   id / 版本 / 作者 / 权限。
+- **`.sill` 文件关联——已落地。** 安装版自动注册当前用户级关联：双击或右键 `.sill` →
+  *Install with Sill*，走的还是同一套确认流程。绿色版可以在 设置 → 组件 里手动注册 / 取消。
 - **真实数据——已接入。** CPU、内存、GPU、网络、TOP 进程、Windows SMTC 正在播放（含播放 / 暂停、
   上一首 / 下一首、系统音量）、真实天气（Open-Meteo），以及可编辑的待办（存在 `todo.json`）。
   勾选后任务留在原位，删除只做横向淡出与行高收合，不会上下跳动。待办卡支持

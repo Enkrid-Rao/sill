@@ -1,10 +1,11 @@
 import './paths'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { Menu, app } from 'electron'
+import { Menu, app, dialog } from 'electron'
 import { handleAssetProtocol, registerAssetScheme } from './assets'
 import { applyAutostart } from './autostart'
 import { broadcast } from './broadcast'
+import { sillFileArgs } from './file-assoc'
 import { stopData, warmCollector } from './data'
 import { stopCollector } from './data/collector'
 import { startDevWidgetWatcher, stopDevWidgetWatcher } from './dev-widget'
@@ -12,6 +13,7 @@ import { bindHotkey, disposeHotkeys } from './hotkey'
 import { registerIpc } from './ipc'
 import { COMPONENTS_DIR, getLayout, invalidateLayout } from './layout'
 import { ensureSkinsDir, SKINS_DIR, startSkinsWatcher, stopSkinsWatcher } from './skins'
+import { installWidgetFile } from './widget-install'
 import { findComponentDir } from './widgets/package'
 import {
   createPanel,
@@ -41,8 +43,8 @@ const singleInstance = DEV_WIDGET || SMOKE || app.requestSingleInstanceLock()
 if (!singleInstance) {
   app.quit()
 } else {
-  app.on('second-instance', () => {
-    if (app.isReady()) showPanel()
+  app.on('second-instance', (_event, args) => {
+    if (app.isReady()) void handleOpenFileArgs(args)
   })
   app.whenReady().then(boot).catch((error) => {
     console.error('[sill] 启动失败：', error)
@@ -110,6 +112,25 @@ function scheduleUpdateChecks(): void {
   setInterval(() => void run(), 6 * 60 * 60 * 1000)
 }
 
+/** Explorer 双击 / 右键用 Sill 打开 .sill 时走这里。 */
+async function handleOpenFileArgs(argv: readonly string[]): Promise<void> {
+  const file = sillFileArgs(argv)[0]
+  if (!file) return
+
+  showPanel()
+  const win = getPanelWindow()
+  const result = await installWidgetFile(file, win)
+  const options = {
+    type: result.ok ? ('info' as const) : ('error' as const),
+    title: 'Sill 组件',
+    message: result.ok ? '组件已安装' : '组件安装失败',
+    detail: result.ok ? file : result.error ?? file,
+    buttons: ['好']
+  }
+  if (win && !win.isDestroyed()) await dialog.showMessageBox(win, options)
+  else await dialog.showMessageBox(options)
+}
+
 async function boot(): Promise<void> {
   const settings = loadSettings()
 
@@ -124,6 +145,7 @@ async function boot(): Promise<void> {
   createPanel()
   handleAssetProtocol((id) => findComponentDir(COMPONENTS_DIR, SKINS_DIR, id))
   ensureSkinsDir()
+  void handleOpenFileArgs(process.argv)
   startSkinsWatcher(() => {
     invalidateLayout()
     broadcast('widgets:changed', null)

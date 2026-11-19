@@ -59,3 +59,4 @@ nsis:
   uninstallDisplayName: Sill
   deleteAppDataOnUninstall: false     # 默认保留 %APPDATA%\Sill；设置内卸载可带 --delete-app-data
   runAfterFinish: true
+  include: sill-file-assoc.nsh         # 注册当前用户级 .sill 关联（右键 / 双击安装组件）

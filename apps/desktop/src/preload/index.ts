@@ -17,6 +17,8 @@ const api = {
   installWidget: () => ipcRenderer.invoke('widgets:install'),
   uninstallWidget: (id: string) => ipcRenderer.invoke('widgets:uninstall', id),
   openSkinsFolder: () => ipcRenderer.invoke('widgets:open-skins'),
+  getSillAssociation: () => ipcRenderer.invoke('widgets:assoc-get'),
+  setSillAssociation: (enabled: boolean) => ipcRenderer.invoke('widgets:assoc-set', enabled),
   getWidgetData: (id: string) => ipcRenderer.invoke('widgets:data-get', id),
   setWidgetData: (id: string, value: unknown) =>
     ipcRenderer.invoke('widgets:data-set', id, value),

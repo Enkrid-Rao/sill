@@ -469,6 +469,21 @@ export function CustomizeSheet({
   const [installing, setInstalling] = useState(false)
   const [uninstalling, setUninstalling] = useState<string | null>(null)
   const [installError, setInstallError] = useState('')
+  const [associated, setAssociated] = useState(false)
+  const [assocBusy, setAssocBusy] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    void window.sill
+      ?.getSillAssociation?.()
+      .then((value) => {
+        if (alive) setAssociated(Boolean(value))
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [])
   const activePreset = matchThemePreset(theme)
   const activeSize = matchPreset(panelWidth, panelHeight)
   const weatherCity = weatherLocation === 'auto' ? null : getWeatherCity(weatherLocation)
@@ -493,6 +508,14 @@ export function CustomizeSheet({
     if (result && !result.ok) {
       setInstallError(result.error ?? t(language, 'widgets.installFailed'))
     }
+  }
+
+  const toggleAssociation = async (): Promise<void> => {
+    setAssocBusy(true)
+    const result = await window.sill?.setSillAssociation?.(!associated)
+    setAssocBusy(false)
+    if (result?.ok) setAssociated(Boolean(result.enabled))
+    else setInstallError(result?.error ?? t(language, 'widgets.assocFailed'))
   }
 
   const updateText = ((): string => {
@@ -910,6 +933,25 @@ export function CustomizeSheet({
                 onClick={() => void window.sill?.openSkinsFolder()}
               >
                 {t(language, 'widgets.openSkinsFolder')}
+              </button>
+            </div>
+
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'widgets.assoc')}</span>
+                <span className="cz-setrow__note">
+                  {t(language, associated ? 'widgets.assocOn' : 'widgets.assocOff')}
+                </span>
+              </div>
+              <button
+                className="cz-action"
+                type="button"
+                disabled={assocBusy}
+                onClick={() => void toggleAssociation()}
+              >
+                {assocBusy
+                  ? '…'
+                  : t(language, associated ? 'widgets.assocUnregister' : 'widgets.assocRegister')}
               </button>
             </div>
 

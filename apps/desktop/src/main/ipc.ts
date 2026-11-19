@@ -1,17 +1,21 @@
-import { app, BrowserWindow, dialog, ipcMain, shell, type MessageBoxOptions, type OpenDialogOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions } from 'electron'
 import { join } from 'node:path'
 import { broadcast } from './broadcast'
+import {
+  isSillAssociation,
+  registerSillAssociation,
+  unregisterSillAssociation
+} from './file-assoc'
 import { getSnapshot, refreshDataCadence } from './data'
 import { mediaCommand } from './data/media-control'
 import { addShelfPaths, listShelf, openShelf, removeShelf } from './data/shelf'
 import { addTodo, listTodos, removeTodo, restoreTodo, toggleTodo, updateTodo } from './data/todo'
 import { getDevWidget } from './dev-widget'
-import { COMPONENTS_DIR, getLayout, invalidateLayout, resetLayout, setLayout } from './layout'
+import { COMPONENTS_DIR, getLayout, resetLayout, setLayout } from './layout'
 import { ensureSkinsDir, SKINS_DIR } from './skins'
 import { readWidgetData, writeWidgetData } from './widget-data'
+import { afterWidgetsChanged, installWidgetFile } from './widget-install'
 import {
-  inspectPackage,
-  installPackage,
   listInstalled,
   listSkins,
   loadInstalled,
@@ -41,13 +45,6 @@ export interface IpcDeps {
   apply: (settings: Settings, patch: Partial<Settings>) => void
   /** 换热键：试注册成功才写盘，失败保留旧键 */
   setHotkey: (accel: string) => { ok: boolean; hotkey: string }
-}
-
-/** 组件安装/卸载后，布局与组件列表一起刷新。 */
-function afterWidgetsChanged(): void {
-  invalidateLayout()
-  broadcast('widgets:changed', null)
-  broadcast('layout:changed', getLayout())
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -184,47 +181,20 @@ export function registerIpc(deps: IpcDeps): void {
       ? await dialog.showOpenDialog(win, openOptions)
       : await dialog.showOpenDialog(openOptions)
     if (picked.canceled || !picked.filePaths[0]) return { ok: false, error: '已取消' }
+    return installWidgetFile(picked.filePaths[0], win)
+  })
 
-    const inspected = inspectPackage(picked.filePaths[0])
-    if (!inspected.ok || !inspected.widget) return inspected
-    const widget = inspected.widget
-    const permissions = widget.permissions.length ? widget.permissions.join('\n') : '无'
-    const detail = [
-      `id: ${widget.id}`,
-      `版本: ${widget.version}`,
-      `作者: ${widget.author}`,
-      `类型: ${widget.kind === 'web' ? 'web（独立窗口）' : 'template（面板内，可带 JS）'}`,
-      `信任: ${
-        widget.kind === 'template'
-          ? '在面板页面内运行，和 Sill 同等权限'
-          : widget.trust === 'trusted'
-            ? '完全信任（可读写文件、执行命令、访问网络）'
-            : '沙箱（只通过组件桥）'
-      }`,
-      `权限: ${permissions}`,
-      '',
-      widget.trust === 'trusted'
-        ? '这个组件拥有和 Sill 相同的本机权限。只安装你信任的来源。'
-        : '只安装你信任的组件。'
-    ].join('\n')
-    const confirmOptions: MessageBoxOptions = {
-      type: 'question',
-      title: '安装组件',
-      message: `${widget.name} ${widget.version}`,
-      detail,
-      buttons: ['安装', '取消'],
-      defaultId: 0,
-      cancelId: 1,
-      noLink: true
+  ipcMain.handle('widgets:assoc-get', async () => isSillAssociation())
+
+  ipcMain.handle('widgets:assoc-set', async (_event, enabled: unknown) => {
+    if (typeof enabled !== 'boolean') return { ok: false }
+    try {
+      if (enabled) await registerSillAssociation(app.getPath('exe'))
+      else await unregisterSillAssociation()
+      return { ok: true, enabled }
+    } catch (error) {
+      return { ok: false, error: String(error) }
     }
-    const confirmed = win
-      ? await dialog.showMessageBox(win, confirmOptions)
-      : await dialog.showMessageBox(confirmOptions)
-    if (confirmed.response !== 0) return { ok: false, error: '已取消' }
-
-    const result = installPackage(picked.filePaths[0], COMPONENTS_DIR)
-    if (result.ok) afterWidgetsChanged()
-    return result
   })
 
   ipcMain.handle('widgets:uninstall', (_event, id: unknown) => {
