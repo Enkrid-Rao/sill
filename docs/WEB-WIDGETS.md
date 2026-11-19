@@ -1,7 +1,7 @@
 # Web Widgets
 
-Status: **developer preview** in `0.6.0-dev.2`. Local `.sill` install works; directory download /
-auto-update do not. The stable 0.5.4 release has no component platform.
+Status: **stable in `0.6.0`**. Local `.sill` install, URL install and the read-only catalog/update
+prompt work; package signing and hashes do not.
 
 A `web` component runs in its own webview guest instead of the panel page. Two modes:
 
@@ -149,4 +149,5 @@ pnpm sill dev .\examples\dev-trusted   # trusted full Node
   This is the Rainmeter-plugin equivalent; fastest path for a personal component.
 - **isolated widget**: needs host `audio.sessions` / `action.audio`; otherwise it cannot read or
   change other applications' audio sessions.
+
 

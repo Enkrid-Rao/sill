@@ -3,12 +3,13 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4?style=flat-square)
 ![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
-![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
-[![Release](https://img.shields.io/badge/release-v0.5.4-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+![Milestone](https://img.shields.io/badge/milestone-0.6%20%C2%B7%20components-F2A33C?style=flat-square)
+[![Release](https://img.shields.io/badge/release-v0.6.0-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+![License](https://img.shields.io/badge/license-MIT-2EA043?style=flat-square)
 [![verify](https://github.com/Enkrid-Rao/sill/actions/workflows/verify.yml/badge.svg)](https://github.com/Enkrid-Rao/sill/actions/workflows/verify.yml)
 
 A glass side rail for the Windows desktop: summon it with a hotkey, docked to the edge of the screen,
-built to host installable widgets — and eventually to eat Rainmeter skins.
+built to host installable widgets.
 
 **English** · [中文](README_zh.md)
 
@@ -72,19 +73,21 @@ shelf and todo remain React definitions.
   optional checkbox to clear `%APPDATA%\Sill` too; portable builds quit and delete the whole folder,
   including `Sill-data`.
 
-## 0.6 developer preview
+## 0.6.0
 
-The `v0.6.0-dev.2` prerelease ships the installer, portable build and standalone CLI:
+`v0.6.0` is the first stable component platform: templates run inside the panel, `.sill` packages
+install with capability-based prompts, the catalog and updater work, and `system` / `processes` now
+ship as template packages.
 
-- [Sill-Setup-0.6.0-dev.2.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-Setup-0.6.0-dev.2.exe)
-- [Sill-0.6.0-dev.2-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-0.6.0-dev.2-portable-win64.zip)
+- [Sill-Setup-0.6.0.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0/Sill-Setup-0.6.0.exe)
+- [Sill-0.6.0-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0/Sill-0.6.0-portable-win64.zip)
 - CLI: `npm i -g @heavenlydemon/sill-cli` (0.3.1)
 
-It is a developer preview, not the stable 0.5.4 release.
+See the [0.6.0 release notes](https://github.com/Enkrid-Rao/sill/releases/tag/v0.6.0) for the full list.
 
 ## Install
 
-Grab `Sill-Setup-0.5.4.exe` or the portable ZIP `Sill-0.5.4-portable-win64.zip`
+Grab `Sill-Setup-0.6.0.exe` or the portable ZIP `Sill-0.6.0-portable-win64.zip`
 from [Releases](https://github.com/Enkrid-Rao/sill/releases).
 It installs per-user to `%LOCALAPPDATA%\Programs\Sill` (no admin prompt). The build is **unsigned**,
 so SmartScreen warns once — choose “More info → Run anyway”.
@@ -95,13 +98,8 @@ temporary extraction. It keeps `settings.json`, `todo.json`, `layout.json` and `
 visible `Sill-data` folder next to `Sill.exe`; moving the folder keeps the data with it. To remove it,
 use Settings → General → Data & uninstall (quits, then deletes the whole folder) or simply delete the
 folder after quitting. Do not put it in `Program Files` (it may be read-only).
-The source is currently at **v0.5.4** (adds the Settings uninstall entry on top of v0.5.3's real
-weather, click-outside dismissal, todo filters/edit/undo, portable build, adjustable monitor refresh,
-five-section Settings and installed-build auto-updates); v0.5.4 is the latest published release.
-
-The widget platform (templates, `.sill` install, dynamic layout, CLI, actions) is on `main` and is
-**not** part of the 0.5.4 release. Run it from source or install a local `.sill` from a dev build.
-
+**v0.6.0** is the current release: the component platform (templates, `.sill` install, URL and
+catalog installs, component settings/storage, trust tiers, updates) on top of the existing shell.
 Requires Windows 10/11 x64.
 
 ## Development
@@ -170,4 +168,8 @@ component that does not add a host API.
 
 Brand **Sill** (the window ledge), CLI `sill`, package format `.sill`, package ids `sill.*`,
 data under `%APPDATA%\Sill\`. The reasoning is in [DEVPLAN §2](DEVPLAN.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 

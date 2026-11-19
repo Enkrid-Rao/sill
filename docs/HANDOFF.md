@@ -5,7 +5,7 @@
 
 - 时间：2026-11-19
 - 正式版本：**v0.5.4**（已发布；不含组件平台）
-- 开发版本：**0.6.0-dev.2**（`main`，组件平台预览）
+- 当前版本：**0.6.0**（稳定版，组件平台）
 - 组件规范：[Sill-Components](https://github.com/Enkrid-Rao/sill-components) ·
   写组件先读 [authoring.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/authoring.md)
 
@@ -44,7 +44,7 @@
 | `pnpm typecheck` | 通过 |
 | `pnpm test` | 49 个测试通过 |
 | `pnpm build` | 通过 |
-| `pnpm smoke` | 截图输出正常（0.6.0-dev.2） |
+| `pnpm smoke` | 截图输出正常（0.6.0） |
 | 脚手架组件 | `sill new demo` 生成的卡片在面板里正常渲染（本地时间 / 日期 / 存储计数） |
 | 错误提示 | `main.js` 抛错时卡片内出现红色错误条 |
 | 新建组件 | 设置 → 组件 →「创建…」在 skins 里生成脚手架（单测覆盖；模板与 CLI 共用） |
@@ -100,6 +100,7 @@ pnpm sill pack .\clock -o clock.sill
 3. 把 system / processes 迁到模板，验证模板能力足够。
 4. 签名 / 哈希。
 5. `webview` → `WebContentsView` 迁移。
+
 
 
 

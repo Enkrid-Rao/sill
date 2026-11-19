@@ -3,11 +3,12 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D4?style=flat-square)
 ![Electron](https://img.shields.io/badge/electron-45-47848F?style=flat-square)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square)
-![Milestone](https://img.shields.io/badge/milestone-M0.5%20%C2%B7%20installer-F2A33C?style=flat-square)
-[![Release](https://img.shields.io/badge/release-v0.5.4-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+![Milestone](https://img.shields.io/badge/milestone-0.6%20%C2%B7%20components-F2A33C?style=flat-square)
+[![Release](https://img.shields.io/badge/release-v0.6.0-2EA043?style=flat-square)](https://github.com/Enkrid-Rao/sill/releases)
+![License](https://img.shields.io/badge/license-MIT-2EA043?style=flat-square)
 [![verify](https://github.com/Enkrid-Rao/sill/actions/workflows/verify.yml/badge.svg)](https://github.com/Enkrid-Rao/sill/actions/workflows/verify.yml)
 
-Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用来承载可安装的组件——将来还要吃下 Rainmeter 皮肤。
+Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用来承载可安装的组件。
 
 [English](README.md) · **中文**
 
@@ -60,20 +61,21 @@ hero、media、shelf、todo 暂时仍是 React 实现。
   「卸载 Sill」。安装版打开官方 NSIS 卸载器，可勾选同时删除 `%APPDATA%\Sill`；绿色版退出后
   删除整个文件夹（包括 `Sill-data`）。
 
-## 0.6 开发者预览
+## 0.6.0
 
-`v0.6.0-dev.2` 预发布带安装包、便携版和独立 CLI：
+`v0.6.0` 是第一个稳定版组件平台：模板在面板内运行，`.sill` 包按能力档位提示安装，组件目录与更新可用，
+`system` / `processes` 也已改为模板包。
 
-- [Sill-Setup-0.6.0-dev.2.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-Setup-0.6.0-dev.2.exe)
-- [Sill-0.6.0-dev.2-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-0.6.0-dev.2-portable-win64.zip)
+- [Sill-Setup-0.6.0.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0/Sill-Setup-0.6.0.exe)
+- [Sill-0.6.0-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0/Sill-0.6.0-portable-win64.zip)
 - CLI：`npm i -g @heavenlydemon/sill-cli`（0.3.1）
 
-这是开发者预览，不是稳定版 0.5.4。
+完整列表见 [0.6.0 发布说明](https://github.com/Enkrid-Rao/sill/releases/tag/v0.6.0)。
 
 ## 安装
 
-从 [Releases](https://github.com/Enkrid-Rao/sill/releases) 下载 `Sill-Setup-0.5.4.exe`，
-或绿色版 ZIP `Sill-0.5.4-portable-win64.zip`。
+从 [Releases](https://github.com/Enkrid-Rao/sill/releases) 下载 `Sill-Setup-0.6.0.exe`，
+或绿色版 ZIP `Sill-0.6.0-portable-win64.zip`。
 per-user 安装到 `%LOCALAPPDATA%\Programs\Sill`，不弹 UAC。安装包**未签名**，SmartScreen 会拦一次，
 点「更多信息 → 仍要运行」。
 
@@ -82,13 +84,8 @@ per-user 安装到 `%LOCALAPPDATA%\Programs\Sill`，不弹 UAC。安装包**未�
 `settings.json`、`todo.json`、`layout.json`、`weather.json` 都放在 `Sill.exe` 旁的 `Sill-data`；
 移动整个文件夹时数据跟着走。卸载用设置 → 通用 → 数据与卸载（退出后删整个文件夹），
 或退出后直接删文件夹。不要放在 `Program Files`（可能只读）。
-源码当前是 **v0.5.4**（在 v0.5.3 的真实天气、点外收起、待办过滤/编辑/撤销、绿色版、可调监测刷新、
-五段式设置、安装版自动更新之上，新增设置内卸载）；v0.5.4 是最新已发布版本。
-
-组件平台（模板、`.sill` 安装、动态布局、CLI、动作）在 `main` 上，**不在** 0.5.4 发布版里。
-要从源码运行，或在开发版里安装本地 `.sill`。
-
-需要 Windows 10/11 x64。
+**v0.6.0** 是当前版本：组件平台（模板、`.sill` 安装、URL / 目录安装、组件设置与存储、信任分级、
+更新）已经进入正式版，其余外壳功能保持不变。需要 Windows 10/11 x64。
 
 ## 开发
 
@@ -153,4 +150,8 @@ trusted 的 web 组件是完整 Node 运行时，不是 provider 白名单：可
 
 品牌 **Sill**（窗台），命令行 `sill`，包格式 `.sill`，包 id `sill.*`，数据目录 `%APPDATA%\Sill\`。
 名字的理由见 [DEVPLAN.md §2](DEVPLAN.md)。
+
+## 许可
+
+MIT，见 [LICENSE](LICENSE)。
 

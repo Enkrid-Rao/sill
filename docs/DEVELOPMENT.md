@@ -2,7 +2,7 @@
 
 面向**动手改代码**的人。产品目标与架构规划在 [../DEVPLAN.md](../DEVPLAN.md)，进度与交接在 [HANDOFF.md](HANDOFF.md)。
 
-最后更新：2026-11-17（v0.5.4：设置内卸载、数据目录可见；v0.5.3：五段式设置、electron-updater 自动更新）
+最后更新：2026-11-19（v0.6.0：组件平台稳定版；模板安装/设置/目录/更新；system + processes 模板化）
 
 ---
 
@@ -729,8 +729,10 @@ CLI 和安装器各自有一份校验逻辑，改规则时两边都要改；后�
 release 需要一起上传；绿色 ZIP 不参与自动更新。
 **v0.5.4（已发布，2026-11-17）**：设置页增加「数据与卸载」；安装版可带 `--delete-app-data` 打开官方卸载器，
 绿色版退出后删除整个文件夹。
-当前源码版本 **0.5.4**，安装包输出 `apps/desktop/dist/Sill-Setup-0.5.4.exe`，绿色版输出
-`apps/desktop/dist/Sill-0.5.4-portable-win64.zip`；已发布到 GitHub Releases（带 `latest.yml` 与 blockmap）。
+**v0.6.0（已发布，2026-11-19）**：组件平台稳定版（模板、`.sill` 安装、组件设置/存储、URL 与目录安装、
+更新提示）；`system` / `processes` 迁到模板包；LICENSE 补为 MIT。
+当前源码版本 **0.6.0**，安装包输出 `apps/desktop/dist/Sill-Setup-0.6.0.exe`，绿色版输出
+`apps/desktop/dist/Sill-0.6.0-portable-win64.zip`；发布时 `latest.yml` 与 blockmap 要一起上传。
 `media-control.ps1` / `mouse-watch.ps1` 走 `extraResources` 的 `*.ps1` 过滤，打包时会带上。
 
 模型与验收在 DEVPLAN §11，这里只记实现约束：

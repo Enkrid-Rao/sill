@@ -5,7 +5,7 @@
 
 ## 路线 A：不装任何工具（推荐先走这条）
 
-1. 安装 Sill 开发版（`0.6.0-dev.2` 安装包或便携版）。
+1. 安装 Sill（`0.6.0` 安装包或便携版）。
 2. 打开 Sill → 设置 → 组件 → **新建组件…**（或点 **打开组件文件夹**，自己新建
    `%APPDATA%\Sill\skins\hello\`；便携版是 `Sill-data\skins\`）。
    新建会生成下方这套文件并直接打开文件夹。
@@ -109,5 +109,7 @@ command`，`root` 是这张卡的 ShadowRoot。API 细节见 authoring.md。
 - web 组件的 `sandboxed` 桥能力有限（没有 storage / fetch），重组件建议直接用 `template` 或
   `web + trusted`；
 - 0.6 仍是开发版，不是正式发布。
+
+
 
 
