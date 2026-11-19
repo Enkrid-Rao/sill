@@ -555,12 +555,17 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
   去掉 `SILL_DEV_WIDGET` 后这个 id 会从布局里过滤掉。
 - 模板 HTML/CSS 挂在 `WidgetShell` 的 `.card` 里的 Shadow DOM 上。玻璃、圆角、边框、
   padding 和 atmosphere 都是卡片/面板自己的，组件只写内容，**不要再铺一层仿玻璃**。
-- v1 不执行任意 JS；文本用 `data-sill-text`，本地化用 `data-sill-i18n`，
+- 不执行 `<script>`；标签 / 属性不限（`svg`、`img`、内联 `style` 都可以）。
+  可选 `ui/main.js` 在宿主页面里执行一次，拿 `sill.data / onData / command / storage`。
+  文本用 `data-sill-text`，本地化用 `data-sill-i18n`，
   条件和列表用 `data-sill-if` / `data-sill-repeat`，动作走 `data-sill-action` 白名单，
   数值用 `data-sill-meter` 写 `--sill-value`；没有表达式函数。
-- 设置 → 行为 → 组件 → 安装组件… 可以安装本地 `.sill`（zip，只接受
-  `widget.json` + `ui/index.html` + `ui/style.css`）。安装前确认 id / 版本 / 作者 / 权限；
-  安装后进入布局，可卸载。
+- 包内资源放 `ui/assets/`，相对路径由宿主改写成 `sill-asset://<id>/ui/...`。
+- `%APPDATA%\Sill\skins\<名字>\`（便携版在 `Sill-data/skins`）是 Rainmeter 式组件目录：
+  放进去就出现在设置 → 组件里，保存即刷新，不需要打包或安装。
+- 设置 → 行为 → 组件 → 安装组件… 可以安装本地 `.sill`（zip，接受
+  `widget.json` + `ui/index.html` + `ui/style.css` + 可选 `ui/main.js` + `ui/assets/**`）。
+  安装前确认 id / 版本 / 作者 / 类型；安装后进入布局，可卸载。
 - 完整格式、token 和安全边界见 [WIDGET-SURFACE.md](WIDGET-SURFACE.md)。
 - 还没有目录下载、签名和自动更新。
 
@@ -575,9 +580,9 @@ pnpm sill new com.example.clock
 pnpm sill dev ./my-widget
 ```
 
-- `validate`：manifest、三个文件、HTML/CSS 白名单；
-- `pack`：先校验，再打根目录只有三个文件的 `.sill`；
-- `new`：生成最小模板；
+- `validate`：manifest、必需文件、绑定与预算；
+- `pack`：先校验，再把组件文件打成 `.sill`（含 `main.js` 与 `assets/`）；
+- `new`：生成最小模板（默认 template，`--web` 生成 web/trusted）；
 - `dev`：以 `SILL_DEV_WIDGET=<dir>` 启动当前工作区的 `pnpm dev`。
 
 CLI 和安装器各自有一份校验逻辑，改规则时两边都要改；后续抽到共享包。

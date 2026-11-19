@@ -2,6 +2,7 @@ import './paths'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Menu, app } from 'electron'
+import { handleAssetProtocol, registerAssetScheme } from './assets'
 import { applyAutostart } from './autostart'
 import { broadcast } from './broadcast'
 import { stopData, warmCollector } from './data'
@@ -9,6 +10,9 @@ import { stopCollector } from './data/collector'
 import { startDevWidgetWatcher, stopDevWidgetWatcher } from './dev-widget'
 import { bindHotkey, disposeHotkeys } from './hotkey'
 import { registerIpc } from './ipc'
+import { COMPONENTS_DIR, getLayout, invalidateLayout } from './layout'
+import { ensureSkinsDir, SKINS_DIR, startSkinsWatcher, stopSkinsWatcher } from './skins'
+import { findComponentDir } from './widgets/package'
 import {
   createPanel,
   getPanelWindow,
@@ -28,9 +32,12 @@ const SMOKE = process.argv.includes('--smoke')
 
 app.setAppUserModelId('com.sill.app')
 
-// 开发实例不抢占正式 Sill 的单实例锁；否则开着 Sill 就无法预览组件。
+// 组件资源协议必须在 ready 之前注册；真正处理请求在 boot() 里。
+registerAssetScheme()
+
+// 开发实例 / 截图自检不抢占正式 Sill 的单实例锁；否则开着 Sill 就没法预览组件。
 const DEV_WIDGET = Boolean(process.env.SILL_DEV_WIDGET)
-const singleInstance = DEV_WIDGET || app.requestSingleInstanceLock()
+const singleInstance = DEV_WIDGET || SMOKE || app.requestSingleInstanceLock()
 if (!singleInstance) {
   app.quit()
 } else {
@@ -52,6 +59,7 @@ app.on('before-quit', () => {
   disposeHotkeys()
   destroyTray()
   stopDevWidgetWatcher()
+  stopSkinsWatcher()
 })
 
 function onToggle(): void {
@@ -114,6 +122,13 @@ async function boot(): Promise<void> {
     return true
   })
   createPanel()
+  handleAssetProtocol((id) => findComponentDir(COMPONENTS_DIR, SKINS_DIR, id))
+  ensureSkinsDir()
+  startSkinsWatcher(() => {
+    invalidateLayout()
+    broadcast('widgets:changed', null)
+    broadcast('layout:changed', getLayout())
+  })
   startDevWidgetWatcher()
   if (process.env.SILL_DEV_WIDGET) showPanel()
   // 常驻采样：第一次唤出 / 快速隐藏再唤出时，GPU、网速和进程不需要重新等 PowerShell。

@@ -43,6 +43,9 @@ export interface SillApi {
   getInstalledWidget: (id: string) => Promise<DevWidgetPayload | null>
   installWidget: () => Promise<InstallOutcome>
   uninstallWidget: (id: string) => Promise<InstallOutcome>
+  openSkinsFolder: () => Promise<string>
+  getWidgetData: (id: string) => Promise<Record<string, unknown>>
+  setWidgetData: (id: string, value: unknown) => Promise<Record<string, unknown>>
   onWidgetsChanged: (callback: () => void) => () => void
   getUninstallInfo: () => Promise<UninstallInfo>
   openDataFolder: () => Promise<string>

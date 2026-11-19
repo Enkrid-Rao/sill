@@ -212,6 +212,20 @@ function UninstallSection({ language }: { language: Language }): React.JSX.Eleme
 
       <div className="cz-setrow">
         <div className="cz-setrow__copy">
+          <span className="cz-setrow__name">{t(language, 'general.skinsFolder')}</span>
+          <span className="cz-setrow__note">{t(language, 'general.skinsFolderNote')}</span>
+        </div>
+        <button
+          className="cz-action"
+          type="button"
+          onClick={() => void window.sill?.openSkinsFolder()}
+        >
+          {t(language, 'general.openSkinsFolder')}
+        </button>
+      </div>
+
+      <div className="cz-setrow">
+        <div className="cz-setrow__copy">
           <span className="cz-setrow__name">{t(language, 'general.dataFolder')}</span>
           <span className="cz-setrow__note cz-path" title={info?.dataDir ?? ''}>
             {info?.dataDir ?? '—'}

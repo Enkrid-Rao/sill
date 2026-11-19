@@ -36,18 +36,17 @@ sill new com.example.clock
 cd com.example.clock
 ```
 
-默认：
+默认生成 `type: "template"`，带 `ui/main.js`（内联 JS，同页执行）：
 
 ```json
-"type": "web",
-"trust": "trusted",
+"type": "template",
 "size": { "w": 384, "h": 180 }
 ```
 
-`ui/main.js` 可以直接 `require('node:os')`。需要旧模板格式：
+`ui/main.js` 拿 `sill` / `root` 两个参数，不需要 Node。需要独立 webview + 完整 Node：
 
 ```powershell
-sill new com.example.clock --template
+sill new com.example.clock --web
 ```
 
 ## 4. 开发

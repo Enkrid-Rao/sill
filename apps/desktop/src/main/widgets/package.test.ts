@@ -119,20 +119,16 @@ describe('installPackage', () => {
     expect(result.ok).toBe(false)
   })
 
-  it('rejects script and event attributes', () => {
-    const script = makePackage({ ...validFiles(), 'ui/index.html': '<script>x</script>' })
-    expect(installPackage(script, join(root, 'components')).ok).toBe(false)
-
-    const handler = makePackage({
+  it('accepts arbitrary template markup and CSS', () => {
+    const file = makePackage({
       ...validFiles(),
-      'ui/index.html': '<div onclick="x">x</div>'
+      'ui/index.html':
+        '<svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" /></svg>' +
+        '<div style="color: red" onclick="void 0">x</div><script>void 0</script>',
+      'ui/style.css':
+        '@import "x"; .ring { background: url(x); mask: radial-gradient(#000, transparent) }'
     })
-    expect(installPackage(handler, join(root, 'components')).ok).toBe(false)
-  })
-
-  it('rejects remote CSS', () => {
-    const file = makePackage({ ...validFiles(), 'ui/style.css': 'body { background: url(x) }' })
-    expect(installPackage(file, join(root, 'components')).ok).toBe(false)
+    expect(installPackage(file, join(root, 'components')).ok).toBe(true)
   })
 
   it('rejects a second version of the same id', () => {

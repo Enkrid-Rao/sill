@@ -83,7 +83,7 @@ export function getDevWidget(): DevWidgetPayload | null {
   if (html === null) return fail(`缺少入口：${htmlPath}`)
 
   const css = readText(join(uiDir, 'style.css'), total) ?? ''
-  const js = type === 'web' ? readText(join(uiDir, 'main.js'), total) ?? '' : ''
+  const js = readText(join(uiDir, 'main.js'), total) ?? ''
 
   return {
     id,

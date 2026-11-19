@@ -70,6 +70,8 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
   --radius: 34px;
+  /* 卡片内圆角：内置卡和第三方组件共用同一个值 */
+  --radius-card: 18px;
 }
 
 *,
@@ -478,6 +480,16 @@ body {
 
 .card--grow .tasks {
   flex: 1;
+}
+
+/* web 组件：高度由 guest 上报（flow），自由布局下铺满卡片 */
+.webguest {
+  height: var(--webguest-h, 160px);
+  min-height: 48px;
+}
+
+.card[data-free='true'] .webguest {
+  height: 100%;
 }
 
 .sheet__head {

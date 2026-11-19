@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, type MessageBoxOptions, type OpenDialogOptions } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell, type MessageBoxOptions, type OpenDialogOptions } from 'electron'
 import { join } from 'node:path'
 import { broadcast } from './broadcast'
 import { getSnapshot, refreshDataCadence } from './data'
@@ -7,11 +7,15 @@ import { addShelfPaths, listShelf, openShelf, removeShelf } from './data/shelf'
 import { addTodo, listTodos, removeTodo, restoreTodo, toggleTodo, updateTodo } from './data/todo'
 import { getDevWidget } from './dev-widget'
 import { COMPONENTS_DIR, getLayout, invalidateLayout, resetLayout, setLayout } from './layout'
+import { ensureSkinsDir, SKINS_DIR } from './skins'
+import { readWidgetData, writeWidgetData } from './widget-data'
 import {
   inspectPackage,
   installPackage,
   listInstalled,
+  listSkins,
   loadInstalled,
+  loadSkin,
   uninstallPackage
 } from './widgets/package'
 import {
@@ -139,10 +143,34 @@ export function registerIpc(deps: IpcDeps): void {
 
   ipcMain.handle('widgets:preload', () => join(__dirname, '../preload/widget.js'))
 
-  ipcMain.handle('widgets:list', () => listInstalled(COMPONENTS_DIR))
+  ipcMain.handle('widgets:list', () => {
+    const seen = new Set<string>()
+    return [...listInstalled(COMPONENTS_DIR), ...listSkins(SKINS_DIR)]
+      .filter((item) => {
+        if (seen.has(item.id)) return false
+        seen.add(item.id)
+        return true
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
+  })
 
-  ipcMain.handle('widgets:load', (_event, id: unknown) =>
-    typeof id === 'string' ? loadInstalled(COMPONENTS_DIR, id) : null
+  ipcMain.handle('widgets:load', (_event, id: unknown) => {
+    if (typeof id !== 'string') return null
+    return loadInstalled(COMPONENTS_DIR, id) ?? loadSkin(SKINS_DIR, id)
+  })
+
+  // Rainmeter 式：把组件文件夹直接摆进去，改完自动刷新
+  ipcMain.handle('widgets:open-skins', async () => {
+    ensureSkinsDir()
+    return shell.openPath(SKINS_DIR)
+  })
+
+  ipcMain.handle('widgets:data-get', (_event, id: unknown) =>
+    typeof id === 'string' ? readWidgetData(id) : {}
+  )
+
+  ipcMain.handle('widgets:data-set', (_event, id: unknown, value: unknown) =>
+    typeof id === 'string' ? writeWidgetData(id, value) : {}
   )
 
   ipcMain.handle('widgets:install', async (event) => {
@@ -165,11 +193,13 @@ export function registerIpc(deps: IpcDeps): void {
       `id: ${widget.id}`,
       `版本: ${widget.version}`,
       `作者: ${widget.author}`,
-      `类型: ${widget.kind === 'web' ? 'web' : 'template'}`,
+      `类型: ${widget.kind === 'web' ? 'web（独立窗口）' : 'template（面板内，可带 JS）'}`,
       `信任: ${
-        widget.trust === 'trusted'
-          ? '完全信任（可读写文件、执行命令、访问网络）'
-          : '沙箱（只通过组件桥）'
+        widget.kind === 'template'
+          ? '在面板页面内运行，和 Sill 同等权限'
+          : widget.trust === 'trusted'
+            ? '完全信任（可读写文件、执行命令、访问网络）'
+            : '沙箱（只通过组件桥）'
       }`,
       `权限: ${permissions}`,
       '',

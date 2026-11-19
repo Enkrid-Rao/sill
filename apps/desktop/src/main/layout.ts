@@ -2,7 +2,8 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { CARD_IDS, DEFAULT_LAYOUT, normalizeLayout, type PanelLayout } from '../shared/layout'
 import { getDevWidget } from './dev-widget'
-import { listInstalled } from './widgets/package'
+import { SKINS_DIR } from './skins'
+import { listInstalled, listSkins } from './widgets/package'
 import { USER_DATA_DIR } from './paths'
 
 const LAYOUT_FILE = join(USER_DATA_DIR, 'layout.json')
@@ -10,11 +11,12 @@ export const COMPONENTS_DIR = join(USER_DATA_DIR, 'components')
 
 let cache: PanelLayout | null = null
 
-/** Built-ins first, then installed components, then the dev widget. */
+/** Built-ins first, then installed packages, then skins, then the dev widget. */
 function knownIds(): string[] {
   const installed = listInstalled(COMPONENTS_DIR).map((item) => item.id)
+  const skins = listSkins(SKINS_DIR).map((item) => item.id)
   const dev = getDevWidget()
-  return [...new Set([...CARD_IDS, ...installed, ...(dev ? [dev.id] : [])])]
+  return [...new Set([...CARD_IDS, ...installed, ...skins, ...(dev ? [dev.id] : [])])]
 }
 
 function cloneDefaults(): PanelLayout {

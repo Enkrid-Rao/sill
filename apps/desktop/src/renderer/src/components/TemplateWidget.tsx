@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { DevWidgetPayload } from '../../../shared/dev-widget'
+import { readTokens } from '../lib/tokens'
 import { runWidgetAction } from '../widgets/actions'
 import { buildProviderData } from '../widgets/providers'
 import type { WidgetContext } from '../widgets/types'
@@ -9,67 +10,82 @@ interface Props {
   context: WidgetContext
 }
 
-const ALLOWED_TAGS = new Set([
-  'div',
-  'span',
-  'p',
-  'section',
-  'ul',
-  'ol',
-  'li',
-  'strong',
-  'em',
-  'small',
-  'b',
-  'i',
-  'br',
-  'h1',
-  'h2',
-  'h3',
-  'h4',
-  'button'
-])
+/**
+ * 模板组件：HTML / CSS / 可选 JS，直接挂在 `.card` 的 Shadow DOM 里。
+ *
+ * 没有标签白名单，也没有字符串清洗。`<script>` 标签仍然不会执行（innerHTML 规则），
+ * 想写 JS 就放到 `ui/main.js`：宿主把它作为宿主页面里的一段脚本执行，并注入一个
+ * 小的 `sill` 对象（data / onData / command / storage）。
+ *
+ * 数据更新是增量的：首次挂载建一次 DOM，之后只改文本、CSS 变量和可见性。
+ * CSS transition / @keyframes 因此可以跨采样继续。
+ */
 
-function sanitizeHtml(input: string): string {
-  const doc = new DOMParser().parseFromString(input, 'text/html')
-  const visit = (parent: Element): void => {
-    for (const child of [...parent.children]) {
-      if (!ALLOWED_TAGS.has(child.tagName.toLowerCase())) {
-        child.remove()
-        continue
-      }
-      for (const attribute of [...child.attributes]) {
-        const name = attribute.name.toLowerCase()
-        const keep =
-          name === 'class' ||
-          name === 'id' ||
-          name === 'role' ||
-          name === 'type' ||
-          name.startsWith('aria-') ||
-          name.startsWith('data-sill-')
-        if (!keep) child.removeAttribute(attribute.name)
-      }
-      visit(child)
-    }
+type Scopes = WeakMap<Element, unknown>
+
+interface ListState {
+  keys: string[]
+  rows: HTMLElement[]
+}
+
+interface InlinePayload {
+  data: Record<string, unknown>
+  language: string
+  tokens: Record<string, string>
+}
+
+interface InlineApi {
+  id: string
+  root: ShadowRoot
+  host: unknown
+  data: () => Record<string, unknown>
+  onData: (callback: (payload: InlinePayload) => void) => void
+  command: (action: string, arg?: unknown) => void
+  storage: {
+    get: () => Promise<Record<string, unknown>>
+    set: (value: unknown) => Promise<Record<string, unknown>>
+    patch: (value: Record<string, unknown>) => Promise<Record<string, unknown>>
   }
-  visit(doc.body)
-  return doc.body.innerHTML
 }
 
-function sanitizeCss(input: string): string {
-  return input
-    .replace(/@import[^;]*;?/gi, '')
-    .replace(/url\s*\([^)]*\)/gi, 'none')
-    .replace(/expression\s*\(/gi, '')
-    .replace(/-moz-binding\s*:[^;]*;?/gi, '')
-    .slice(0, 100_000)
-}
+/** 每个列表容器的行模板（outerHTML，已去掉 repeat 属性）。 */
+const listTemplates = new WeakMap<Element, string>()
+/** 每个列表容器上一次的行 key 与行元素。 */
+const listStates = new WeakMap<Element, ListState>()
+
+const MAX_REPEAT_PASSES = 8
+const ASSET_SCHEME = 'sill-asset'
 
 function readPath(data: unknown, path: string): unknown {
   return path.split('.').reduce<unknown>((value, key) => {
     if (!value || typeof value !== 'object') return undefined
     return (value as Record<string, unknown>)[key]
   }, data)
+}
+
+function scopeFor(node: Element, scopes: Scopes): unknown {
+  let current: Element | null = node
+  while (current) {
+    if (scopes.has(current)) return scopes.get(current)
+    current = current.parentElement
+  }
+  return undefined
+}
+
+function resolve(
+  node: Element,
+  path: string,
+  data: Record<string, unknown>,
+  scopes: Scopes
+): unknown {
+  if (path === 'item') return scopeFor(node, scopes)
+  if (path.startsWith('item.')) {
+    const scope = scopeFor(node, scopes)
+    return scope && typeof scope === 'object'
+      ? readPath(scope, path.slice('item.'.length))
+      : undefined
+  }
+  return readPath(data, path)
 }
 
 function formatValue(value: unknown): string {
@@ -81,60 +97,113 @@ function formatValue(value: unknown): string {
   return String(value)
 }
 
-type Scopes = WeakMap<Element, unknown>
-
-function scopeFor(node: Element, scopes: Scopes): unknown {
-  let current: Element | null = node
-  while (current) {
-    if (scopes.has(current)) return scopes.get(current)
-    current = current.parentElement
+function keyOf(item: unknown, index: number): string {
+  if (item && typeof item === 'object' && 'id' in item) {
+    return String((item as Record<string, unknown>).id)
   }
-  return undefined
+  return `#${index}`
 }
 
-function resolve(node: Element, path: string, data: Record<string, unknown>, scopes: Scopes): unknown {
-  const scope = scopeFor(node, scopes)
-  if (path === 'item') return scope
-  if (path.startsWith('item.')) {
-    return scope && typeof scope === 'object'
-      ? readPath(scope, path.slice('item.'.length))
-      : undefined
-  }
-  return readPath(data, path)
+// ---------- 包内资源 ----------
+
+function isRelativeRef(value: string): boolean {
+  return value !== '' && !/^(?:[a-z][a-z0-9+.-]*:|\/\/|#|\/)/i.test(value)
 }
 
-function expandRepeats(root: ShadowRoot, data: Record<string, unknown>, scopes: Scopes): void {
-  // Nested repeats can appear after cloning; run a few passes, not unbounded.
-  for (let pass = 0; pass < 8; pass += 1) {
-    const nodes = [...root.querySelectorAll<HTMLElement>('[data-sill-repeat]')]
-    if (nodes.length === 0) return
-    for (const node of nodes) {
-      const path = node.dataset.sillRepeat ?? ''
-      const value = resolve(node, path, data, scopes)
-      if (!Array.isArray(value) || value.length === 0) {
-        node.remove()
-        continue
-      }
-      const fragment = document.createDocumentFragment()
-      for (const item of value) {
-        const clone = node.cloneNode(true) as HTMLElement
-        clone.removeAttribute('data-sill-repeat')
-        scopes.set(clone, item)
-        fragment.appendChild(clone)
-      }
-      node.replaceWith(fragment)
+function assetUrl(id: string, value: string): string {
+  return new URL(value, `${ASSET_SCHEME}://${id}/ui/`).toString()
+}
+
+/** <img src="assets/x.png"> → sill-asset://<id>/ui/assets/x.png */
+function rewriteAssets(root: ParentNode, id: string): void {
+  for (const node of root.querySelectorAll<HTMLElement>('[src], [href], [poster]')) {
+    for (const attribute of ['src', 'href', 'poster']) {
+      const raw = node.getAttribute(attribute)
+      if (raw && isRelativeRef(raw)) node.setAttribute(attribute, assetUrl(id, raw))
     }
   }
 }
 
-function applyConditions(root: ShadowRoot, data: Record<string, unknown>, scopes: Scopes): void {
-  for (const node of [...root.querySelectorAll<HTMLElement>('[data-sill-if]')]) {
-    const raw = node.dataset.sillIf ?? ''
+/** url(bg.png) → url("sill-asset://<id>/ui/bg.png")；data:/http:/var() 原样保留 */
+function rewriteCss(css: string, id: string): string {
+  return css.replace(
+    /url\(\s*(['"]?)([^)'"]*)\1\s*\)/gi,
+    (match: string, _quote: string, raw: string) => {
+      const value = raw.trim()
+      if (!value || value.startsWith('var(') || !isRelativeRef(value)) return match
+      return `url("${assetUrl(id, value)}")`
+    }
+  )
+}
+
+// ---------- 列表 / 条件 / 绑定 ----------
+
+/** 把带 data-sill-repeat 的节点换成列表容器，并记住行模板。 */
+function mountLists(container: ParentNode): void {
+  const nodes = [...container.querySelectorAll<HTMLElement>('[data-sill-repeat]')]
+  if (container instanceof Element && container.hasAttribute('data-sill-repeat')) {
+    nodes.unshift(container as HTMLElement)
+  }
+  for (const node of nodes) {
+    const path = node.getAttribute('data-sill-repeat') ?? ''
+    const list = document.createElement('div')
+    list.setAttribute('data-sill-list', path)
+    list.style.display = 'contents'
+    const template = node.cloneNode(true) as HTMLElement
+    template.removeAttribute('data-sill-repeat')
+    listTemplates.set(list, template.outerHTML)
+    node.replaceWith(list)
+  }
+}
+
+/** 同步列表行；结构没变时只刷新作用域，不重建节点。返回是否重建过。 */
+function syncLists(root: ParentNode, data: Record<string, unknown>, scopes: Scopes): boolean {
+  let rebuilt = false
+  for (const list of [...root.querySelectorAll<HTMLElement>('[data-sill-list]')]) {
+    const path = list.getAttribute('data-sill-list') ?? ''
+    const value = resolve(list, path, data, scopes)
+    const items = Array.isArray(value) ? value : []
+    const keys = items.map(keyOf)
+    const state = listStates.get(list)
+
+    if (
+      state &&
+      state.keys.length === keys.length &&
+      state.keys.every((key, index) => key === keys[index])
+    ) {
+      state.rows.forEach((row, index) => scopes.set(row, items[index]))
+      continue
+    }
+
+    const template = listTemplates.get(list)
+    if (template === undefined) continue
+    const holder = document.createElement('template')
+    holder.innerHTML = template
+    const rows: HTMLElement[] = []
+    for (const item of items) {
+      const row = holder.content.firstElementChild?.cloneNode(true) as HTMLElement | undefined
+      if (!row) break
+      scopes.set(row, item)
+      rows.push(row)
+    }
+    list.replaceChildren(...rows)
+    mountLists(list)
+    listStates.set(list, { keys, rows })
+    rebuilt = true
+  }
+  return rebuilt
+}
+
+function applyConditions(root: ParentNode, data: Record<string, unknown>, scopes: Scopes): void {
+  for (const node of root.querySelectorAll<HTMLElement>('[data-sill-if]')) {
+    const raw = node.getAttribute('data-sill-if') ?? ''
     const negate = raw.startsWith('!')
-    const path = negate ? raw.slice(1) : raw
-    const value = resolve(node, path, data, scopes)
+    const value = resolve(node, negate ? raw.slice(1) : raw, data, scopes)
     const visible = negate ? !value : Boolean(value)
-    if (!visible) node.remove()
+    // 用 hidden 而不是删节点：重新出现时不用重建，过渡状态还在。
+    // toggleAttribute 对 SVG 元素也有效（SVGElement 没有 hidden 属性）。
+    const shouldHide = !visible
+    if (node.hasAttribute('hidden') !== shouldHide) node.toggleAttribute('hidden', shouldHide)
   }
 }
 
@@ -147,32 +216,52 @@ function translate(
 }
 
 function applyBindings(
-  root: ShadowRoot,
+  root: ParentNode,
   data: Record<string, unknown>,
   scopes: Scopes,
   widget: DevWidgetPayload,
   language: string
 ): void {
   for (const node of root.querySelectorAll<HTMLElement>('[data-sill-text]')) {
-    node.textContent = formatValue(resolve(node, node.dataset.sillText ?? '', data, scopes))
+    const next = formatValue(
+      resolve(node, node.getAttribute('data-sill-text') ?? '', data, scopes)
+    )
+    if (node.textContent !== next) node.textContent = next
   }
   for (const node of root.querySelectorAll<HTMLElement>('[data-sill-i18n]')) {
-    node.textContent = translate(widget.strings, language, node.dataset.sillI18n ?? '')
+    const next = translate(widget.strings, language, node.getAttribute('data-sill-i18n') ?? '')
+    if (node.textContent !== next) node.textContent = next
   }
   for (const node of root.querySelectorAll<HTMLElement>('[data-sill-meter]')) {
-    const value = Number(resolve(node, node.dataset.sillMeter ?? '', data, scopes))
+    const value = Number(resolve(node, node.getAttribute('data-sill-meter') ?? '', data, scopes))
     if (Number.isFinite(value)) {
-      node.style.setProperty('--sill-value', String(Math.max(0, Math.min(100, value))))
-    } else {
+      const next = String(Math.max(0, Math.min(100, value)))
+      if (node.style.getPropertyValue('--sill-value') !== next) {
+        node.style.setProperty('--sill-value', next)
+      }
+    } else if (node.style.getPropertyValue('--sill-value')) {
       node.style.removeProperty('--sill-value')
     }
   }
 }
 
-/**
- * Template content. The host renders it in a shadow root inside a normal .card,
- * so the card supplies glass, radius and atmosphere. v1 has no arbitrary JS.
- */
+function notifyInline(
+  listeners: Set<(payload: InlinePayload) => void>,
+  id: string,
+  data: Record<string, unknown>,
+  language: string
+): void {
+  if (!listeners.size) return
+  const payload: InlinePayload = { data, language, tokens: readTokens() }
+  for (const listener of listeners) {
+    try {
+      listener(payload)
+    } catch (error) {
+      console.error(`[sill] ${id} onData:`, error)
+    }
+  }
+}
+
 export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const clickBound = useRef(false)
@@ -180,9 +269,11 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
   const dataRef = useRef<Record<string, unknown>>({})
   const scopesRef = useRef<Scopes>(new WeakMap())
   const permissionsRef = useRef<string[]>(widget.permissions)
+  const inlineListeners = useRef(new Set<(payload: InlinePayload) => void>())
   contextRef.current = context
   permissionsRef.current = widget.permissions
 
+  // 只在组件本身变化时重建 DOM（首次加载 / 热重载）。
   useLayoutEffect(() => {
     const element = host.current
     if (!element) return
@@ -193,30 +284,86 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
         const target = event.target
         if (!(target instanceof Element)) return
         const actionNode = target.closest<HTMLElement>('[data-sill-action]')
-        if (!actionNode || actionNode.dataset.sillAction === undefined) return
-        const argPath = actionNode.dataset.sillActionArg
+        const action = actionNode?.getAttribute('data-sill-action')
+        if (!actionNode || !action) return
+        const argPath = actionNode.getAttribute('data-sill-action-arg')
         const arg = argPath
           ? resolve(actionNode, argPath, dataRef.current, scopesRef.current)
           : undefined
-        runWidgetAction(
-          actionNode.dataset.sillAction ?? '',
-          arg,
-          contextRef.current,
-          permissionsRef.current
-        )
+        runWidgetAction(action, arg, contextRef.current, permissionsRef.current)
       })
       clickBound.current = true
     }
 
-    root.innerHTML = `<style>:host{display:block;color:var(--ink);font-family:var(--sans)}${sanitizeCss(widget.css)}</style>${sanitizeHtml(widget.html)}`
+    root.innerHTML = `<style>:host{display:block;color:var(--ink);font-family:var(--sans)}[hidden]{display:none!important}${rewriteCss(widget.css, widget.id)}</style>${widget.html}`
+    rewriteAssets(root, widget.id)
+    mountLists(root)
 
+    const listeners = new Set<(payload: InlinePayload) => void>()
+    inlineListeners.current = listeners
+    if (!widget.js) return
+
+    const sill: InlineApi = {
+      id: widget.id,
+      root,
+      host: window.sill,
+      data: () => dataRef.current,
+      onData: (callback) => {
+        listeners.add(callback)
+      },
+      command: (action, arg) => {
+        runWidgetAction(action, arg, contextRef.current, permissionsRef.current)
+      },
+      storage: {
+        get: async () => (await window.sill?.getWidgetData(widget.id)) ?? {},
+        set: async (value) => (await window.sill?.setWidgetData(widget.id, value)) ?? {},
+        patch: async (value) => {
+          const current = (await window.sill?.getWidgetData(widget.id)) ?? {}
+          return (await window.sill?.setWidgetData(widget.id, { ...current, ...value })) ?? {}
+        }
+      }
+    }
+
+    // 延后一拍：StrictMode 会 setup → cleanup → setup，作者脚本不能跑两遍。
+    // 用 <script> 执行：CSP 允许内联脚本，堆栈也和普通脚本一致。
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      if (cancelled) return
+      const script = document.createElement('script')
+      script.textContent = `(function (sill, root) {\n${widget.js}\n})(window.__sillInline, window.__sillInlineRoot)`
+      const scope = window as unknown as Record<string, unknown>
+      scope.__sillInline = sill
+      scope.__sillInlineRoot = root
+      root.appendChild(script)
+      script.remove()
+      delete scope.__sillInline
+      delete scope.__sillInlineRoot
+      // 脚本注册完 onData 后立刻给一帧当前数据。
+      notifyInline(listeners, widget.id, dataRef.current, contextRef.current.language)
+    }, 0)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [widget])
+
+  // 数据 / 语言变化：只更新绑定，不碰 DOM 结构。
+  useLayoutEffect(() => {
+    const root = host.current?.shadowRoot
+    if (!root) return
     const data = buildProviderData(widget.data, context)
     const scopes: Scopes = new WeakMap()
     dataRef.current = data
     scopesRef.current = scopes
-    expandRepeats(root, data, scopes)
+
+    for (let pass = 0; pass < MAX_REPEAT_PASSES; pass += 1) {
+      if (!syncLists(root, data, scopes)) break
+    }
     applyConditions(root, data, scopes)
     applyBindings(root, data, scopes, widget, context.language)
+
+    notifyInline(inlineListeners.current, widget.id, data, context.language)
   }, [
     widget,
     context.now,

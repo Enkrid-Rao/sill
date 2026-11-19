@@ -89,7 +89,7 @@ WidgetShell
             └─ 内容
 ```
 
-- HTML 经过白名单清洗后挂到 Shadow DOM；
+- HTML 原样挂到 Shadow DOM，不做标签审查（`<script>` 由 innerHTML 规则保证不执行）；
 - CSS 只在 Shadow DOM 内生效，不会污染其他卡；
 - Shadow DOM 继承宿主的 CSS 自定义属性，`--ink` / `--serif` / `--accent` 直接可用；
 - 卡片背后的 atmosphere 会自然透出来，不需要复制渐变；
@@ -146,17 +146,16 @@ pnpm dev
 
 不设置这个变量时，面板行为不变。
 
-## 7. 安全边界（实验版）
+## 7. 内容边界（实验版）
 
-- HTML 白名单：`div/span/p/ul/ol/li/strong/em/small/b/i/br/h1-h4`；
-- 去掉 `<script>`、`style` 属性、`on*`、`href`、`src`；
-- CSS 去掉 `@import`、`url()`、`expression`；
-- 不执行 JS；
-- 这不是最终安全模型：正式版还要做属性/URL 白名单、大小/深度限制和测试样例。
+- 标签 / 属性不做白名单：`svg`、`img`、内联 `style`、`on*` 都可以；
+- `<script>` 通过 `innerHTML` 插入不会执行；要 JS 写 `ui/main.js`，它在宿主页面里执行一次；
+- 组件与宿主同页，被视为可信代码；需要独立进程才用 `type: "web"`；
+- 包内资源走 `sill-asset://`；数据更新走增量替换，CSS 过渡不会被打断。
 
 ## 8. 下一步
 
-1. 动态布局 id，让模板卡进入 `layout.json`，支持拖拽、跨列、隐藏；
-2. `.sill` zip 安装、权限确认、卸载；
-3. 模板能力：`data-sill-action` 继续扩命令；资源白名单；
-4. 需要任意 JS 的组件另开一条受限脚本路线，不和模板混在一起。
+1. 组件存储 / 目录下载；
+2. `.sill` 签名与哈希；
+3. `data-sill-action` 继续扩命令；
+4. 模板能力补齐：格式化函数、通用样式绑定。

@@ -18,6 +18,8 @@ const MAX_FILES = 500
 const MAX_FILE = 20 * 1024 * 1024
 const BASE_FILES = ['widget.json', 'ui/index.html', 'ui/style.css'] as const
 const WEB_FILES = [...BASE_FILES, 'ui/main.js'] as const
+// template 也可以带 ui/main.js：它跑在宿主页面里，不是 webview。没有 main.js 就是纯静态卡。
+const TEMPLATE_FILES = [...BASE_FILES, 'ui/main.js'] as const
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/
 const ID = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/
 const PERMISSIONS = new Set([
@@ -190,11 +192,11 @@ function packageDirs(root: string, id?: string): string[] {
 }
 
 function allowedFiles(kind: 'template' | 'web'): readonly string[] {
-  return kind === 'web' ? WEB_FILES : BASE_FILES
+  return kind === 'web' ? WEB_FILES : TEMPLATE_FILES
 }
 
-function isAssetFile(name: string, kind: 'template' | 'web'): boolean {
-  return kind === 'web' && name.startsWith('ui/assets/') && safeEntry(name)
+function isAssetFile(name: string): boolean {
+  return name.startsWith('ui/assets/') && safeEntry(name)
 }
 
 function readPackage(file: string): { data: PackageData } | { error: string } {
@@ -244,7 +246,7 @@ function readPackage(file: string): { data: PackageData } | { error: string } {
   if (!manifest) return { error: 'widget.json 字段不合法' }
   const allowed = allowedFiles(manifest.kind)
   for (const name of files.keys()) {
-    if (!allowed.includes(name) && !isAssetFile(name, manifest.kind)) {
+    if (!allowed.includes(name) && !isAssetFile(name)) {
       return { error: `组件包包含不允许的文件：${name}` }
     }
   }
@@ -252,18 +254,8 @@ function readPackage(file: string): { data: PackageData } | { error: string } {
     return { error: manifest.kind === 'web' ? '缺少 ui/main.js' : '缺少 ui/style.css' }
   }
 
-  if (manifest.kind === 'template') {
-    const html = files.get('ui/index.html')?.toString('utf8') ?? ''
-    const css = files.get('ui/style.css')?.toString('utf8') ?? ''
-    if (/<script\b/i.test(html) || /\son\w+\s*=/i.test(html) || /\sstyle\s*=/i.test(html)) {
-      return { error: '模板不能包含 script、on* 或 style 属性' }
-    }
-    if (/\b(href|src)\s*=/i.test(html)) return { error: '模板不能包含 href / src' }
-    if (/@import|url\s*\(|expression\s*\(/i.test(css)) {
-      return { error: 'CSS 不能包含 @import、url() 或 expression()' }
-    }
-  }
-
+  // 模板内容不做标签/属性审查：宿主用 innerHTML 挂载，浏览器不会执行其中的脚本；
+  // SVG、内联 style、img 这些都是正常写法，交给作者。
   return { data: { manifest, files } }
 }
 
@@ -280,11 +272,11 @@ export function listInstalled(root: string): InstalledWidgetInfo[] {
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export function loadInstalled(root: string, id: string): DevWidgetPayload | null {
-  const dir = packageDirs(root, id)[0]
-  if (!dir) return null
+/** 从一个组件目录读出渲染载荷；安装目录和 skins 目录共用。 */
+export function payloadFromDir(dir: string): DevWidgetPayload | null {
   const manifest = readManifest(dir)
-  if (!manifest || manifest.id !== id) return null
+  if (!manifest) return null
+  const jsPath = join(dir, 'ui/main.js')
   try {
     return {
       id: manifest.id,
@@ -296,10 +288,7 @@ export function loadInstalled(root: string, id: string): DevWidgetPayload | null
       dir,
       html: readFileSync(join(dir, 'ui/index.html'), 'utf8'),
       css: readFileSync(join(dir, 'ui/style.css'), 'utf8'),
-      js:
-        manifest.kind === 'web'
-          ? readFileSync(join(dir, 'ui/main.js'), 'utf8')
-          : undefined,
+      js: existsSync(jsPath) ? readFileSync(jsPath, 'utf8') : undefined,
       data: manifest.data,
       permissions: manifest.permissions,
       strings: manifest.strings
@@ -307,6 +296,68 @@ export function loadInstalled(root: string, id: string): DevWidgetPayload | null
   } catch {
     return null
   }
+}
+
+export function loadInstalled(root: string, id: string): DevWidgetPayload | null {
+  const dir = packageDirs(root, id)[0]
+  if (!dir) return null
+  const payload = payloadFromDir(dir)
+  return payload && payload.id === id ? payload : null
+}
+
+/** skins 目录：一个子目录就是一个组件，不需要打包、不需要安装。 */
+export function listSkins(root: string): InstalledWidgetInfo[] {
+  if (!existsSync(root)) return []
+  return readdirSync(root)
+    .filter((name) => !name.startsWith('.'))
+    .map((name) => join(root, name))
+    .filter((dir) => {
+      try {
+        return statSync(dir).isDirectory()
+      } catch {
+        return false
+      }
+    })
+    .map(infoFromDir)
+    .filter((item): item is InstalledWidgetInfo => item !== null)
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function loadSkin(root: string, id: string): DevWidgetPayload | null {
+  if (!existsSync(root)) return null
+  for (const name of readdirSync(root)) {
+    if (name.startsWith('.')) continue
+    const dir = join(root, name)
+    try {
+      if (!statSync(dir).isDirectory()) continue
+    } catch {
+      continue
+    }
+    const payload = payloadFromDir(dir)
+    if (payload?.id === id) return payload
+  }
+  return null
+}
+
+/** 按 id 找到组件目录：先看安装目录，再看 skins。 */
+export function findComponentDir(componentsRoot: string, skinsRoot: string, id: string): string | null {
+  const installed = packageDirs(componentsRoot, id)[0]
+  if (installed) {
+    const manifest = readManifest(installed)
+    if (manifest?.id === id) return installed
+  }
+  if (!existsSync(skinsRoot)) return null
+  for (const name of readdirSync(skinsRoot)) {
+    if (name.startsWith('.')) continue
+    const dir = join(skinsRoot, name)
+    try {
+      if (!statSync(dir).isDirectory()) continue
+    } catch {
+      continue
+    }
+    if (readManifest(dir)?.id === id) return dir
+  }
+  return null
 }
 
 export function installPackage(file: string, root: string): InstallOutcome {

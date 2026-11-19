@@ -130,7 +130,9 @@ export function useSillSettings(): SillSettingsController {
 
     const offSettings = window.sill?.onSettingsChanged((next) => adopt(next))
     const offLayout = window.sill?.onLayoutChanged((next) =>
-      setLayoutState(normalizeLayout(next, registry.ids))
+      // 主进程已经按 knownIds 过滤过；这里合并 incoming order，避免 skins 刚加进来时
+      // 组件列表还没刷新完、把新 id 又过滤掉。
+      setLayoutState(normalizeLayout(next, [...new Set([...registry.ids, ...next.order])]))
     )
     const offUpdate = window.sill?.onUpdateState((next) => setUpdate(next))
     return () => {
@@ -297,7 +299,7 @@ export function useSillSettings(): SillSettingsController {
 
   const setLayout = useCallback(
     (next: PanelLayout) => {
-      const normalized = normalizeLayout(next, registry.ids)
+      const normalized = normalizeLayout(next, [...new Set([...registry.ids, ...next.order])])
       setLayoutState(normalized)
       void window.sill?.setLayout(normalized)
     },

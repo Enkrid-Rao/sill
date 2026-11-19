@@ -1,6 +1,6 @@
 import type { TodoItem } from '../../../shared/data'
 import type { WidgetDataBinding } from '../../../shared/dev-widget'
-import { formatDate, t } from '../../../shared/i18n'
+import { formatDate, t, type Language } from '../../../shared/i18n'
 import { getWeatherCity, weatherCityName, weatherConditionKey } from '../../../shared/weather'
 import type { WidgetContext } from './types'
 
@@ -54,25 +54,43 @@ function weatherValue(context: ProviderContext): Record<string, unknown> {
   }
 }
 
+function timeValue(now: Date, language: Language): Record<string, unknown> {
+  return {
+    iso: localIso(now),
+    epoch: Math.floor(now.getTime() / 1000),
+    tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+    date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+      now.getDate()
+    ).padStart(2, '0')}`,
+    dateLabel: formatDate(now, language),
+    weekday: (now.getDay() + 6) % 7,
+    hour: now.getHours(),
+    minute: now.getMinutes()
+  }
+}
+
 function providerValue(source: string, context: ProviderContext): unknown {
   const snapshot = context.snapshot
   switch (source) {
     case 'time.now':
+      return timeValue(context.now, context.language)
+    /**
+     * 整份宿主状态。宿主加字段时组件不用等升级：直接读 state.snapshot.xxx。
+     * 也省掉「每来一个字段就加一个 provider、改一次宿主」的循环。
+     */
+    case 'host.state':
       return {
-        iso: localIso(context.now),
-        epoch: Math.floor(context.now.getTime() / 1000),
-        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        time: `${String(context.now.getHours()).padStart(2, '0')}:${String(
-          context.now.getMinutes()
-        ).padStart(2, '0')}`,
-        date: `${context.now.getFullYear()}-${String(context.now.getMonth() + 1).padStart(
-          2,
-          '0'
-        )}-${String(context.now.getDate()).padStart(2, '0')}`,
-        dateLabel: formatDate(context.now, context.language),
-        weekday: (context.now.getDay() + 6) % 7,
-        hour: context.now.getHours(),
-        minute: context.now.getMinutes()
+        ...timeValue(context.now, context.language),
+        language: context.language,
+        snapshot: snapshot ?? {},
+        todos: (context.todos ?? []).map((item: TodoItem) => ({
+          id: item.id,
+          text: item.text,
+          done: item.done
+        })),
+        media: mediaValue(context),
+        weather: weatherValue(context)
       }
     case 'system.cpu':
       return { usage: snapshot?.cpu ?? null, cores: snapshot?.cores ?? null }

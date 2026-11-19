@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { DevWidgetPayload } from '../../../shared/dev-widget'
+import { readTokens } from '../lib/tokens'
 import { runWidgetAction } from '../widgets/actions'
 import { buildProviderData } from '../widgets/providers'
 import type { WidgetContext } from '../widgets/types'
@@ -23,34 +24,16 @@ interface Props {
   context: WidgetContext
 }
 
-const TOKEN_NAMES = [
-  '--ink',
-  '--ink-soft',
-  '--ink-dim',
-  '--ink-faint',
-  '--accent',
-  '--accent-pale',
-  '--accent-soft',
-  '--sans',
-  '--serif',
-  '--radius'
-]
-
-function readTokens(): Record<string, string> {
-  if (typeof document === 'undefined') return {}
-  const style = getComputedStyle(document.documentElement)
-  const tokens: Record<string, string> = {}
-  for (const name of TOKEN_NAMES) tokens[name] = style.getPropertyValue(name).trim()
-  return tokens
-}
-
 function buildDocument(widget: DevWidgetPayload): string {
   const csp =
-    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'"
+    "default-src 'none'; style-src 'unsafe-inline' sill-asset:; script-src 'unsafe-inline' sill-asset:; img-src sill-asset: data:; font-src sill-asset: data:; media-src sill-asset:; connect-src 'none'"
+  // 包内相对路径（assets/、style.css）对到组件目录；<base> 之后 <img src="assets/x.png"> 直接可用。
+  const base = `sill-asset://${widget.id}/ui/`
   const script = (widget.js ?? '').replace(/<\/script/gi, '<\\/script')
   return `<!doctype html>
 <html>
 <head>
+<base href="${base}">
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <style>
@@ -117,7 +100,7 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
     )
     guest.style.display = 'block'
     guest.style.width = '100%'
-    guest.style.height = `${height}px`
+    guest.style.height = '100%'
     guest.style.background = 'transparent'
     guest.style.border = '0'
 
@@ -135,6 +118,14 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
     }
 
     const onIpc = (event: IpcEvent): void => {
+      if (event.channel === 'sill:height') {
+        const next = Number(event.args[0])
+        if (Number.isFinite(next) && next > 0) {
+          const clamped = Math.max(48, Math.min(1200, Math.round(next)))
+          host.style.setProperty('--webguest-h', `${clamped}px`)
+        }
+        return
+      }
       if (event.channel !== 'sill:command') return
       const [action, arg] = event.args as [unknown, unknown]
       if (typeof action !== 'string') return
@@ -186,9 +177,10 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
     context.language
   ])
 
+  const heightStyle = { '--webguest-h': `${height}px` } as CSSProperties
+
   return (
-    <div ref={container} style={{ minHeight: `${height}px` }}>
-      {!preload && !error ? <div style={{ height: `${height}px` }} /> : null}
+    <div ref={container} className="webguest" style={heightStyle}>
       {error ? <div className="sub">{error}</div> : null}
     </div>
   )

@@ -26,7 +26,7 @@ function usage() {
 
   validate <dir>              校验组件
   pack <dir> [-o file]        打成 .sill
-  new <id> [dir] [--template] 生成组件（默认 web/trusted）
+  new <id> [dir] [--web] 生成组件（默认 template，可带 ui/main.js）
   dev <dir>                   启动已安装 Sill / SILL_EXE，独立开发数据
 
 示例：
@@ -49,7 +49,8 @@ function readJson(file) {
 }
 
 function allowedFiles(kind) {
-  return kind === 'web' ? WEB_FILES : BASE_FILES
+  // template 也可以带 ui/main.js（在宿主页面里跑）；web 必须有。
+  return WEB_FILES
 }
 
 function validateDir(dir) {
@@ -110,8 +111,8 @@ function validateDir(dir) {
     }
   }
 
-  const files = allowedFiles(kind)
-  const allowed = new Set([...files, 'README.md'])
+  const required = kind === 'web' ? WEB_FILES : BASE_FILES
+  const allowed = new Set([...WEB_FILES, 'README.md'])
   const walk = (current) => {
     for (const entry of readdirSync(current)) {
       const file = join(current, entry)
@@ -121,8 +122,8 @@ function validateDir(dir) {
       } else if (relative.endsWith('.sill') && !relative.includes('/')) {
         // 允许把打包产物放在项目根目录；它不会进 .sill。
         continue
-      } else if (relative.startsWith('ui/assets/') && kind === 'web') {
-        // web 组件可以带 assets；trusted 用包目录，sandboxed 以后走协议。
+      } else if (relative.startsWith('ui/assets/')) {
+        // 组件可以带资源；template / web 都通过 sill-asset:// 访问。
         continue
       } else if (!allowed.has(relative)) {
         errors.push(`不允许的文件：${relative}`)
@@ -131,7 +132,7 @@ function validateDir(dir) {
   }
   walk(root)
 
-  for (const relative of files) {
+  for (const relative of required) {
     const file = join(root, relative)
     if (!existsSync(file)) {
       errors.push(`缺少 ${relative}`)
@@ -142,24 +143,6 @@ function validateDir(dir) {
       continue
     }
     if (statSync(file).size > MAX_FILE) errors.push(`${relative} 超过 20 MB`)
-  }
-
-  if (kind === 'template') {
-    const htmlPath = join(root, 'ui/index.html')
-    const cssPath = join(root, 'ui/style.css')
-    if (existsSync(htmlPath)) {
-      const html = readFileSync(htmlPath, 'utf8')
-      if (/<script\b/i.test(html)) errors.push('HTML 不能包含 <script>')
-      if (/\son\w+\s*=/i.test(html)) errors.push('HTML 不能包含 on* 属性')
-      if (/\sstyle\s*=/i.test(html)) errors.push('HTML 不能包含 style 属性')
-      if (/\b(href|src)\s*=/i.test(html)) errors.push('HTML 不能包含 href / src')
-    }
-    if (existsSync(cssPath)) {
-      const css = readFileSync(cssPath, 'utf8')
-      if (/@import/i.test(css)) errors.push('CSS 不能包含 @import')
-      if (/url\s*\(/i.test(css)) errors.push('CSS 不能包含 url()')
-      if (/expression\s*\(/i.test(css)) errors.push('CSS 不能包含 expression()')
-    }
   }
 
   return errors
@@ -180,7 +163,7 @@ function collectPackageFiles(root, kind) {
         continue
       }
       if (relative === 'README.md' || relative.endsWith('.sill')) continue
-      if (allowedFiles(kind).includes(relative) || (kind === 'web' && relative.startsWith('ui/assets/'))) {
+      if (allowedFiles(kind).includes(relative) || relative.startsWith('ui/assets/')) {
         files.push(relative)
       }
     }
@@ -207,13 +190,12 @@ function pack(dir, out) {
   console.log(target)
 }
 
-function newWidget(id, dir, template) {
+function newWidget(id, dir, web) {
   if (!ID.test(id)) return fail('id 至少两段，只能用小写字母、数字、点和短横线')
   const target = resolve(dir || id)
   if (existsSync(target)) return fail(`目录已存在：${target}`)
   mkdirSync(join(target, 'ui'), { recursive: true })
   const name = id.split('.').pop().replace(/-/g, ' ')
-  const web = !template
   const manifest = {
     schema: 1,
     id,
@@ -221,10 +203,11 @@ function newWidget(id, dir, template) {
     version: '1.0.0',
     author: 'you',
     license: 'MIT',
-    runtime: '>=0.5.4',
+    runtime: '>=0.6.0',
     engine: '>=0.1.0',
     type: web ? 'web' : 'template',
-    ...(web ? { trust: 'trusted', size: { w: 384, h: 180 } } : {}),
+    ...(web ? { trust: 'trusted' } : {}),
+    size: { w: 384, h: 180 },
     span: { default: 1 },
     permissions: ['data.time'],
     data: [{ id: 'now', source: 'time.now' }],
@@ -235,18 +218,18 @@ function newWidget(id, dir, template) {
     join(target, 'ui/index.html'),
     web
       ? '<div class="widget">\n  <div class="widget__label">HELLO</div>\n  <div class="widget__host" id="host">—</div>\n  <div class="widget__time" id="time">--:--</div>\n</div>\n'
-      : '<div class="widget">\n  <div class="widget__label">HELLO</div>\n  <div class="widget__time" data-sill-text="now.time">--:--</div>\n</div>\n'
+      : '<div class="widget">\n  <div class="widget__label">HELLO</div>\n  <div class="widget__time" data-sill-text="now.time">--:--</div>\n  <div class="widget__extra" id="extra"></div>\n</div>\n'
   )
   writeFileSync(
     join(target, 'ui/style.css'),
-    ':host { display: block; }\n\n.widget {\n  color: var(--ink);\n}\n\n.widget__label {\n  color: var(--ink-faint);\n  font-size: 10px;\n  letter-spacing: 0.17em;\n}\n\n.widget__time {\n  font-family: var(--serif);\n  font-size: 44px;\n  font-style: italic;\n}\n'
+    ':host { display: block; }\n\n.widget {\n  color: var(--ink);\n}\n\n.widget__label {\n  color: var(--ink-faint);\n  font-size: 10px;\n  letter-spacing: 0.17em;\n}\n\n.widget__time {\n  font-family: var(--serif);\n  font-size: 44px;\n  font-style: italic;\n}\n\n.widget__extra {\n  color: var(--ink-dim);\n  font-size: 12px;\n}\n'
   )
-  if (web) {
-    writeFileSync(
-      join(target, 'ui/main.js'),
-      "const os = require('node:os')\n\ndocument.querySelector('#host').textContent = os.hostname()\n\nsill.ready(({ data }) => {\n  document.querySelector('#time').textContent = data.now?.time ?? '--:--'\n})\n"
-    )
-  }
+  writeFileSync(
+    join(target, 'ui/main.js'),
+    web
+      ? "const os = require('node:os')\n\ndocument.querySelector('#host').textContent = os.hostname()\n\nsill.ready(({ data }) => {\n  document.querySelector('#time').textContent = data.now?.time ?? '--:--'\n})\n"
+      : "/**\n * ui/main.js 在宿主页面里执行。sill 是宿主注入的 API：\n *   sill.data()            当前数据\n *   sill.onData(cb)        每次快照更新\n *   sill.command(action)   触发动作（media.playpause 等）\n *   sill.storage.get/set   组件私有 JSON 存储\n * root 是这张卡的 shadow root。\n */\nsill.onData(({ data }) => {\n  const time = data.now?.time ?? '--:--'\n  root.querySelector('#extra').textContent = `${sill.id} · ${time}`\n})\n"
+  )
   console.log(target)
 }
 
@@ -359,10 +342,10 @@ function main() {
   }
 
   if (command === 'new') {
-    const template = args.includes('--template')
+    const web = args.includes('--web')
     const positional = args.filter((arg) => !arg.startsWith('-'))
     if (!positional[0]) return fail('缺少 id')
-    newWidget(positional[0], positional[1], template)
+    newWidget(positional[0], positional[1], web)
     return
   }
 
