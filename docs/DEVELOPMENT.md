@@ -548,44 +548,47 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
   被 `SILL_USER_DATA` 指到外部的数据目录不会被删（仅测试用）。
 - 从 Windows「应用和功能」卸载安装版：走官方卸载器，数据默认保留；要连数据一起清，用设置里的卸载入口。
 
-### 6.26 第三方组件模板实验（SILL_DEV_WIDGET）
+### 6.26 第三方组件模板（0.6）
 
-- `SILL_DEV_WIDGET` 指向一个文件夹时，面板会多一张模板卡；不设置时行为不变。
-  文件夹结构：`widget.json`（`type: "template"`）+ `ui/index.html` + `ui/style.css`；
-  示例见 [`examples/dev-widget`](../examples/dev-widget)。
+- 组件文件夹：`widget.json`（`type: "template"`）+ `ui/index.html`（必需）+ 可选
+  `ui/style.css` / `ui/main.js` / 任意 `ui/**`。示例见
+  [`examples/dev-widget`](../examples/dev-widget)。
 - 模板卡使用 manifest 的 `id` 进入 `layout.json`，和内置卡一样可拖拽、跨列、隐藏、重启保留；
-  去掉 `SILL_DEV_WIDGET` 后这个 id 会从布局里过滤掉。
+  `SILL_DEV_WIDGET` 指向文件夹时也能直接预览，去掉后 id 从布局里过滤掉。
 - 模板 HTML/CSS 挂在 `WidgetShell` 的 `.card` 里的 Shadow DOM 上。玻璃、圆角、边框、
   padding 和 atmosphere 都是卡片/面板自己的，组件只写内容，**不要再铺一层仿玻璃**。
 - 不执行 `<script>`；标签 / 属性不限（`svg`、`img`、内联 `style` 都可以）。
-  可选 `ui/main.js` 在宿主页面里执行一次，拿 `sill.data / onData / command / storage`。
+  可选 `ui/main.js` 在宿主页面里执行一次，拿 `sill.data / onData / onDispose / command /
+  storage / host`；同步异常会在卡内显示错误条。
   文本用 `data-sill-text`，本地化用 `data-sill-i18n`，
   条件和列表用 `data-sill-if` / `data-sill-repeat`，动作走 `data-sill-action` 白名单，
   数值用 `data-sill-meter` 写 `--sill-value`；没有表达式函数。
-- 包内资源放 `ui/assets/`，相对路径由宿主改写成 `sill-asset://<id>/ui/...`。
+- 包内资源放 `ui/**`，相对路径由宿主改写成 `sill-asset://<id>/ui/...`。
 - `%APPDATA%\Sill\skins\<名字>\`（便携版在 `Sill-data/skins`）是 Rainmeter 式组件目录：
-  放进去就出现在设置 → 组件里，保存即刷新，不需要打包或安装。
-- 设置 → 组件 → 安装组件… 可以安装本地 `.sill`（zip，接受
-  `widget.json` + `ui/index.html` + `ui/style.css` + 可选 `ui/main.js` + `ui/assets/**`）。
+  放进去就出现在设置 → 组件里，保存即重载该组件，不需要打包或安装。
+- 设置 → 组件 → 从 .sill 文件安装… 可以安装本地 `.sill`（zip，接受
+  `widget.json` + 根目录 `README/LICENSE` + 任意 `ui/**`，其中 `ui/index.html` 必需）。
   安装前确认 id / 版本 / 作者 / 类型；安装后进入布局，可卸载。
-- 完整格式、token 和安全边界见 [WIDGET-SURFACE.md](WIDGET-SURFACE.md)。
+- **写组件的文档只有一份**：Sill-Components 的
+  [docs/authoring.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/authoring.md)；
+  宿主实现见 [WIDGET-SURFACE.md](WIDGET-SURFACE.md)。
 - 还没有目录下载、签名和自动更新。
 
 ### 6.27 组件 CLI
 
-`packages/cli` 提供本地命令，不发布到 npm：
+`packages/cli` 提供本地命令（源码 0.3.0，npm 上仍是 0.2.2）：
 
 ```bash
-pnpm sill validate ./my-widget
-pnpm sill pack ./my-widget -o my-widget.sill
-pnpm sill new com.example.clock
-pnpm sill dev ./my-widget
+sill new clock            # 生成脚手架（template + main.js + README + sill.d.ts）
+sill validate ./clock
+sill pack ./clock -o clock.sill
+sill dev ./clock          # 备选：独立开发数据预览
 ```
 
-- `validate`：manifest、必需文件、绑定与预算；
-- `pack`：先校验，再把组件文件打成 `.sill`（含 `main.js` 与 `assets/`）；
-- `new`：生成最小模板（默认 template，`--web` 生成 web/trusted）；
-- `dev`：以 `SILL_DEV_WIDGET=<dir>` 启动当前工作区的 `pnpm dev`。
+- `validate`：manifest、必需文件、允许的文件与预算；
+- `pack`：先校验，再把组件文件打成 `.sill`（`widget.json` + 根目录元数据 + `ui/**`）；
+- `new`：生成完整脚手架（默认 template；`--web` 生成 web/trusted）；
+- `dev`：以 `SILL_DEV_WIDGET=<dir>` 启动已安装的 Sill（或工作区 `pnpm dev`）。
 
 CLI 和安装器各自有一份校验逻辑，改规则时两边都要改；后续抽到共享包。
 

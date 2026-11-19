@@ -1,102 +1,107 @@
 # Developer Quickstart
 
-不需要 clone Sill 源码。目标流程：
+写 Sill 组件只需要 HTML / CSS / JavaScript。完整写法（API、token、配方、常见坑）在
+[Sill-Components › docs/authoring.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/authoring.md)。
+
+## 路线 A：不装任何工具（推荐先走这条）
+
+1. 安装 Sill 开发版（`0.6.0-dev.2` 安装包或便携版）。
+2. 打开 Sill → 设置 → 组件 → **打开组件文件夹**（`%APPDATA%\Sill\skins\`；便携版是
+   `Sill-data\skins\`）。
+3. 新建文件夹 `hello/`，放三个文件：
 
 ```text
-安装 Sill 开发版（0.6.0-dev.2 安装包或便携版）
-安装 sill-cli
-sill new com.example.clock
-sill dev
-sill pack
+hello/
+├─ widget.json
+└─ ui/
+   ├─ index.html
+   └─ style.css
 ```
-
-## 1. Sill
-
-下载 [Sill-Setup-0.6.0-dev.2.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-Setup-0.6.0-dev.2.exe) 安装，或下载 [Sill-0.6.0-dev.2-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-0.6.0-dev.2-portable-win64.zip) 解压到任意可写目录，记下 `Sill.exe` 路径。
-
-```powershell
-$env:SILL_EXE = 'D:\Apps\Sill\Sill.exe'
-```
-
-不设置时，CLI 会找 `%LOCALAPPDATA%\Programs\Sill\Sill.exe`。
-
-## 2. CLI
-
-```powershell
-npm i -g @heavenlydemon/sill-cli
-sill --help
-```
-
-需要 Node.js >= 20。离线时也可以用 GitHub release 的 tarball：`npm i -g .\sill-cli-0.2.2.tgz`。
-
-## 3. 新建
-
-```powershell
-sill new com.example.clock
-cd com.example.clock
-```
-
-默认生成 `type: "template"`，带 `ui/main.js`（内联 JS，同页执行）：
 
 ```json
-"type": "template",
-"size": { "w": 384, "h": 180 }
+{
+  "schema": 1,
+  "id": "hello",
+  "name": "Hello",
+  "version": "1.0.0",
+  "type": "template",
+  "ui": "ui/index.html"
+}
 ```
 
-`ui/main.js` 拿 `sill` / `root` 两个参数，不需要 Node。需要独立 webview + 完整 Node：
+```html
+<div class="hello">
+  <span class="hello__label">HELLO</span>
+  <strong class="hello__big">Sill</strong>
+</div>
+```
+
+```css
+:host { display: block; }
+.hello { display: flex; flex-direction: column; gap: 6px; color: var(--ink); }
+.hello__label { color: var(--ink-faint); font-size: 10px; letter-spacing: .18em; }
+.hello__big { font-family: var(--serif); font-style: italic; font-size: 40px; }
+```
+
+4. 保存 → 设置 → 组件里勾上 Hello → 回面板就能看到。之后改文件保存即热重载。
+
+## 路线 B：用 CLI 生成脚手架 / 打包
 
 ```powershell
-sill new com.example.clock --web
+npm i -g @heavenlydemon/sill-cli   # 需要 0.3.0+；0.2.x 不认识新的 template+main.js/assets
+sill new clock
+sill validate .\clock
+sill pack .\clock -o clock.sill
 ```
 
-## 4. 开发
+> 如果 npm 上还是 0.2.x：在 Sill 仓库里用 `pnpm sill new clock` / `pnpm sill pack ...`，
+> 或者直接手写文件（路线 A）。
 
-```powershell
-sill dev
+生成的文件：
+
+```text
+clock/
+├─ widget.json
+├─ README.md
+└─ ui/
+   ├─ index.html
+   ├─ style.css
+   ├─ main.js        # 可选；模板里写逻辑就靠它
+   ├─ sill.d.ts      # 可选；编辑器补全
+   └─ assets/**      # 图片、字体
 ```
 
-- 使用 `%APPDATA%\Sill-dev` 作为独立开发数据，不碰正式版设置；
-- 正式 Sill 开着也能启动，开发实例不抢单实例锁；
-- 改 `ui/index.html` / `style.css` / `main.js`，宿主监控文件并热重载；
-- 面板会自动打开。
+## 开发循环
 
-覆盖开发数据目录：
+- 把组件文件夹放进 `skins/` → 保存即热重载（只重载改动的那个组件）；
+- 面板上按 **F12** 打开 DevTools；`main.js` 抛错会在卡片里显示错误条；
+- 组件私有存储写在 `<userData>/widget-data/<id>.json`（`sill.storage`）；
+- 安装 `.sill`：设置 → 组件 → 从 .sill 文件安装，或者双击 `.sill`。
 
-```powershell
-$env:SILL_DEV_DATA = 'D:\sill-dev-data'
+## 两种组件类型
+
+| 类型 | 运行方式 | 适合 |
+|---|---|---|
+| `template`（默认） | 面板页面内，Shadow DOM + 可选 `main.js` | 绝大多数卡片 |
+| `web` | 独立 webview guest；`trust: "trusted"` 时可用 Node | 重前端框架、需要 Node 的插件 |
+
+`template` 的 `main.js` 拿到 `sill` 和 `root` 两个参数：`sill.onData / onDispose / storage /
+command`，`root` 是这张卡的 ShadowRoot。API 细节见 authoring.md。
+
+## 常用数据源
+
+`time.now` · `system.cpu` · `system.memory` · `system.gpu` · `system.network` ·
+`system.processes` · `media.nowPlaying` · `weather.current` · `todo.list` · `host.state`（整份状态）
+
+声明方式：
+
+```json
+"data": [{ "id": "now", "source": "time.now" }]
 ```
-
-## 5. 打包
-
-```powershell
-sill pack -o clock.sill
-```
-
-在 Sill 设置 → 组件 → 安装，选择 `.sill`；trusted 会显示完全访问警告。
-
-## 不需要为每个能力加宿主 API
-
-trusted 组件是通用 escape hatch：
-
-- 带 `ui/assets/**`；
-- 从 `sill.ready(({ dir }) => ...)` 拿包目录；
-- `require('node:child_process')` 执行自己的 helper；
-- 或 `require` 自己的 native `.node` addon。
-
-per-app 音量、传感器、专有 SDK 都应该由组件自己带 helper/native，而不是每来一个功能就在宿主加一个
-`action.xxx`。宿主 provider 是给 sandboxed/简单组件的便利层，不是能力上限。
 
 ## 当前限制
 
-- `ui/assets/**` 已开放；trusted 用 `sill.ready(({ dir }) => ...)` 拿包目录，helper 随包走；
 - 目录下载 / 自动更新还没做；
-- CLI 还没发布到 npm，先用 tarball；
-- Sill 0.6 目前是开发版，不是正式发布。
-
-## 组件类型
-
-| 类型 | 能力 | 适合 |
-|---|---|---|
-| `web` + `trust: trusted` | 完整 Node、`child_process`、native addon | 本地、自己写、审核过的组件 |
-| `web` + `trust: sandboxed` | `window.sill` 桥 | 不可信市场组件 |
-| `template` | 无 JS，Shadow DOM | 简单只读卡 |
+- web 组件的 `sandboxed` 桥能力有限（没有 storage / fetch），重组件建议直接用 `template` 或
+  `web + trusted`；
+- 0.6 仍是开发版，不是正式发布。

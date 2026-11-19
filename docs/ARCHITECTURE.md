@@ -50,18 +50,25 @@ Snapshots are pushed while the panel is visible; the renderer does not poll prov
    filters to known ids, appends missing ones and clamps spans.
 3. **Card** — `WidgetShell` renders `.card` with glass, radius, border, padding, drag/span tools.
    Widget content never owns the card surface.
-4. **Template engine** — `TemplateWidget` sanitises HTML/CSS, mounts a Shadow DOM and applies:
+4. **Template engine** — `TemplateWidget` mounts `ui/index.html` into a Shadow DOM (no tag/attribute
+   allowlist in 0.6; `<script>` tags stay inert because they are parsed via `innerHTML`) and applies:
    - `data-sill-text`
    - `data-sill-i18n`
    - `data-sill-if` / `!`
    - `data-sill-repeat` with `item`
    - `data-sill-action` (`media.*`, `todo.toggle`)
    - `data-sill-meter` (`--sill-value`, 0–100)
-5. **Providers** — `providers.ts` maps manifest `data[].source` to public objects:
-   `time.now`, `system.*`, `media.nowPlaying`, `weather.current`, `todo.list`.
+5. **Inline JS** — optional `ui/main.js` runs once in the panel page with `(sill, root)`:
+   `data()`, `onData()`, `onDispose()`, `command()`, `storage`, and `sill.host` (the preload API).
+   Errors are caught and rendered inside the card.
+6. **Providers** — `providers.ts` maps manifest `data[].source` to public objects:
+   `time.now`, `system.*`, `media.nowPlaying`, `weather.current`, `todo.list`, and `host.state`
+   (the whole snapshot).
+7. **Assets** — relative `src` / `href` / `poster` and CSS `url()` are rewritten to
+   `sill-asset://<id>/ui/...` and served by the main process, confined to the component directory.
 
-The engine rebuilds the shadow root on data changes. That is deliberate: no diffing, no hidden
-state, and the same output for the same snapshot.
+Updates are incremental: bindings, `[hidden]` and list rows are patched in place, so CSS transitions
+and `@keyframes` survive a data tick. The DOM is rebuilt only when the component itself changes.
 
 ## Package lifecycle
 
@@ -79,13 +86,18 @@ means uninstall then install.
 
 ## Security boundaries
 
-- No `eval`, no `new Function`, no inline handlers, no `href` / `src`.
-- CSS allowlist rejects `@import`, `url()`, `expression()`.
-- Actions are a fixed enum and require `action.media` / `action.todo`.
-- The installer trusts only `widget.json`, `ui/index.html`, `ui/style.css`; path traversal and extra
-  files are rejected.
-- Providers expose only the public fields in `spec/providers.json`; process paths, command lines,
-  PIDs and users are not included.
+The component model is Rainmeter-style: **components are trusted local code**; installing one is the
+authorisation. See [SECURITY.md](../SECURITY.md) for the full model. What remains here is engineering
+hygiene, not containment:
+
+- Component files: `widget.json` + root `README/LICENSE/NOTICE` + `ui/**`; `ui/index.html` required.
+- Zip entries reject absolute paths, drive letters, `..` and backslashes; installs go through a temp
+  directory and an atomic rename.
+- `sill-asset://` resolves through `within(componentDir)` and only serves existing files.
+- The panel renderer keeps `contextIsolation`, `sandbox` and no Node; components run inside it by
+  design. `web` guests are the isolated option (`trust: "trusted"` adds Node).
+- CSP blocks remote scripts; inline scripts and package modules (`sill-asset:`) are allowed.
+- `permissions` is metadata shown at install time, not a runtime gate.
 
 ## Extension points
 
@@ -96,7 +108,10 @@ means uninstall then install.
 | New directive | `TemplateWidget.tsx` | no arbitrary expressions; update spec/validator |
 | New action | `TemplateWidget.tsx` + main IPC | permission + allowlist + docs |
 | New package rule | `main/widgets/package.ts` + CLI + spec | keep installer/CLI/spec in sync |
-| New UI surface | renderer | reuse `.card` glass and CSS tokens |`n| Web component | `WebWidget.tsx` + `preload/widget.ts` | sandboxed bridge or trusted full Node |`n| Free layout | `shared/layout.ts` + `WidgetShell.tsx` | absolute boxes; no widget-specific constraints |
+| New UI surface | renderer | reuse `.card` glass and CSS tokens |
+| Web component | `WebWidget.tsx` + `preload/widget.ts` | bridge, or full Node when `trust: "trusted"` |
+| Free layout | `shared/layout.ts` + `WidgetShell.tsx` | absolute boxes; auto-seeded from the flow grid |
+| New theme token | `lib/tokens.ts` + `panel.css` | add to `THEME_TOKENS` so guests see it too |
 
 ## Directory map
 
@@ -121,9 +136,10 @@ docs/           DEVELOPMENT, WIDGET-SURFACE, ARCHITECTURE
 ## Known gaps
 
 - No directory download / auto-update / signing.
-- No package upgrade-in-place.
-- Template has no formatting functions, image assets or generic style bindings.
-- The five built-ins remain React, not templates.
-- Web components are a dev-only prototype; no `.sill` package, assets, fetch/storage or `WebContentsView` migration. Trusted web is full Node and must stay out of the marketplace until a real warning/trust model exists.
+- No package upgrade-in-place (one version per id; uninstall then install loses the layout slot).
+- Trust tiers are not implemented: every `.sill` shows the same confirmation, nothing is remembered.
+- Web `sandboxed` guests have no storage / fetch and almost no API; the tier is due for a decision
+  (isolation mode with real APIs, or removal).
+- The six built-ins remain React, not templates.
 - Free layout has no snapping, guides or nested containers yet.
 - No root license yet.

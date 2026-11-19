@@ -1,24 +1,31 @@
 # Web Widgets
 
-Status: **developer preview.** Local `.sill` install works; directory download / auto-update do not. Not in the 0.5.4 release.
+Status: **developer preview** in `0.6.0-dev.2`. Local `.sill` install works; directory download /
+auto-update do not. The stable 0.5.4 release has no component platform.
 
-Two trust levels:
+A `web` component runs in its own webview guest instead of the panel page. Two trust levels:
 
-| trust | JS | Node / Win32 | Use |
+| trust | JavaScript | Node / Win32 | Use |
 |---|---|---|---|
-| `sandboxed` (default) | yes | no, bridge only | marketplace, untrusted code |
-| `trusted` | yes | **full Node** | local/personal components, reviewed plugins |
+| `sandboxed` (default) | yes, own realm | no, bridge only | prototypes; the bridge is intentionally small |
+| `trusted` | yes | **full Node** | local/personal plugins, native helpers |
 
 The guest is transparent, so the host `.card` still supplies glass and atmosphere.
 
-## Why not put JavaScript in templates
+## Templates already have JavaScript
 
-A template is mounted into the host renderer's Shadow DOM. Shadow DOM isolates CSS and DOM, not
-JavaScript. A `<script>` in a template would run with the host's `window`, `window.sill`, IPC and
-other cards. That is why templates stay JS-free.
+A template runs in the host page's Shadow DOM and can ship `ui/main.js`, which executes once with
+`sill` and `root` (see the authoring guide). So the choice is not "JS or no JS"; it is:
 
-A web widget is a separate JS realm. A sandboxed widget gets a narrow bridge; a trusted widget gets
-the full Node environment and can do anything the app can.
+| | template | web guest |
+|---|---|---|
+| Realm | host page (shared) | separate renderer |
+| Host DOM | can reach it (trusted code) | only its own document |
+| Crash isolation | no — a hang freezes the panel | yes — own process |
+| Best for | normal cards, SVG, small scripts | React/Vue/Three, large libraries, crashy code, Node plugins |
+
+Use `web` when you need process isolation or Node; otherwise `template` is lighter and gets the glass
+for free.
 
 ## Package
 

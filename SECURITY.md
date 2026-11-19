@@ -1,7 +1,29 @@
 # Security
 
-Sill runs on Windows with access to the user's desktop session. Treat widget packages and renderer
-content as untrusted.
+Sill runs on Windows with access to the user's desktop session.
+
+**Components are local trusted code.** The model is the same as Rainmeter skins or a VS Code
+extension: installing a `.sill`, or dropping a folder into `skins/`, is the authorisation. The host
+does not try to contain a malicious component at runtime — that would tax every honest component.
+The job of the installer is to make the decision informed and the failure modes boring.
+
+## Trust levels
+
+| Type | Where it runs | What it can do |
+|---|---|---|
+| `template` | In the panel page (Shadow DOM) | Full host API: `window.sill` IPC, storage, network, DOM of its own shadow root. Optional `ui/main.js` runs in the panel page. |
+| `web` + `trust: "sandboxed"` | Own webview guest | The `sill` bridge only; no Node, no host DOM. |
+| `web` + `trust: "trusted"` | Own webview guest | Full Node: filesystem, `child_process`, native addons, network, Win32. |
+
+`permissions` in `widget.json` is **metadata for the install prompt and the catalogue**, not a
+runtime gate. `sill.host` exposes the whole preload API, so a template can call anything the app can.
+
+What this means in practice:
+
+- Only install components from a source you trust, exactly like a Rainmeter skin;
+- The install dialog shows id / version / author / type / permissions so the decision is visible;
+- A component can read the data the host already collected (todo text, process names, weather
+  location, media metadata) and can send it anywhere. Treat that as part of "trusting" it.
 
 ## Supported versions
 
@@ -26,39 +48,57 @@ Include:
 Do not include real user data, tokens or personal paths. You will get an acknowledgement when the
 report is triaged; there is no bug bounty.
 
-## Trust levels\n\n- `trusted` web widgets run with full Node: filesystem, child processes, network, Windows APIs.\n  They are not sandboxed and should only be installed from a source you trust.\n- `sandboxed` web widgets and templates run in the host or a sandboxed webview with the bridge only.\n- The market / installer must show a full-access warning for trusted packages; the current prototype\n  is dev-only.\n\n## Threat model
+## Threat model
 
-- **Widget package**: `.sill` zip with `widget.json`, `ui/index.html`, `ui/style.css`. It may come
-  from an untrusted author.
-- **Template content**: HTML/CSS only; no JS, no network, no filesystem. Sanitised and mounted in a
-  Shadow DOM.
-- **Renderer**: `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`; all privileged
-  work goes through preload IPC.
-- **Main process**: owns filesystem, data collection, installer, settings and windows.
+**Assets.** The user's files, `%APPDATA%\Sill` (settings / layout / todos / widget data), the window
+and tray, and the integrity of the installed component set.
+
+**Adversaries.** A malicious `.sill` package; a compromised download; a component author who ships an
+update that does more than the README says.
+
+**Not defended.** A component that is trusted at install time can do anything the app can. There is no
+sandbox to escape, because there is no sandbox.
 
 ## In scope
 
-- sandbox escape from a template or installed widget;
-- path traversal or zip-slip in `.sill` install;
-- reading files or data outside declared permissions;
-- command execution / arbitrary network from a widget;
-- IPC methods that let the renderer bypass main-process checks;
-- installer writing outside `<userData>/components/`.
+- installer writing outside `<userData>/components/` (path traversal, zip-slip, absolute paths);
+- `sill-asset://` serving files outside the component directory;
+- a package that lies about its type or privileges to change what the user is shown;
+- IPC or preload surface that lets a *host* page action bypass a main-process check;
+- update channel issues: unsigned installer accepted, wrong release downloaded;
+- denial of service that survives a restart (orphaned processes, infinite crash-reload loops).
 
 ## Out of scope
 
-- a user installing a malicious widget and granting it declared read permissions;
+- a component doing what its install prompt says it can (network, files, settings);
+- a user installing a component from an untrusted source;
 - unsigned builds triggering SmartScreen;
-- denial of service by a widget that consumes CPU inside the renderer;
+- a component consuming CPU inside the renderer (crash isolation is a `web`-type concern);
 - third-party provider data being wrong.
+
+## Engineering boundaries that remain
+
+These are about accidents and bad packages, not about containing malicious code:
+
+- fixed entry (`ui/index.html`), `widget.json` at the root, files limited to root metadata + `ui/**`;
+- `/`, `\`, `..`, drive letters and UNC paths rejected in zip entries;
+- 20 MB per file, 50 MB per package, 500 files;
+- install through a temp directory and an atomic rename; uninstall deletes only
+  `<userData>/components/<id>@<version>`;
+- `sill-asset://` resolves through `within(componentDir)` and only serves existing files;
+- the panel renderer keeps `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`
+  (components run *inside* it deliberately; the guest webview is the isolated option);
+- CSP blocks remote script loading in the panel and in the guest; inline scripts and package modules
+  are allowed by design.
 
 ## Hardening already in place
 
-- fixed three-file package layout, size limits, zip entry allowlist;
-- atomic install and uninstall;
-- HTML tag/attribute allowlist and CSS `@import` / `url()` rejection;
-- action allowlist with `action.media` / `action.todo`;
-- no Node in the renderer.
+- component file allowlist and size budgets;
+- path-safe zip extraction and atomic install;
+- `sill-asset://` confined to the component directory;
+- trusted-web packages ask for an explicit confirmation that mentions full access;
+- release builds are produced by `electron-builder`; auto-update uses Electron's
+  `electron-updater` with SHA512 verification from `latest.yml`.
 
-See [Sill-Components security](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/security.md)
-for the widget-level model.
+See the component-level model in
+[Sill-Components › security.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/security.md).

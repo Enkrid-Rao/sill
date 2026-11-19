@@ -128,22 +128,25 @@ pnpm dist        # NSIS 安装包 → apps/desktop/dist
 
 ## 组件开发
 
-从 [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md) 开始：独立 `sill-cli`
-（`npm i -g @heavenlydemon/sill-cli`）、
-`type: "web"` + `trust: "trusted"`、`sill dev` 热重载、`sill pack`。
+一个组件就是一个文件夹：`widget.json` + `ui/index.html`（可选 `style.css`、`main.js`、
+`assets/**`）。就是普通的 HTML / CSS / JavaScript——没有模板语言，没有构建步骤。
 
-trusted 组件是完整 Node 运行时，不是 provider 白名单。它可以带 `ui/assets/**`
-（helper、native addon、图标、字体），通过 `sill.ready(({ dir }) => ...)` 拿包目录，直接调
-WASAPI / PowerShell / C#。看 [examples/dev-volume](examples/dev-volume)：一个真实的按应用调音量
-组件，没有为它新增宿主 API。
+```powershell
+sill new clock        # 生成脚手架（npm i -g @heavenlydemon/sill-cli）
+```
 
-template 仍保留给简单无 JS 卡片。格式、manifest、provider、包与安全规范在独立的
-**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** 仓库里。
+把文件夹放进 `%APPDATA%\Sill\skins\`（设置 → 组件 → 打开文件夹），勾选显示，然后直接改：
+保存文件只会热重载这一个组件。`type: "template"` 在面板页面里运行，可以用
+`sill.onData`、`sill.storage`、`sill.command`、`sill.onDispose`；按 `F12` 开 DevTools。
+`type: "web"` 放进独立 guest，`trust: "trusted"` 时还能用完整 Node。
 
-另有一个 `type: "web"` 原型：完整 HTML/CSS/JS 跑在透明 webview guest 里，通过
-`sill.ready / onData / command` 桥通信。`trust: "trusted"` 还会拿到完整 Node / Windows API
-（类似雨滴插件）；`sandboxed` 只走桥。可以本地 `.sill` 安装，还没有目录下载；见
-[docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md)。
+完整开发文档（API、主题变量、数据源、配方、常见坑、给 AI 的检查清单）在
+**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** 仓库：
+[docs/authoring.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/authoring.md)。
+
+trusted 的 web 组件是完整 Node 运行时，不是 provider 白名单：可以带 `ui/assets/**`，
+通过 `sill.ready(({ dir }) => ...)` 拿包目录，直接调 WASAPI / PowerShell / C#。
+看 [examples/dev-volume](examples/dev-volume)：一个真实的按应用调音量组件，没有为它新增宿主 API。
 
 ## 命名
 

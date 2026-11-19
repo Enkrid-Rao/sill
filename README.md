@@ -144,24 +144,26 @@ pnpm dist        # NSIS installer → apps/desktop/dist
 
 ## Component development
 
-Start with [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md): standalone `sill-cli`
-(`npm i -g @heavenlydemon/sill-cli`),
-`type: "web"` + `trust: "trusted"`, `sill dev` hot reload, `sill pack`.
+A component is a folder: `widget.json` + `ui/index.html` (+ optional `style.css`, `main.js`,
+`assets/**`). Plain HTML / CSS / JavaScript — no template language, no build step.
 
-A trusted component is a full Node runtime, not a provider whitelist. It can ship `ui/assets/**`
-(helper scripts, native addons, icons, fonts), read its package folder from
-`sill.ready(({ dir }) => ...)`, and call WASAPI / PowerShell / C# directly. See
-[examples/dev-volume](examples/dev-volume) for a working per-app volume component that does not add a
-host API.
+```powershell
+sill new clock        # scaffold (npm i -g @heavenlydemon/sill-cli)
+```
 
-`type: "template"` remains for simple no-JS cards. The format, manifest, providers, package and
-security spec live in the separate
-**[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** repository.
+Drop the folder into `%APPDATA%\Sill\skins\` (Settings → Widgets → Open folder), tick it on, and
+edit: saving a file hot-reloads just that component. Type `template` runs in the panel page and can
+use `sill.onData`, `sill.storage`, `sill.command` and `sill.onDispose`; press `F12` for DevTools.
+`type: "web"` puts the component in its own guest (full Node with `trust: "trusted"`).
 
-A `type: "web"` prototype also exists: full HTML/CSS/JS in a transparent webview guest with a
-`sill.ready / onData / command` bridge. `trust: "trusted"` additionally gets full Node / Windows API,
-Rainmeter-plugin style; `sandboxed` stays bridge-only. Local `.sill` install works; no directory download yet; see
-[docs/WEB-WIDGETS.md](docs/WEB-WIDGETS.md).
+The complete authoring guide — API, theme tokens, data sources, recipes, pitfalls and an AI checklist
+— lives in the **[Sill-Components](https://github.com/Enkrid-Rao/sill-components)** repository:
+[docs/authoring.md](https://github.com/Enkrid-Rao/sill-components/blob/main/docs/authoring.md).
+
+A trusted `web` component is a full Node runtime, not a provider whitelist: it can ship
+`ui/assets/**`, read its package folder from `sill.ready(({ dir }) => ...)`, and call WASAPI /
+PowerShell / C# directly. See [examples/dev-volume](examples/dev-volume) for a working per-app volume
+component that does not add a host API.
 
 ## Naming
 
