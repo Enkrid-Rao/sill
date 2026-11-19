@@ -7,3 +7,6 @@ dist/
 
 # 只在本机存在的 agent 约定，永远不要进仓库（raoxi 的要求）
 /AGENTS.md
+
+# CLI 打包产物（npm pack / GitHub Release 用，不进仓库）
+*.tgz
