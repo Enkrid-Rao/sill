@@ -580,7 +580,7 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
 
 ### 6.27 组件 CLI
 
-`packages/cli` 提供本地命令（源码 0.3.0，npm 上仍是 0.2.2）：
+`packages/cli` 提供本地命令（源码与 npm 都是 0.3.1）：
 
 ```bash
 sill new clock            # 生成脚手架（template + main.js + README + sill.d.ts）
@@ -745,3 +745,4 @@ release 需要一起上传；绿色 ZIP 不参与自动更新。
 - 主进程里**允许碰网络的只有 `updates.ts` 和 `weather.ts`**；渲染进程只消费
   `window.sill.update.*` / `snapshot.weather` 的状态。天气请求超时 12s、失败 30s 重试，不在渲染进程发请求
 - `package.json` 的 `version` 是 `latest.yml`、安装包文件名、面板页脚的唯一来源，发版前先核对它
+

@@ -48,6 +48,11 @@ interface InlineApi {
     set: (value: unknown) => Promise<Record<string, unknown>>
     patch: (value: Record<string, unknown>) => Promise<Record<string, unknown>>
   }
+  settings: {
+    get: () => Promise<Record<string, unknown>>
+    set: (patch: Record<string, unknown>) => Promise<Record<string, unknown>>
+    onChange: (callback: (values: Record<string, unknown>) => void) => () => void
+  }
 }
 
 /** 每个列表容器的行模板（outerHTML，已去掉 repeat 属性）。 */
@@ -390,6 +395,17 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
         patch: async (value) => {
           const current = (await window.sill?.getWidgetData(widget.id)) ?? {}
           return (await window.sill?.setWidgetData(widget.id, { ...current, ...value })) ?? {}
+        }
+      },
+      settings: {
+        get: async () => (await window.sill?.getWidgetSettings(widget.id)) ?? {},
+        set: async (patch) =>
+          (await window.sill?.setWidgetSettings(widget.id, patch)) ?? {},
+        onChange: (callback) => {
+          const off = window.sill?.onWidgetSettingsChanged((id, values) => {
+            if (id === widget.id) callback(values)
+          })
+          return () => off?.()
         }
       },
       __fail: reportError

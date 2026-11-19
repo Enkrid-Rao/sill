@@ -49,7 +49,7 @@ hello/
 ## 路线 B：用 CLI 生成脚手架 / 打包
 
 ```powershell
-npm i -g @heavenlydemon/sill-cli   # 0.3.0+；0.2.x 不认识新的 template+main.js/assets
+npm i -g @heavenlydemon/sill-cli   # 0.3.1+；0.2.x 不认识新的 template+main.js/assets
 sill new clock
 sill validate .\clock
 sill pack .\clock -o clock.sill
@@ -107,3 +107,4 @@ command`，`root` 是这张卡的 ShadowRoot。API 细节见 authoring.md。
 - web 组件的 `sandboxed` 桥能力有限（没有 storage / fetch），重组件建议直接用 `template` 或
   `web + trusted`；
 - 0.6 仍是开发版，不是正式发布。
+

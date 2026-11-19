@@ -56,6 +56,11 @@ export interface SillApi {
   setSillAssociation: (enabled: boolean) => Promise<{ ok: boolean; enabled?: boolean; error?: string }>
   getWidgetData: (id: string) => Promise<Record<string, unknown>>
   setWidgetData: (id: string, value: unknown) => Promise<Record<string, unknown>>
+  getWidgetSettings: (id: string) => Promise<Record<string, unknown>>
+  setWidgetSettings: (id: string, values: unknown) => Promise<Record<string, unknown>>
+  onWidgetSettingsChanged: (
+    callback: (id: string, values: Record<string, unknown>) => void
+  ) => () => void
   onWidgetsChanged: (callback: () => void) => () => void
   getUninstallInfo: () => Promise<UninstallInfo>
   openDataFolder: () => Promise<string>

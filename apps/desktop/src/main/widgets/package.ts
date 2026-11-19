@@ -16,6 +16,8 @@ import type {
   ComponentProblem,
   InstallOutcome,
   InstalledWidgetInfo,
+  WidgetSettingField,
+  WidgetSettingOption,
   WidgetTier
 } from '../../shared/widgets'
 
@@ -39,6 +41,7 @@ interface Manifest {
   kind: 'template' | 'web'
   trust: 'sandboxed' | 'trusted'
   data: WidgetDataBinding[]
+  settings: WidgetSettingField[]
   strings: Record<string, Record<string, string>>
 }
 
@@ -62,7 +65,8 @@ function info(manifest: Manifest, tier: WidgetTier): InstalledWidgetInfo {
     span: manifest.span,
     kind: manifest.kind,
     trust: manifest.trust,
-    tier
+    tier,
+    settings: manifest.settings
   }
 }
 
@@ -161,8 +165,82 @@ function parseManifest(raw: Record<string, unknown>): Manifest | null {
     kind,
     trust,
     data: parseBindings(raw.data),
+    settings: parseSettings(raw.settings),
     strings: parseStrings(raw.strings)
   }
+}
+
+function parseLabel(value: unknown): string | Record<string, string> | undefined {
+  if (typeof value === 'string') {
+    const text = value.trim()
+    return text ? text.slice(0, 80) : undefined
+  }
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const table: Record<string, string> = {}
+    for (const [language, text] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof text === 'string' && text.trim()) table[language] = text.trim().slice(0, 80)
+    }
+    return Object.keys(table).length ? table : undefined
+  }
+  return undefined
+}
+
+function parseSettingOptions(value: unknown): WidgetSettingOption[] {
+  if (!Array.isArray(value)) return []
+  const options: WidgetSettingOption[] = []
+  for (const item of value.slice(0, 20)) {
+    if (!item || typeof item !== 'object') continue
+    const record = item as Record<string, unknown>
+    if (typeof record.value !== 'string' || !record.value) continue
+    const label = parseLabel(record.label)
+    options.push({ value: record.value.slice(0, 80), ...(label ? { label } : {}) })
+  }
+  return options
+}
+
+/** 组件设置：最多 16 项；写错了就丢掉这一项，不阻塞安装。 */
+function parseSettings(value: unknown): WidgetSettingField[] {
+  if (!Array.isArray(value)) return []
+  const fields: WidgetSettingField[] = []
+  for (const item of value.slice(0, 16)) {
+    if (!item || typeof item !== 'object') continue
+    const record = item as Record<string, unknown>
+    const key = typeof record.key === 'string' ? record.key : ''
+    const type =
+      record.type === 'text' ||
+      record.type === 'number' ||
+      record.type === 'switch' ||
+      record.type === 'select'
+        ? record.type
+        : ''
+    if (!/^[A-Za-z_][A-Za-z0-9_]{0,31}$/.test(key) || !type) continue
+    const options = type === 'select' ? parseSettingOptions(record.options) : []
+    if (type === 'select' && options.length === 0) continue
+    const label = parseLabel(record.label)
+    const description = parseLabel(record.description)
+    const defaultValue =
+      typeof record.default === 'string' ||
+      typeof record.default === 'number' ||
+      typeof record.default === 'boolean'
+        ? record.default
+        : undefined
+    const min = typeof record.min === 'number' && Number.isFinite(record.min) ? record.min : undefined
+    const max = typeof record.max === 'number' && Number.isFinite(record.max) ? record.max : undefined
+    fields.push({
+      key,
+      type,
+      ...(label ? { label } : {}),
+      ...(description ? { description } : {}),
+      ...(defaultValue !== undefined ? { default: defaultValue } : {}),
+      ...(typeof record.placeholder === 'string'
+        ? { placeholder: record.placeholder.slice(0, 80) }
+        : {}),
+      ...(min !== undefined ? { min } : {}),
+      ...(max !== undefined ? { max } : {}),
+      ...(options.length ? { options } : {})
+    })
+  }
+  return fields
 }
 
 function parseBindings(value: unknown): WidgetDataBinding[] {
@@ -371,6 +449,7 @@ export function payloadFromDir(dir: string): DevWidgetPayload | null {
       js: existsSync(jsPath) ? readFileSync(jsPath, 'utf8') : undefined,
       data: manifest.data,
       permissions: manifest.permissions,
+      settings: manifest.settings,
       strings: manifest.strings
     }
   } catch {

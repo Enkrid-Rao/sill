@@ -46,6 +46,40 @@ function storageCall(op: 'get' | 'set' | 'patch', value?: unknown): Promise<Stor
   })
 }
 
+/** sill.settings：widget.json 里声明的设置项，宿主写 widget-settings/<id>.json。 */
+const settingsPending = new Map<number, (value: StorageValue) => void>()
+let settingsSeq = 0
+
+ipcRenderer.on('sill:settings-reply', (_event, payload: { id?: number; value?: unknown }) => {
+  if (!payload || typeof payload.id !== 'number') return
+  const resolve = settingsPending.get(payload.id)
+  if (!resolve) return
+  settingsPending.delete(payload.id)
+  resolve(
+    payload.value && typeof payload.value === 'object'
+      ? (payload.value as StorageValue)
+      : {}
+  )
+})
+
+function settingsCall(op: 'get' | 'set', value?: unknown): Promise<StorageValue> {
+  return new Promise((resolve) => {
+    const id = ++settingsSeq
+    settingsPending.set(id, resolve)
+    try {
+      ipcRenderer.sendToHost('sill:settings', { id, op, value })
+    } catch {
+      settingsPending.delete(id)
+      resolve({})
+      return
+    }
+    setTimeout(() => {
+      if (!settingsPending.delete(id)) return
+      resolve({})
+    }, 5000)
+  })
+}
+
 ipcRenderer.on('sill:data', (_event, payload: WidgetData) => {
   const root = (globalThis as unknown as { document?: { documentElement: { style: { setProperty: (name: string, value: string) => void } } } }).document?.documentElement
   if (payload.tokens && root) {
@@ -73,6 +107,10 @@ const api = {
     get: () => storageCall('get'),
     set: (value: unknown) => storageCall('set', value),
     patch: (value: Record<string, unknown>) => storageCall('patch', value)
+  },
+  settings: {
+    get: () => settingsCall('get'),
+    set: (value: Record<string, unknown>) => settingsCall('set', value)
   }
 }
 

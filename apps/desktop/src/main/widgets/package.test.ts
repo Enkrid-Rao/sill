@@ -197,6 +197,27 @@ describe('installPackage', () => {
     expect(installPackage(file, join(root, 'components')).ok).toBe(true)
   })
 
+  it('parses declared settings and drops invalid fields', () => {
+    const file = makePackage({
+      ...validFiles(),
+      'widget.json': JSON.stringify({
+        ...manifest,
+        settings: [
+          { key: 'city', type: 'text', label: { en: 'City', zh: '城市' }, default: 'SZ' },
+          { key: 'unit', type: 'select', options: [{ value: 'c', label: '°C' }, { value: 'f' }] },
+          { key: 'bad key', type: 'text' },
+          { key: 'n', type: 'number', min: 1, max: 10 },
+          { key: 'empty', type: 'select', options: [] }
+        ]
+      })
+    })
+    const result = installPackage(file, join(root, 'settings'))
+    expect(result.ok).toBe(true)
+    expect(result.widget?.settings.map((field) => field.key)).toEqual(['city', 'unit', 'n'])
+    expect(result.widget?.settings[1].options).toHaveLength(2)
+    expect(listInstalled(join(root, 'settings'))[0].settings).toHaveLength(3)
+  })
+
   it('keeps one version per id and upgrades in place', () => {
     const components = join(root, 'components')
     const v1 = makePackage(validFiles())

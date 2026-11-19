@@ -1,3 +1,5 @@
+import type { WidgetSettingField } from './widgets'
+
 export interface WidgetDataBinding {
   id: string
   source: string
@@ -26,6 +28,8 @@ export interface DevWidgetPayload {
   dir?: string
   data: WidgetDataBinding[]
   permissions: string[]
+  /** 组件声明的设置项；宿主渲染表单，值落在 widget-settings/<id>.json。 */
+  settings?: WidgetSettingField[]
   /** lang -> key -> text; declared inline in widget.json. */
   strings: Record<string, Record<string, string>>
 }

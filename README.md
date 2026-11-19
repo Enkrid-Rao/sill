@@ -77,7 +77,7 @@ The `v0.6.0-dev.2` prerelease ships the installer, portable build and standalone
 
 - [Sill-Setup-0.6.0-dev.2.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-Setup-0.6.0-dev.2.exe)
 - [Sill-0.6.0-dev.2-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-0.6.0-dev.2-portable-win64.zip)
-- CLI: `npm i -g @heavenlydemon/sill-cli` (0.3.0)
+- CLI: `npm i -g @heavenlydemon/sill-cli` (0.3.1)
 
 It is a developer preview, not the stable 0.5.4 release.
 
@@ -169,3 +169,4 @@ component that does not add a host API.
 
 Brand **Sill** (the window ledge), CLI `sill`, package format `.sill`, package ids `sill.*`,
 data under `%APPDATA%\Sill\`. The reasoning is in [DEVPLAN §2](DEVPLAN.md).
+

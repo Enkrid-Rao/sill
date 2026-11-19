@@ -17,4 +17,8 @@ declare const sill: {
     set: (value: unknown) => Promise<Record<string, unknown>>
     patch: (value: Record<string, unknown>) => Promise<Record<string, unknown>>
   }
+  settings: {
+    get: () => Promise<Record<string, unknown>>
+    set: (patch: Record<string, unknown>) => Promise<Record<string, unknown>>
+  }
 }

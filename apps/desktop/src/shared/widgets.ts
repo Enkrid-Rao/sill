@@ -1,6 +1,27 @@
 /** 安装提示的档位：由包内容算出来，不由作者声明。 */
 export type WidgetTier = 'static' | 'script' | 'isolated' | 'node'
 
+export type WidgetSettingType = 'text' | 'number' | 'switch' | 'select'
+
+export interface WidgetSettingOption {
+  value: string
+  /** 纯文本，或 { en, zh } 文案表。 */
+  label?: string | Record<string, string>
+}
+
+/** widget.json 里声明的组件设置项；宿主渲染成表单，值存在 widget-settings/<id>.json。 */
+export interface WidgetSettingField {
+  key: string
+  type: WidgetSettingType
+  label?: string | Record<string, string>
+  description?: string | Record<string, string>
+  default?: string | number | boolean
+  placeholder?: string
+  min?: number
+  max?: number
+  options?: WidgetSettingOption[]
+}
+
 export interface InstalledWidgetInfo {
   id: string
   name: string
@@ -11,6 +32,7 @@ export interface InstalledWidgetInfo {
   kind: 'template' | 'web'
   trust: 'sandboxed' | 'trusted'
   tier: WidgetTier
+  settings: WidgetSettingField[]
 }
 
 export interface InstallOutcome {

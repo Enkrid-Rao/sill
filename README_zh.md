@@ -65,7 +65,7 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
 
 - [Sill-Setup-0.6.0-dev.2.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-Setup-0.6.0-dev.2.exe)
 - [Sill-0.6.0-dev.2-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-0.6.0-dev.2-portable-win64.zip)
-- CLI：`npm i -g @heavenlydemon/sill-cli`（0.3.0）
+- CLI：`npm i -g @heavenlydemon/sill-cli`（0.3.1）
 
 这是开发者预览，不是稳定版 0.5.4。
 
@@ -152,3 +152,4 @@ trusted 的 web 组件是完整 Node 运行时，不是 provider 白名单：可
 
 品牌 **Sill**（窗台），命令行 `sill`，包格式 `.sill`，包 id `sill.*`，数据目录 `%APPDATA%\Sill\`。
 名字的理由见 [DEVPLAN.md §2](DEVPLAN.md)。
+

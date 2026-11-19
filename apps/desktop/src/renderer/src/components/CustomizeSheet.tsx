@@ -28,6 +28,17 @@ import type { ComponentProblem } from '../../../shared/widgets'
 
 type Tab = 'appearance' | 'panel' | 'widgets' | 'data' | 'general'
 
+/** 组件设置项的 label 支持纯文本或 { en, zh }。 */
+function settingText(
+  label: string | Record<string, string> | undefined,
+  language: Language,
+  fallback: string
+): string {
+  if (!label) return fallback
+  if (typeof label === 'string') return label
+  return label[language] ?? label.en ?? Object.values(label)[0] ?? fallback
+}
+
 interface Props {
   theme: Theme
   onChange: (patch: Partial<Theme>) => void
@@ -474,6 +485,9 @@ export function CustomizeSheet({
   const [assocBusy, setAssocBusy] = useState(false)
   const [creating, setCreating] = useState(false)
   const [problems, setProblems] = useState<ComponentProblem[]>([])
+  const [settingsFor, setSettingsFor] = useState<string | null>(null)
+  const [settingsValues, setSettingsValues] = useState<Record<string, unknown>>({})
+  const [settingsBusy, setSettingsBusy] = useState(false)
 
   const loadDiagnostics = async (): Promise<void> => {
     const next = await window.sill?.getComponentDiagnostics?.()
@@ -529,6 +543,25 @@ export function CustomizeSheet({
 
   const revealComponent = (dir: string): void => {
     void window.sill?.revealComponentFolder?.(dir)
+  }
+
+  const openWidgetSettings = async (id: string): Promise<void> => {
+    if (settingsFor === id) {
+      setSettingsFor(null)
+      return
+    }
+    setSettingsBusy(true)
+    const values = await window.sill?.getWidgetSettings?.(id)
+    setSettingsFor(id)
+    setSettingsValues(values ?? {})
+    setSettingsBusy(false)
+  }
+
+  const saveWidgetSetting = async (id: string, key: string, value: unknown): Promise<void> => {
+    setSettingsValues((current) => ({ ...current, [key]: value }))
+    // 主进程只合并这一个 key，避免闭包里的旧值覆盖别的字段
+    const next = await window.sill?.setWidgetSettings?.(id, { [key]: value })
+    if (next) setSettingsValues(next)
   }
 
   const uninstall = async (id: string): Promise<void> => {
@@ -1046,32 +1079,126 @@ export function CustomizeSheet({
             <p className="cz-group">{t(language, 'widgets.installed')}</p>
             {registry.installed.length ? (
               registry.installed.map((item) => (
-                <div className="cz-setrow" key={item.id}>
-                  <div className="cz-setrow__copy">
-                    <span className="cz-setrow__name">{item.name}</span>
-                    <span className="cz-setrow__note">
-                      {item.id} · v{item.version} ·{' '}
-                      {t(
-                        language,
-                        item.tier === 'static'
-                          ? 'widgets.tier.static'
-                          : item.tier === 'script'
-                            ? 'widgets.tier.script'
-                            : item.tier === 'isolated'
-                              ? 'widgets.tier.isolated'
-                              : 'widgets.tier.node'
-                      )}{' '}
-                      · {item.permissions.join(' / ') || '—'}
+                <div key={item.id}>
+                  <div className="cz-setrow">
+                    <div className="cz-setrow__copy">
+                      <span className="cz-setrow__name">{item.name}</span>
+                      <span className="cz-setrow__note">
+                        {item.id} · v{item.version} ·{' '}
+                        {t(
+                          language,
+                          item.tier === 'static'
+                            ? 'widgets.tier.static'
+                            : item.tier === 'script'
+                              ? 'widgets.tier.script'
+                              : item.tier === 'isolated'
+                                ? 'widgets.tier.isolated'
+                                : 'widgets.tier.node'
+                        )}{' '}
+                        · {item.permissions.join(' / ') || '—'}
+                      </span>
+                    </div>
+                    <span className="cz-widget-actions">
+                      {item.settings.length ? (
+                        <button
+                          className="cz-action"
+                          type="button"
+                          disabled={settingsBusy}
+                          onClick={() => void openWidgetSettings(item.id)}
+                        >
+                          {t(
+                            language,
+                            settingsFor === item.id ? 'widgets.settingsClose' : 'widgets.settings'
+                          )}
+                        </button>
+                      ) : null}
+                      <button
+                        className="cz-action"
+                        type="button"
+                        disabled={uninstalling === item.id}
+                        onClick={() => void uninstall(item.id)}
+                      >
+                        {t(language, 'widgets.uninstall')}
+                      </button>
                     </span>
                   </div>
-                  <button
-                    className="cz-action"
-                    type="button"
-                    disabled={uninstalling === item.id}
-                    onClick={() => void uninstall(item.id)}
-                  >
-                    {t(language, 'widgets.uninstall')}
-                  </button>
+
+                  {settingsFor === item.id && item.settings.length ? (
+                    <div className="cz-settings">
+                      {item.settings.map((field) =>
+                        field.type === 'switch' ? (
+                          <Switch
+                            key={field.key}
+                            id={`cz-set-${item.id}-${field.key}`}
+                            label={settingText(field.label, language, field.key)}
+                            note={
+                              field.description
+                                ? settingText(field.description, language, '')
+                                : ''
+                            }
+                            checked={settingsValues[field.key] === true}
+                            onChange={(value) => void saveWidgetSetting(item.id, field.key, value)}
+                          />
+                        ) : (
+                          <div className="cz-setrow" key={field.key}>
+                            <div className="cz-setrow__copy">
+                              <span className="cz-setrow__name">
+                                {settingText(field.label, language, field.key)}
+                              </span>
+                              {field.description ? (
+                                <span className="cz-setrow__note">
+                                  {settingText(field.description, language, '')}
+                                </span>
+                              ) : null}
+                            </div>
+                            {field.type === 'select' ? (
+                              <div className="cz-seg">
+                                {(field.options ?? []).map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    aria-pressed={settingsValues[field.key] === option.value}
+                                    onClick={() =>
+                                      void saveWidgetSetting(item.id, field.key, option.value)
+                                    }
+                                  >
+                                    {settingText(option.label, language, option.value)}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <input
+                                className="cz-input"
+                                type={field.type === 'number' ? 'number' : 'text'}
+                                value={String(settingsValues[field.key] ?? '')}
+                                placeholder={field.placeholder}
+                                min={field.min}
+                                max={field.max}
+                                onChange={(event) =>
+                                  setSettingsValues((current) => ({
+                                    ...current,
+                                    [field.key]:
+                                      field.type === 'number'
+                                        ? Number(event.target.value)
+                                        : event.target.value
+                                  }))
+                                }
+                                onBlur={(event) =>
+                                  void saveWidgetSetting(
+                                    item.id,
+                                    field.key,
+                                    field.type === 'number'
+                                      ? Number(event.target.value)
+                                      : event.target.value
+                                  )
+                                }
+                              />
+                            )}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               ))
             ) : (

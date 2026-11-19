@@ -1305,3 +1305,38 @@
   font-size: 9.5px;
   letter-spacing: 0.005em;
 }
+
+/* 组件设置表单 */
+.cz-widget-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cz-settings {
+  margin: -2px 0 8px;
+  padding: 2px 0 2px 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cz-input {
+  min-width: 120px;
+  max-width: 200px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.cz-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.cz-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+

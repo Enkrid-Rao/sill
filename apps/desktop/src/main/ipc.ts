@@ -14,6 +14,7 @@ import { getDevWidget } from './dev-widget'
 import { COMPONENTS_DIR, getLayout, resetLayout, setLayout } from './layout'
 import { ensureSkinsDir, SKINS_DIR } from './skins'
 import { readWidgetData, writeWidgetData } from './widget-data'
+import { readWidgetSettings, writeWidgetSettings } from './widget-settings'
 import { afterWidgetsChanged, installWidgetFile } from './widget-install'
 import { createWidgetFolder, idFromFolder, nameFromId } from './widget-scaffold'
 import {
@@ -217,6 +218,22 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle('widgets:data-set', (_event, id: unknown, value: unknown) =>
     typeof id === 'string' ? writeWidgetData(id, value) : {}
   )
+
+  ipcMain.handle('widgets:settings-get', (_event, id: unknown) => {
+    if (typeof id !== 'string') return {}
+    const payload = loadInstalled(COMPONENTS_DIR, id) ?? loadSkin(SKINS_DIR, id)
+    return readWidgetSettings(id, payload?.settings ?? [])
+  })
+
+  ipcMain.handle('widgets:settings-set', (_event, id: unknown, values: unknown) => {
+    if (typeof id !== 'string') return {}
+    const payload = loadInstalled(COMPONENTS_DIR, id) ?? loadSkin(SKINS_DIR, id)
+    if (!payload?.settings?.length) return {}
+    const next = writeWidgetSettings(id, payload.settings, values)
+    // 组件（模板 main.js / web guest）靠这个即时看到设置变化
+    broadcast('widgets:settings-changed', { id, values: next })
+    return next
+  })
 
   ipcMain.handle('widgets:install', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)

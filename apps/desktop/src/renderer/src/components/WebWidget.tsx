@@ -155,6 +155,25 @@ export function WebWidget({ widget, context }: Props): React.JSX.Element {
         })()
         return
       }
+      // 组件设置：宿主渲染表单，guest 通过 sill.settings 读写
+      if (event.channel === 'sill:settings') {
+        const payload = event.args[0] as
+          | { id?: number; op?: string; value?: unknown }
+          | undefined
+        if (!payload || typeof payload.id !== 'number') return
+        void (async () => {
+          let next = (await window.sill?.getWidgetSettings(widget.id)) ?? {}
+          if (payload.op === 'set') {
+            next = (await window.sill?.setWidgetSettings(widget.id, payload.value)) ?? next
+          }
+          try {
+            guest.send('sill:settings-reply', { id: payload.id, value: next })
+          } catch {
+            // guest 已经开始销毁
+          }
+        })()
+        return
+      }
       if (event.channel !== 'sill:command') return
       const [action, arg] = event.args as [unknown, unknown]
       if (typeof action !== 'string') return

@@ -25,6 +25,19 @@ const api = {
   getWidgetData: (id: string) => ipcRenderer.invoke('widgets:data-get', id),
   setWidgetData: (id: string, value: unknown) =>
     ipcRenderer.invoke('widgets:data-set', id, value),
+  getWidgetSettings: (id: string) => ipcRenderer.invoke('widgets:settings-get', id),
+  setWidgetSettings: (id: string, values: unknown) =>
+    ipcRenderer.invoke('widgets:settings-set', id, values),
+  onWidgetSettingsChanged: (
+    callback: (id: string, values: Record<string, unknown>) => void
+  ) => {
+    const listener = (
+      _event: unknown,
+      payload: { id: string; values: Record<string, unknown> }
+    ) => callback(payload?.id, payload?.values ?? {})
+    ipcRenderer.on('widgets:settings-changed', listener)
+    return () => ipcRenderer.removeListener('widgets:settings-changed', listener)
+  },
   onWidgetsChanged: (callback: () => void) => {
     const listener = (): void => callback()
     ipcRenderer.on('widgets:changed', listener)
