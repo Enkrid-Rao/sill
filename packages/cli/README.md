@@ -4,22 +4,35 @@ Sill 组件开发命令行。不需要 clone Sill 源码。
 
 ```bash
 npm i -g @heavenlydemon/sill-cli
-sill new com.example.clock
-cd com.example.clock
-sill dev
-sill pack
+sill new clock
+cd clock
+sill validate      # 可选，打包前自检
+sill pack          # 生成 clock-1.0.0.sill，双击即可安装
 ```
 
-- `sill dev` 找已安装的 `Sill.exe`，用独立开发数据和 `SILL_DEV_WIDGET` 启动；
-- 找不到安装版时，`SILL_EXE` 指向便携版；再不行才回退源码仓库的 `pnpm dev`；
-- `sill new` 默认生成 `type: "web"`、`trust: "trusted"`，`--template` 生成旧模板；
-- `sill pack` 输出 `.sill`；web 组件可带 `ui/assets/**`（trusted 用包目录）。
+## 开发循环（不需要 CLI 也行）
 
-环境变量：
+1. 把组件文件夹放进 `%APPDATA%\Sill\skins\`（便携版是 `Sill-data\skins\`）；
+2. Sill → 设置 → 组件 → 打开组件文件夹，保存文件自动热重载；
+3. 面板上按 `F12` 打开 DevTools。
 
-| 变量 | 用途 |
-|---|---|
-| `SILL_EXE` | Sill.exe 路径 |
-| `SILL_DEV_DATA` | 开发用 userData，默认 `%APPDATA%\Sill-dev` |
+`sill dev` 是备选方式：用 `%APPDATA%\Sill-dev` 独立开发数据启动已安装的 Sill。
 
-Node.js >= 20。
+## 包结构
+
+```text
+clock/
+├─ widget.json
+├─ README.md          # 可选
+└─ ui/
+   ├─ index.html      # 必需
+   ├─ style.css       # 可选
+   ├─ main.js         # 可选（template 同页执行 / web 必需）
+   ├─ sill.d.ts       # 可选，编辑器补全
+   ├─ lib/**          # 随意拆
+   └─ assets/**       # 图片、字体
+```
+
+规则只有一条：`widget.json` 在根目录，其余任意文件都放在 `ui/` 下。
+
+完整写法见组件规范仓库的 `docs/authoring.md`。

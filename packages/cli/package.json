@@ -1,6 +1,6 @@
 {
   "name": "@heavenlydemon/sill-cli",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": false,
   "type": "module",
   "description": "Standalone Sill component CLI: new / validate / pack / dev.",

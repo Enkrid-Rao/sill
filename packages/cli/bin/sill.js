@@ -6,37 +6,33 @@ import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import AdmZip from 'adm-zip'
 
-const BASE_FILES = ['widget.json', 'ui/index.html', 'ui/style.css']
-const WEB_FILES = [...BASE_FILES, 'ui/main.js']
 const MAX_FILE = 20 * 1024 * 1024
-const PERMISSIONS = new Set([
-  'data.time',
-  'data.system',
-  'data.media',
-  'data.weather',
-  'data.todo',
-  'action.media',
-  'action.todo'
-])
-const ID = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/
-const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/
+// 与宿主安装器同一套规则：根目录少量元数据 + ui/ 下的任意文件。
+const ROOT_FILES = new Set(['widget.json', 'README.md', 'LICENSE', 'LICENSE.txt', 'NOTICE'])
+const SKIP_DIRS = new Set(['.git', 'node_modules', '.vscode', '.idea', '.dev'])
+const ID = /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/
+const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
+
+function isAllowedFile(relative) {
+  return ROOT_FILES.has(relative) || relative.startsWith('ui/')
+}
 
 function usage() {
   console.log(`sill <command>
 
-  validate <dir>              校验组件
-  pack <dir> [-o file]        打成 .sill
-  new <id> [dir] [--web] 生成组件（默认 template，可带 ui/main.js）
-  dev <dir>                   启动已安装 Sill / SILL_EXE，独立开发数据
+  new <id> [dir] [--web]    生成组件（默认 template，可直接双击打开开发）
+  validate [dir]            校验组件目录（缺省当前目录）
+  pack [dir] [-o file]      打包成 .sill，只包含合法文件
+  dev <dir>                 用独立开发数据启动 Sill 预览（也可直接把目录放进 skins）
 
 示例：
-  sill new com.example.clock
-  sill dev ./com.example.clock
-  sill pack ./com.example.clock -o clock.sill
+  sill new clock
+  sill validate ./clock
+  sill pack ./clock -o clock.sill
 
 环境变量：
-  SILL_EXE                    便携版 Sill.exe
-  SILL_DEV_DATA               开发 userData（默认 %APPDATA%\\Sill-dev）`)
+  SILL_EXE                  便携版 Sill.exe（dev 用）
+  SILL_DEV_DATA             开发 userData（默认 %APPDATA%\\Sill-dev）`)
 }
 
 function fail(message) {
@@ -46,11 +42,6 @@ function fail(message) {
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'))
-}
-
-function allowedFiles(kind) {
-  // template 也可以带 ui/main.js（在宿主页面里跑）；web 必须有。
-  return WEB_FILES
 }
 
 function validateDir(dir) {
@@ -70,29 +61,23 @@ function validateDir(dir) {
   const id = typeof raw.id === 'string' ? raw.id : ''
   const name = typeof raw.name === 'string' ? raw.name.trim() : ''
   const version = typeof raw.version === 'string' ? raw.version : ''
-  const author = typeof raw.author === 'string' ? raw.author.trim() : ''
-  const license = typeof raw.license === 'string' ? raw.license.trim() : ''
-  const runtime = typeof raw.runtime === 'string' ? raw.runtime.trim() : ''
-  const engine = typeof raw.engine === 'string' ? raw.engine.trim() : ''
   const kind = raw.type === 'web' ? 'web' : raw.type === 'template' ? 'template' : ''
-  const trust = kind === 'web' && raw.trust === 'trusted' ? 'trusted' : 'sandboxed'
-  const permissions = Array.isArray(raw.permissions) ? raw.permissions : []
   const span = Number(raw.span?.default)
 
-  if (raw.schema !== 1) errors.push('schema 必须是 1')
-  if (!ID.test(id)) errors.push('id 至少两段，只能用小写字母、数字、点和短横线')
-  if (!name || name.length > 24) errors.push('name 必须 1–24 字')
-  if (!SEMVER.test(version)) errors.push('version 必须是 semver')
-  if (!author) errors.push('author 不能为空')
-  if (!license) errors.push('license 不能为空')
-  if (!runtime) errors.push('runtime 不能为空')
-  if (!engine) errors.push('engine 不能为空')
-  if (!kind) errors.push('type 必须是 template 或 web')
-  if (raw.ui !== 'ui/index.html') errors.push('ui 必须是 ui/index.html')
-  if (!Number.isFinite(span) || span < 1 || span > 3) errors.push('span.default 必须在 1–3')
-  if (!Array.isArray(raw.permissions)) errors.push('permissions 必须是数组')
-  for (const permission of permissions) {
-    if (!PERMISSIONS.has(permission)) errors.push(`未知权限 ${permission}`)
+  if (raw.schema !== 1) errors.push('schema 必须是 1（顶层写 "schema": 1）')
+  if (!ID.test(id) || id.length < 2 || id.length > 64) {
+    errors.push('id 只能用小写字母、数字、点、下划线、短横线；例如 "clock" 或 "com.you.clock"')
+  }
+  if (!name) errors.push('name 不能为空（显示在组件列表里）')
+  if (!SEMVER.test(version)) errors.push('version 必须是 semver，例如 1.0.0')
+  if (!kind) errors.push('type 必须是 "template" 或 "web"')
+  if (raw.ui !== 'ui/index.html') errors.push('ui 必须是 "ui/index.html"')
+  // span 可省略，缺省 1；写了就必须在 1–3。
+  if (raw.span !== undefined) {
+    if (!Number.isFinite(span) || span < 1 || span > 3) errors.push('span.default 必须在 1–3')
+  }
+  if (raw.permissions !== undefined && !Array.isArray(raw.permissions)) {
+    errors.push('permissions 必须是数组')
   }
   if (raw.data !== undefined && !Array.isArray(raw.data)) errors.push('data 必须是数组')
   if (raw.strings !== undefined) {
@@ -111,10 +96,9 @@ function validateDir(dir) {
     }
   }
 
-  const required = kind === 'web' ? WEB_FILES : BASE_FILES
-  const allowed = new Set([...WEB_FILES, 'README.md'])
   const walk = (current) => {
     for (const entry of readdirSync(current)) {
+      if (SKIP_DIRS.has(entry)) continue
       const file = join(current, entry)
       const relative = file.slice(root.length + 1).replace(/\\/g, '/')
       if (statSync(file).isDirectory()) {
@@ -122,16 +106,15 @@ function validateDir(dir) {
       } else if (relative.endsWith('.sill') && !relative.includes('/')) {
         // 允许把打包产物放在项目根目录；它不会进 .sill。
         continue
-      } else if (relative.startsWith('ui/assets/')) {
-        // 组件可以带资源；template / web 都通过 sill-asset:// 访问。
-        continue
-      } else if (!allowed.has(relative)) {
-        errors.push(`不允许的文件：${relative}`)
+      } else if (!isAllowedFile(relative)) {
+        errors.push(`不允许的文件：${relative}（只允许 widget.json、README/LICENSE，和 ui/ 下的文件）`)
       }
     }
   }
   walk(root)
 
+  const required = ['widget.json', 'ui/index.html']
+  if (kind === 'web') required.push('ui/main.js')
   for (const relative of required) {
     const file = join(root, relative)
     if (!existsSync(file)) {
@@ -152,20 +135,19 @@ function readManifest(dir) {
   return readJson(join(resolve(dir), 'widget.json'))
 }
 
-function collectPackageFiles(root, kind) {
+function collectPackageFiles(root) {
   const files = []
   const walk = (current) => {
     for (const entry of readdirSync(current)) {
+      if (SKIP_DIRS.has(entry)) continue
       const file = join(current, entry)
       const relative = file.slice(root.length + 1).replace(/\\/g, '/')
       if (statSync(file).isDirectory()) {
         walk(file)
         continue
       }
-      if (relative === 'README.md' || relative.endsWith('.sill')) continue
-      if (allowedFiles(kind).includes(relative) || relative.startsWith('ui/assets/')) {
-        files.push(relative)
-      }
+      if (relative.endsWith('.sill')) continue
+      if (isAllowedFile(relative)) files.push(relative)
     }
   }
   walk(root)
@@ -180,10 +162,9 @@ function pack(dir, out) {
     return fail('校验失败，未打包')
   }
   const manifest = readManifest(root)
-  const kind = manifest.type === 'web' ? 'web' : 'template'
   const target = resolve(out || `${manifest.id}-${manifest.version}.sill`)
   const zip = new AdmZip()
-  for (const relative of collectPackageFiles(root, kind)) {
+  for (const relative of collectPackageFiles(root)) {
     zip.addFile(relative, readFileSync(join(root, relative)))
   }
   zip.writeZip(target)
@@ -191,46 +172,252 @@ function pack(dir, out) {
 }
 
 function newWidget(id, dir, web) {
-  if (!ID.test(id)) return fail('id 至少两段，只能用小写字母、数字、点和短横线')
+  if (!ID.test(id) || id.length < 2) {
+    return fail('id 只能用小写字母、数字、点、下划线、短横线；例如 "clock" 或 "com.you.clock"')
+  }
   const target = resolve(dir || id)
   if (existsSync(target)) return fail(`目录已存在：${target}`)
   mkdirSync(join(target, 'ui'), { recursive: true })
-  const name = id.split('.').pop().replace(/-/g, ' ')
+  const name = id.split('.').pop().replace(/[-_]/g, ' ').replace(/^./, (c) => c.toUpperCase())
+
   const manifest = {
     schema: 1,
     id,
     name,
     version: '1.0.0',
     author: 'you',
-    license: 'MIT',
-    runtime: '>=0.6.0',
-    engine: '>=0.1.0',
     type: web ? 'web' : 'template',
     ...(web ? { trust: 'trusted' } : {}),
-    size: { w: 384, h: 180 },
+    size: { w: 384, h: 190 },
     span: { default: 1 },
     permissions: ['data.time'],
     data: [{ id: 'now', source: 'time.now' }],
+    strings: {
+      en: { title: 'LOCAL TIME', hint: 'hello from Sill' },
+      zh: { title: '本地时间', hint: '来自 Sill 的问候' }
+    },
     ui: 'ui/index.html'
   }
+
+  const html = [
+    '<div class="widget">',
+    '  <header class="widget__head">',
+    '    <span class="widget__title" data-sill-i18n="title">LOCAL TIME</span>',
+    '    <span class="widget__dot" aria-hidden="true"></span>',
+    '  </header>',
+    '',
+    '  <div class="widget__hero">',
+    '    <span class="widget__time" id="time">--:--</span>',
+    '    <span class="widget__date" id="date"></span>',
+    '  </div>',
+    '',
+    '  <footer class="widget__foot">',
+    '    <span class="widget__hint" data-sill-i18n="hint">hello from Sill</span>',
+    '    <button class="widget__pill" id="counter" type="button">0</button>',
+    '  </footer>',
+    '</div>',
+    ''
+  ].join('\n')
+
+  const css = [
+    ':host { display: block; }',
+    '',
+    '.widget {',
+    '  display: flex;',
+    '  flex-direction: column;',
+    '  gap: 10px;',
+    '  color: var(--ink);',
+    '  font-family: var(--sans);',
+    '}',
+    '',
+    '.widget__head {',
+    '  display: flex;',
+    '  align-items: center;',
+    '  justify-content: space-between;',
+    '}',
+    '',
+    '.widget__title {',
+    '  color: var(--ink-faint);',
+    '  font-size: 10px;',
+    '  letter-spacing: 0.18em;',
+    '  text-transform: uppercase;',
+    '}',
+    '',
+    '.widget__dot {',
+    '  width: 6px;',
+    '  height: 6px;',
+    '  border-radius: 999px;',
+    '  background: var(--accent);',
+    '  box-shadow: 0 0 10px var(--accent-glow, var(--accent));',
+    '}',
+    '',
+    '.widget__hero {',
+    '  display: flex;',
+    '  align-items: baseline;',
+    '  gap: 10px;',
+    '}',
+    '',
+    '.widget__time {',
+    '  font-family: var(--serif);',
+    '  font-size: 46px;',
+    '  font-style: italic;',
+    '  line-height: 1;',
+    '  font-variant-numeric: tabular-nums;',
+    '  letter-spacing: -0.02em;',
+    '}',
+    '',
+    '.widget__date {',
+    '  color: var(--ink-dim);',
+    '  font-size: 12px;',
+    '}',
+    '',
+    '.widget__foot {',
+    '  display: flex;',
+    '  align-items: center;',
+    '  justify-content: space-between;',
+    '  padding-top: 8px;',
+    '  border-top: 1px solid rgba(255, 255, 255, 0.08);',
+    '}',
+    '',
+    '.widget__hint {',
+    '  color: var(--ink-faint);',
+    '  font-size: 11px;',
+    '}',
+    '',
+    '.widget__pill {',
+    '  appearance: none;',
+    '  border: 1px solid rgba(255, 255, 255, 0.14);',
+    '  background: rgba(255, 255, 255, 0.06);',
+    '  color: var(--ink-soft);',
+    '  border-radius: 999px;',
+    '  padding: 3px 10px;',
+    '  font: inherit;',
+    '  font-size: 11px;',
+    '  cursor: pointer;',
+    '  transition: background 160ms var(--ease-out), color 160ms var(--ease-out);',
+    '}',
+    '',
+    '.widget__pill:hover {',
+    '  background: var(--accent-soft);',
+    '  color: var(--accent-ink, #fff);',
+    '}',
+    '',
+    '.widget__pill:focus-visible {',
+    '  outline: 2px solid var(--accent);',
+    '  outline-offset: 2px;',
+    '}',
+    ''
+  ].join('\n')
+
+  const templateJs = [
+    '// ui/main.js 在面板页面里执行一次。宿主注入两个参数：',
+    '//   sill —— 数据 / 存储 / 动作 / 生命周期',
+    '//   root —— 这张卡的 shadow root',
+    '// 保存文件会自动热重载；面板上按 F12 打开 DevTools 看 console。',
+    '',
+    'const timeEl = root.getElementById("time")',
+    'const dateEl = root.getElementById("date")',
+    'const counterEl = root.getElementById("counter")',
+    '',
+    '// 1) 数据：manifest 里 data[].id 就是这里的 key（示例是 now）',
+    'sill.onData(({ data }) => {',
+    '  if (timeEl) timeEl.textContent = data.now?.time ?? "--:--"',
+    '  if (dateEl) dateEl.textContent = data.now?.dateLabel ?? ""',
+    '})',
+    '',
+    '// 2) 私有存储：<userData>/widget-data/<id>.json',
+    'let clicks = 0',
+    'sill.storage.get().then((saved) => {',
+    '  clicks = Number(saved.clicks) || 0',
+    '  if (counterEl) counterEl.textContent = String(clicks)',
+    '})',
+    '',
+    'counterEl?.addEventListener("click", () => {',
+    '  clicks += 1',
+    '  counterEl.textContent = String(clicks)',
+    '  sill.storage.patch({ clicks })',
+    '})',
+    '',
+    '// 3) 清理：卡片卸载或热重载前调用，定时器 / 监听写在这里',
+    'const onResize = () => {',
+    '  root.host?.toggleAttribute("data-narrow", (root.host?.clientWidth ?? 0) < 240)',
+    '}',
+    'window.addEventListener("resize", onResize)',
+    'sill.onDispose(() => window.removeEventListener("resize", onResize))',
+    ''
+  ].join('\n')
+
+  const webJs = [
+    '// web 组件在独立 guest 里运行，trust: trusted 时可以直接用 Node。',
+    'const os = require("node:os")',
+    '',
+    'sill.ready(({ data }) => {',
+    '  document.getElementById("time").textContent = data.now?.time ?? "--:--"',
+    '  document.getElementById("date").textContent = os.hostname()',
+    '})',
+    ''
+  ].join('\n')
+
+  const readme = [
+    '# ' + name,
+    '',
+    'Sill 组件。开发三步：',
+    '',
+    '1. 把这个文件夹放进 `%APPDATA%\\Sill\\skins\\`（便携版是 `Sill-data\\skins\\`）。',
+    '2. 打开 Sill → 设置 → 组件 → 打开组件文件夹；保存文件会自动刷新。',
+    '3. 做好了打包：`sill pack`，然后双击 `.sill` 安装。',
+    '',
+    '## 文件',
+    '',
+    '| 文件 | 作用 |',
+    '| --- | --- |',
+    '| `widget.json` | 元数据、数据绑定、权限提示 |',
+    '| `ui/index.html` | 结构（就是普通 HTML） |',
+    '| `ui/style.css` | 样式（普通 CSS，可用主题变量） |',
+    '| `ui/main.js` | 可选逻辑（普通 JS，宿主注入 `sill` / `root`） |',
+    '| `ui/assets/**` | 图片 / 字体，HTML 里直接写 `assets/x.png` |',
+    '',
+    '调试：面板上按 `F12` 打开 DevTools；`main.js` 抛错会在卡里显示。',
+    '完整文档：https://github.com/Enkrid-Rao/sill-components/blob/main/docs/authoring.md',
+    ''
+  ].join('\n')
+
+  const types = [
+    '// 可选：放进项目根目录，编辑器会给 ui/main.js 里的 sill / root 补全。',
+    'declare const root: ShadowRoot',
+    'declare const sill: {',
+    '  id: string',
+    '  root: ShadowRoot',
+    '  host: unknown',
+    '  data: () => Record<string, unknown>',
+    '  onData: (callback: (payload: {',
+    '    data: Record<string, unknown>',
+    '    language: string',
+    '    tokens: Record<string, string>',
+    '  }) => void) => void',
+    '  onDispose: (callback: () => void) => void',
+    '  command: (action: string, arg?: unknown) => void',
+    '  storage: {',
+    '    get: () => Promise<Record<string, unknown>>',
+    '    set: (value: unknown) => Promise<Record<string, unknown>>',
+    '    patch: (value: Record<string, unknown>) => Promise<Record<string, unknown>>',
+    '  }',
+    '}',
+    ''
+  ].join('\n')
+
   writeFileSync(join(target, 'widget.json'), `${JSON.stringify(manifest, null, 2)}\n`)
-  writeFileSync(
-    join(target, 'ui/index.html'),
-    web
-      ? '<div class="widget">\n  <div class="widget__label">HELLO</div>\n  <div class="widget__host" id="host">—</div>\n  <div class="widget__time" id="time">--:--</div>\n</div>\n'
-      : '<div class="widget">\n  <div class="widget__label">HELLO</div>\n  <div class="widget__time" data-sill-text="now.time">--:--</div>\n  <div class="widget__extra" id="extra"></div>\n</div>\n'
-  )
-  writeFileSync(
-    join(target, 'ui/style.css'),
-    ':host { display: block; }\n\n.widget {\n  color: var(--ink);\n}\n\n.widget__label {\n  color: var(--ink-faint);\n  font-size: 10px;\n  letter-spacing: 0.17em;\n}\n\n.widget__time {\n  font-family: var(--serif);\n  font-size: 44px;\n  font-style: italic;\n}\n\n.widget__extra {\n  color: var(--ink-dim);\n  font-size: 12px;\n}\n'
-  )
-  writeFileSync(
-    join(target, 'ui/main.js'),
-    web
-      ? "const os = require('node:os')\n\ndocument.querySelector('#host').textContent = os.hostname()\n\nsill.ready(({ data }) => {\n  document.querySelector('#time').textContent = data.now?.time ?? '--:--'\n})\n"
-      : "/**\n * ui/main.js 在宿主页面里执行。sill 是宿主注入的 API：\n *   sill.data()            当前数据\n *   sill.onData(cb)        每次快照更新\n *   sill.command(action)   触发动作（media.playpause 等）\n *   sill.storage.get/set   组件私有 JSON 存储\n * root 是这张卡的 shadow root。\n */\nsill.onData(({ data }) => {\n  const time = data.now?.time ?? '--:--'\n  root.querySelector('#extra').textContent = `${sill.id} · ${time}`\n})\n"
-  )
+  writeFileSync(join(target, 'ui/index.html'), html)
+  writeFileSync(join(target, 'ui/style.css'), css)
+  writeFileSync(join(target, 'ui/main.js'), web ? webJs : templateJs)
+  writeFileSync(join(target, 'README.md'), readme)
+  writeFileSync(join(target, 'ui/sill.d.ts'), types)
   console.log(target)
+  console.log('')
+  console.log('下一步：')
+  console.log(`  1. 把这个文件夹放进 skins 目录（设置 → 组件 → 打开组件文件夹）`)
+  console.log(`  2. 保存文件即热重载；面板上按 F12 看 console`)
+  console.log(`  3. 打包：sill pack "${target}"`)
 }
 
 function findSillExe() {
