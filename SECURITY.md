@@ -21,7 +21,15 @@ runtime gate. `sill.host` exposes the whole preload API, so a template can call 
 What this means in practice:
 
 - Only install components from a source you trust, exactly like a Rainmeter skin;
-- The install dialog shows id / version / author / type / permissions so the decision is visible;
+- The install prompt is **tiered by what the package actually contains**, not by its manifest:
+  - `static` (no `ui/main.js`, no `on*`, no `<script>`) installs without a prompt;
+  - `script` (a template that runs code) shows a warning that it runs with the same privileges as
+    Sill;
+  - `isolated` (`web` guest without Node) explains the bridge;
+  - `node` (`web` + `trust: "trusted"`) warns about full Node and requires a checkbox.
+- A confirmed component is remembered in `<userData>/trust.json`; installing the same id with the
+  same or lower tier does not ask again. A tier increase (e.g. a later version adds `main.js`)
+  asks again.
 - A component can read the data the host already collected (todo text, process names, weather
   location, media metadata) and can send it anywhere. Treat that as part of "trusting" it.
 

@@ -15,7 +15,8 @@ import type {
   ComponentDiagnostics,
   ComponentProblem,
   InstallOutcome,
-  InstalledWidgetInfo
+  InstalledWidgetInfo,
+  WidgetTier
 } from '../../shared/widgets'
 
 const MAX_ARCHIVE = 50 * 1024 * 1024
@@ -44,13 +45,14 @@ interface Manifest {
 interface PackageData {
   manifest: Manifest
   files: Map<string, Buffer>
+  tier: WidgetTier
 }
 
 function fail(error: string): InstallOutcome {
   return { ok: false, error }
 }
 
-function info(manifest: Manifest): InstalledWidgetInfo {
+function info(manifest: Manifest, tier: WidgetTier): InstalledWidgetInfo {
   return {
     id: manifest.id,
     name: manifest.name,
@@ -59,8 +61,44 @@ function info(manifest: Manifest): InstalledWidgetInfo {
     permissions: manifest.permissions,
     span: manifest.span,
     kind: manifest.kind,
-    trust: manifest.trust
+    trust: manifest.trust,
+    tier
   }
+}
+
+/**
+ * 能力档位：从「它会跑什么」算，而不是作者自报。
+ * - static   纯 HTML/CSS，没有 main.js / on* / <script>
+ * - script   在面板页面里执行代码（main.js、on* 或 <script>）
+ * - isolated web guest，无 Node（桥只给少量动作）
+ * - node     web guest + 完整 Node
+ */
+function tierFromParts(
+  manifest: Pick<Manifest, 'kind' | 'trust'>,
+  hasMainJs: boolean,
+  html: string
+): WidgetTier {
+  if (manifest.kind === 'web') return manifest.trust === 'trusted' ? 'node' : 'isolated'
+  const scripted = hasMainJs || /\son[a-z]+\s*=/i.test(html) || /<script\b/i.test(html)
+  return scripted ? 'script' : 'static'
+}
+
+function tierFromFiles(manifest: Manifest, files: Map<string, Buffer>): WidgetTier {
+  return tierFromParts(
+    manifest,
+    files.has('ui/main.js'),
+    files.get('ui/index.html')?.toString('utf8') ?? ''
+  )
+}
+
+function tierFromDir(dir: string, manifest: Manifest): WidgetTier {
+  let html = ''
+  try {
+    html = readFileSync(join(dir, 'ui/index.html'), 'utf8')
+  } catch {
+    // 入口缺失时按包内容判断，错误由诊断列表负责
+  }
+  return tierFromParts(manifest, existsSync(join(dir, 'ui/main.js')), html)
 }
 
 function safeEntry(name: string): boolean {
@@ -169,7 +207,7 @@ function readManifest(dir: string): Manifest | null {
 
 function infoFromDir(dir: string): InstalledWidgetInfo | null {
   const manifest = readManifest(dir)
-  return manifest ? info(manifest) : null
+  return manifest ? info(manifest, tierFromDir(dir, manifest)) : null
 }
 
 function packageDirs(root: string, id?: string): string[] {
@@ -243,13 +281,13 @@ function readPackage(file: string): { data: PackageData } | { error: string } {
 
   // 模板内容不做标签/属性审查：宿主用 innerHTML 挂载，浏览器不会执行其中的脚本；
   // SVG、内联 style、img 这些都是正常写法，交给作者。
-  return { data: { manifest, files } }
+  return { data: { manifest, files, tier: tierFromFiles(manifest, files) } }
 }
 
 export function inspectPackage(file: string): InstallOutcome {
   const result = readPackage(file)
   if ('error' in result) return fail(result.error)
-  return { ok: true, widget: info(result.data.manifest) }
+  return { ok: true, widget: info(result.data.manifest, result.data.tier) }
 }
 
 /** 一个组件目录为什么加载不了；能加载返回 null。 */
@@ -405,7 +443,7 @@ export function findComponentDir(componentsRoot: string, skinsRoot: string, id: 
 export function installPackage(file: string, root: string): InstallOutcome {
   const result = readPackage(file)
   if ('error' in result) return fail(result.error)
-  const { manifest, files } = result.data
+  const { manifest, files, tier } = result.data
 
   const target = join(root, `${manifest.id}@${manifest.version}`)
   if (!within(root, target)) return fail('安装路径非法')
@@ -429,7 +467,7 @@ export function installPackage(file: string, root: string): InstallOutcome {
     return fail(error instanceof Error ? error.message : '安装失败')
   }
 
-  return { ok: true, widget: info(manifest) }
+  return { ok: true, widget: info(manifest, tier) }
 }
 
 export function uninstallPackage(root: string, id: string): InstallOutcome {

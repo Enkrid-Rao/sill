@@ -1,3 +1,6 @@
+/** 安装提示的档位：由包内容算出来，不由作者声明。 */
+export type WidgetTier = 'static' | 'script' | 'isolated' | 'node'
+
 export interface InstalledWidgetInfo {
   id: string
   name: string
@@ -7,6 +10,7 @@ export interface InstalledWidgetInfo {
   span: number
   kind: 'template' | 'web'
   trust: 'sandboxed' | 'trusted'
+  tier: WidgetTier
 }
 
 export interface InstallOutcome {

@@ -1050,8 +1050,18 @@ export function CustomizeSheet({
                   <div className="cz-setrow__copy">
                     <span className="cz-setrow__name">{item.name}</span>
                     <span className="cz-setrow__note">
-                      {item.id} · v{item.version} · {item.kind}/{item.trust} ·{' '}
-                      {item.permissions.join(' / ') || '—'}
+                      {item.id} · v{item.version} ·{' '}
+                      {t(
+                        language,
+                        item.tier === 'static'
+                          ? 'widgets.tier.static'
+                          : item.tier === 'script'
+                            ? 'widgets.tier.script'
+                            : item.tier === 'isolated'
+                              ? 'widgets.tier.isolated'
+                              : 'widgets.tier.node'
+                      )}{' '}
+                      · {item.permissions.join(' / ') || '—'}
                     </span>
                   </div>
                   <button

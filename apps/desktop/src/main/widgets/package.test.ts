@@ -206,8 +206,49 @@ describe('installPackage', () => {
     })
   })
 
-  it('reports folders that cannot load', () => {
-    const components = join(root, 'components')
+  it('computes static / script / isolated / node tiers from contents', () => {
+    const components = join(root, 'tiers')
+    const installTier = (files: Record<string, string>): string | undefined =>
+      installPackage(makePackage(files), components).widget?.tier
+
+    expect(
+      installTier({ ...validFiles(), 'widget.json': JSON.stringify({ ...manifest, id: 'tier.static' }) })
+    ).toBe('static')
+
+    expect(
+      installTier({
+        ...validFiles(),
+        'widget.json': JSON.stringify({ ...manifest, id: 'tier.script' }),
+        'ui/main.js': 'void 0'
+      })
+    ).toBe('script')
+
+    expect(
+      installTier({
+        ...validFiles(),
+        'widget.json': JSON.stringify({ ...manifest, id: 'tier.inline' }),
+        'ui/index.html': '<div onclick="void 0">x</div>'
+      })
+    ).toBe('script')
+
+    expect(
+      installTier({
+        ...webFiles(),
+        'widget.json': JSON.stringify({ ...webManifest, id: 'tier.node' })
+      })
+    ).toBe('node')
+
+    expect(
+      installTier({
+        ...webFiles(),
+        'widget.json': JSON.stringify({ ...webManifest, id: 'tier.isolated', trust: 'sandboxed' })
+      })
+    ).toBe('isolated')
+
+    expect(listInstalled(components).find((item) => item.id === 'tier.script')?.tier).toBe('script')
+  })
+
+  it('reports folders that cannot load', () => {    const components = join(root, 'components')
     const skins = join(root, 'skins')
     const good = join(components, 'com.example.clock@1.0.0')
     mkdirSync(join(good, 'ui'), { recursive: true })

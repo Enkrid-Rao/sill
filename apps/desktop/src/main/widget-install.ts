@@ -1,7 +1,8 @@
-import { dialog, type BrowserWindow } from 'electron'
-import type { MessageBoxOptions } from 'electron'
+import { dialog, type BrowserWindow, type MessageBoxOptions } from 'electron'
+import type { WidgetTier } from '../shared/widgets'
 import { broadcast } from './broadcast'
 import { COMPONENTS_DIR, getLayout, invalidateLayout } from './layout'
+import { rememberTrust, isAlreadyTrusted } from './trust'
 import { inspectPackage, installPackage } from './widgets/package'
 import type { InstallOutcome } from '../shared/widgets'
 
@@ -12,9 +13,48 @@ export function afterWidgetsChanged(): void {
   broadcast('layout:changed', getLayout())
 }
 
+/** 档位决定要不要打扰用户；文案只描述「它到底会做什么」。 */
+function tierCopy(tier: WidgetTier): { trust: string; note: string } {
+  switch (tier) {
+    case 'static':
+      return { trust: '静态（不执行代码）', note: '只读数据并渲染 HTML/CSS。' }
+    case 'isolated':
+      return {
+        trust: '隔离（独立 webview，无 Node）',
+        note: '在独立 guest 里运行，只能通过组件桥读数据、触发动作。'
+      }
+    case 'script':
+      return {
+        trust: '脚本（在面板页面里执行代码）',
+        note: 'ui/main.js 与 Sill 同页运行，权限和 Sill 本身相同：能读写设置、调用宿主 IPC、联网。'
+      }
+    case 'node':
+      return {
+        trust: '插件（完整 Node / Windows API）',
+        note: '可以读写文件、执行命令、访问网络，和本机普通程序没有区别。'
+      }
+  }
+}
+
+function installNow(
+  outcome: InstallOutcome,
+  widgetId: string,
+  tier: WidgetTier,
+  version: string
+): InstallOutcome {
+  if (!outcome.ok) return outcome
+  rememberTrust(widgetId, tier, version)
+  afterWidgetsChanged()
+  return outcome
+}
+
 /**
- * 安装一个本地 .sill。设置里的文件选择框和 Explorer 右键/双击共用这一条路径，
- * 保证确认文案、权限提示和落盘行为完全一致。
+ * 安装一个本地 .sill。设置里的文件选择框、Explorer 双击和 .sill 关联共用这一条路径。
+ *
+ * 信任规则（Rainmeter 式）：
+ * - static 不执行代码 → 不弹窗；
+ * - 已确认过的 id 且档位没升 → 不再弹；
+ * - 其余按档位弹一次确认，确认后记住。
  */
 export async function installWidgetFile(
   file: string,
@@ -24,42 +64,58 @@ export async function installWidgetFile(
   if (!inspected.ok || !inspected.widget) return inspected
 
   const widget = inspected.widget
+  const tier = widget.tier
+  const { trust, note } = tierCopy(tier)
+
+  if (tier === 'static' || isAlreadyTrusted(widget.id, tier)) {
+    return installNow(
+      installPackage(file, COMPONENTS_DIR),
+      widget.id,
+      tier,
+      widget.version
+    )
+  }
+
   const permissions = widget.permissions.length ? widget.permissions.join('\n') : '无'
   const detail = [
     `id: ${widget.id}`,
     `版本: ${widget.version}`,
     `作者: ${widget.author}`,
-    `类型: ${widget.kind === 'web' ? 'web（独立窗口）' : 'template（面板内，可带 JS）'}`,
-    `信任: ${
-      widget.kind === 'template'
-        ? '在面板页面内运行，和 Sill 同等权限'
-        : widget.trust === 'trusted'
-          ? '完全信任（可读写文件、执行命令、访问网络）'
-          : '沙箱（只通过组件桥）'
-    }`,
-    `权限: ${permissions}`,
+    `能力: ${trust}`,
+    `读取: ${permissions}`,
     '',
-    widget.trust === 'trusted'
-      ? '这个组件拥有和 Sill 相同的本机权限。只安装你信任的来源。'
-      : '只安装你信任的组件。'
+    note,
+    '',
+    '确认后记住这个选择；同一个组件（能力不变）以后不再询问。'
   ].join('\n')
 
   const confirmOptions: MessageBoxOptions = {
-    type: 'question',
+    type: tier === 'isolated' ? 'question' : 'warning',
     title: '安装组件',
     message: `${widget.name} ${widget.version}`,
     detail,
     buttons: ['安装', '取消'],
-    defaultId: 0,
+    defaultId: tier === 'node' ? 1 : 0,
     cancelId: 1,
-    noLink: true
+    noLink: true,
+    ...(tier === 'node'
+      ? { checkboxLabel: '我了解这个组件拥有完整本机权限', checkboxChecked: false }
+      : {})
   }
   const confirmed = win
     ? await dialog.showMessageBox(win, confirmOptions)
     : await dialog.showMessageBox(confirmOptions)
-  if (confirmed.response !== 0) return { ok: false, error: '已取消' }
 
-  const result = installPackage(file, COMPONENTS_DIR)
-  if (result.ok) afterWidgetsChanged()
-  return result
+  if (confirmed.response !== 0) return { ok: false, error: '已取消' }
+  if (tier === 'node' && confirmed.checkboxChecked !== true) {
+    return { ok: false, error: '需要勾选确认完全访问' }
+  }
+
+  return installNow(
+    installPackage(file, COMPONENTS_DIR),
+    widget.id,
+    tier,
+    widget.version
+  )
 }
+
