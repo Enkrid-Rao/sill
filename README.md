@@ -73,10 +73,11 @@ built to host installable widgets — and eventually to eat Rainmeter skins.
 
 ## 0.6 developer preview
 
-The `v0.6.0-dev.1` prerelease ships the portable build and the standalone CLI:
+The `v0.6.0-dev.2` prerelease ships the installer, portable build and standalone CLI:
 
-- [Sill-0.6.0-dev.1-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.1/Sill-0.6.0-dev.1-portable-win64.zip)
-- [sill-cli-0.2.0.tgz](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.1/sill-cli-0.2.0.tgz)
+- [Sill-Setup-0.6.0-dev.2.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-Setup-0.6.0-dev.2.exe)
+- [Sill-0.6.0-dev.2-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-0.6.0-dev.2-portable-win64.zip)
+- [sill-cli-0.2.2.tgz](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/sill-cli-0.2.2.tgz)
 
 It is a developer preview, not the stable 0.5.4 release.
 

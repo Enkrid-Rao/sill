@@ -61,10 +61,11 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
 
 ## 0.6 开发者预览
 
-`v0.6.0-dev.1` 预发布带便携版和独立 CLI：
+`v0.6.0-dev.2` 预发布带安装包、便携版和独立 CLI：
 
-- [Sill-0.6.0-dev.1-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.1/Sill-0.6.0-dev.1-portable-win64.zip)
-- [sill-cli-0.2.0.tgz](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.1/sill-cli-0.2.0.tgz)
+- [Sill-Setup-0.6.0-dev.2.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-Setup-0.6.0-dev.2.exe)
+- [Sill-0.6.0-dev.2-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-0.6.0-dev.2-portable-win64.zip)
+- [sill-cli-0.2.2.tgz](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/sill-cli-0.2.2.tgz)
 
 这是开发者预览，不是稳定版 0.5.4。
 

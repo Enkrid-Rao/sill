@@ -3,7 +3,7 @@
 不需要 clone Sill 源码。目标流程：
 
 ```text
-安装 Sill 开发版（0.6.0-dev.1 便携版）
+安装 Sill 开发版（0.6.0-dev.2 安装包或便携版）
 安装 sill-cli
 sill new com.example.clock
 sill dev
@@ -12,7 +12,7 @@ sill pack
 
 ## 1. Sill
 
-下载 [Sill-0.6.0-dev.1-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.1/Sill-0.6.0-dev.1-portable-win64.zip)，解压到任意可写目录，记下 `Sill.exe` 路径。
+下载 [Sill-Setup-0.6.0-dev.2.exe](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-Setup-0.6.0-dev.2.exe) 安装，或下载 [Sill-0.6.0-dev.2-portable-win64.zip](https://github.com/Enkrid-Rao/sill/releases/download/v0.6.0-dev.2/Sill-0.6.0-dev.2-portable-win64.zip) 解压到任意可写目录，记下 `Sill.exe` 路径。
 
 ```powershell
 $env:SILL_EXE = 'D:\Apps\Sill\Sill.exe'
@@ -27,7 +27,7 @@ npm i -g @heavenlydemon/sill-cli
 sill --help
 ```
 
-需要 Node.js >= 20。离线时也可以用 GitHub release 的 tarball：`npm i -g .\sill-cli-0.2.0.tgz`。
+需要 Node.js >= 20。离线时也可以用 GitHub release 的 tarball：`npm i -g .\sill-cli-0.2.2.tgz`。
 
 ## 3. 新建
 
