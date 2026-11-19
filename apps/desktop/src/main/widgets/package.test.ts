@@ -105,12 +105,70 @@ describe('installPackage', () => {
     expect(existsSync(join(loaded!.dir!, 'ui/assets/helper.ps1'))).toBe(true)
   })
 
-  it('rejects extra files', () => {
-    const file = makePackage({ ...validFiles(), 'README.md': 'x' })
+  it('rejects files outside widget.json / ui/', () => {
+    const file = makePackage({ ...validFiles(), 'tools/build.ps1': 'x' })
     expect(installPackage(file, join(root, 'components'))).toEqual({
       ok: false,
       error: expect.stringContaining('不允许的文件')
     })
+  })
+
+  it('allows README and LICENSE next to the manifest', () => {
+    const file = makePackage({
+      ...validFiles(),
+      'README.md': '# clock',
+      'LICENSE': 'MIT'
+    })
+    expect(installPackage(file, join(root, 'components')).ok).toBe(true)
+  })
+
+  it('rejects a package without ui/index.html', () => {
+    const file = makePackage({
+      'widget.json': JSON.stringify(manifest),
+      'ui/style.css': css
+    })
+    expect(installPackage(file, join(root, 'components'))).toEqual({
+      ok: false,
+      error: '缺少 ui/index.html'
+    })
+  })
+
+  it('accepts a template with main.js, nested ui files and no style.css', () => {
+    const file = makePackage({
+      'widget.json': JSON.stringify(manifest),
+      'ui/index.html': html,
+      'ui/main.js': 'sill.onData(() => {})',
+      'ui/lib/format.js': 'export const x = 1',
+      'ui/assets/icon.svg': '<svg />'
+    })
+    expect(installPackage(file, join(root, 'components')).ok).toBe(true)
+  })
+
+  it('accepts a single-segment id, build metadata and unknown permissions', () => {
+    const file = makePackage({
+      ...validFiles(),
+      'widget.json': JSON.stringify({
+        ...manifest,
+        id: 'clock',
+        version: '1.0.0+rev2',
+        permissions: ['data.time', 'action.custom']
+      })
+    })
+    const result = installPackage(file, join(root, 'components'))
+    expect(result.ok).toBe(true)
+    expect(result.widget).toMatchObject({ id: 'clock', version: '1.0.0+rev2' })
+  })
+
+  it('accepts a manifest without license / runtime / engine / author', () => {
+    const raw: Record<string, unknown> = { ...manifest }
+    delete raw.license
+    delete raw.runtime
+    delete raw.engine
+    delete raw.author
+    const file = makePackage({ ...validFiles(), 'widget.json': JSON.stringify(raw) })
+    const result = installPackage(file, join(root, 'components'))
+    expect(result.ok).toBe(true)
+    expect(result.widget?.author).toBe('unknown')
   })
 
   it('rejects path traversal entries', () => {

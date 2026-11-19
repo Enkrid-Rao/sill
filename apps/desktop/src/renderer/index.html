@@ -2,9 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!--
+      组件与宿主同页运行，模型是「安装即授权」（见 SECURITY.md）。组件可以用
+      https 取图 / 取字体 / 发请求，也可以用包内的 main.js / 模块。宿主自身只加载
+      本地资源。object-src / base-uri 关掉，避免组件改基地址或嵌插件。
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: sill-asset:; font-src 'self' data: sill-asset:; connect-src 'self' ws: wss: http://localhost:*"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' sill-asset:; style-src 'self' 'unsafe-inline' sill-asset:; img-src 'self' data: blob: sill-asset: https:; font-src 'self' data: sill-asset: https:; media-src 'self' blob: sill-asset: https:; connect-src 'self' ws: wss: http://localhost:* https:; object-src 'none'; base-uri 'none'"
     />
     <meta name="color-scheme" content="dark" />
     <title>Sill</title>

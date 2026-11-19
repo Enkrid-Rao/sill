@@ -167,6 +167,18 @@ export function createPanel(): BrowserWindow {
 
   panel.setAlwaysOnTop(true, 'screen-saver')
 
+  // 调试通道：面板自己吃掉 F12 / Ctrl+Shift+I。组件作者要能看见 console 和报错，
+  // 否则写 ui/main.js 等于闭眼开发。面板不抢焦点，先点一下面板再按。
+  panel.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    const key = input.key.toLowerCase()
+    const wantsDevTools = input.key === 'F12' || (input.control && input.shift && key === 'i')
+    if (!wantsDevTools) return
+    event.preventDefault()
+    if (panel?.webContents.isDevToolsOpened()) panel?.webContents.closeDevTools()
+    else panel?.webContents.openDevTools({ mode: 'detach' })
+  })
+
   // Web widgets are guests. Force the bridge and reject anything that is not
   // the inline HTML we generated for this card.
   panel.webContents.on('will-attach-webview', (event, webPreferences, params) => {
@@ -252,6 +264,8 @@ export function showPanel(): void {
   // 设置 / 布局编辑打开时不收；托盘图标点击也不收（托盘自己会 toggle）。
   startMouseWatch(() => {
     if (!visible || overlayOpen || !panel || panel.isDestroyed()) return
+    // DevTools 是独立窗口，点它不应该收起面板
+    if (panel.webContents.isDevToolsOpened()) return
     if (hasOtherWindow()) return
     const point = screen.getCursorScreenPoint()
     const tray = getTrayBounds()

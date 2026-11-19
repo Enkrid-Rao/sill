@@ -25,8 +25,10 @@ interface Props {
 }
 
 function buildDocument(widget: DevWidgetPayload): string {
+  // web 组件是隔离运行的可信代码：它可以联网、取远程图片，但只能执行内联脚本
+  // 与包内模块（不允许加载远程脚本，避免「远程页面拿到 guest 权限」）。
   const csp =
-    "default-src 'none'; style-src 'unsafe-inline' sill-asset:; script-src 'unsafe-inline' sill-asset:; img-src sill-asset: data:; font-src sill-asset: data:; media-src sill-asset:; connect-src 'none'"
+    "default-src 'none'; style-src 'unsafe-inline' sill-asset: https:; script-src 'unsafe-inline' sill-asset:; img-src sill-asset: data: blob: https:; font-src sill-asset: data: https:; media-src sill-asset: blob: https:; connect-src https:"
   // 包内相对路径（assets/、style.css）对到组件目录；<base> 之后 <img src="assets/x.png"> 直接可用。
   const base = `sill-asset://${widget.id}/ui/`
   const script = (widget.js ?? '').replace(/<\/script/gi, '<\\/script')

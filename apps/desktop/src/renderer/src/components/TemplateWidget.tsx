@@ -40,6 +40,8 @@ interface InlineApi {
   host: unknown
   data: () => Record<string, unknown>
   onData: (callback: (payload: InlinePayload) => void) => void
+  /** 卡片被卸载 / 热重载前调用，用来清掉 main.js 起的定时器与监听。 */
+  onDispose: (callback: () => void) => void
   command: (action: string, arg?: unknown) => void
   storage: {
     get: () => Promise<Record<string, unknown>>
@@ -249,7 +251,8 @@ function notifyInline(
   listeners: Set<(payload: InlinePayload) => void>,
   id: string,
   data: Record<string, unknown>,
-  language: string
+  language: string,
+  onError?: (error: unknown) => void
 ): void {
   if (!listeners.size) return
   const payload: InlinePayload = { data, language, tokens: readTokens() }
@@ -258,8 +261,42 @@ function notifyInline(
       listener(payload)
     } catch (error) {
       console.error(`[sill] ${id} onData:`, error)
+      onError?.(error)
     }
   }
+}
+
+/**
+ * 组件 JS 失败时的卡内提示：不整块崩，只在这张卡里说清楚「谁、什么错、怎么看堆栈」。
+ * 开发者不用打开 DevTools 就能知道第一层原因。
+ */
+function renderWidgetError(root: ShadowRoot, id: string, error: unknown): void {
+  const detail =
+    error instanceof Error
+      ? `${error.name}: ${error.message}`
+      : typeof error === 'string'
+        ? error
+        : JSON.stringify(error)
+  const box = document.createElement('div')
+  box.setAttribute('role', 'alert')
+  box.style.cssText = [
+    'margin:2px 0;padding:8px 10px;border-radius:10px',
+    'background:rgba(255,96,96,.14)',
+    'border:1px solid rgba(255,128,128,.38)',
+    'color:#ffc3c3',
+    'font:11.5px/1.55 var(--sans, system-ui, sans-serif)',
+    'white-space:pre-wrap;word-break:break-word'
+  ].join(';')
+  const title = document.createElement('div')
+  title.style.cssText = 'font-weight:600;margin-bottom:2px'
+  title.textContent = `${id} failed`
+  const body = document.createElement('div')
+  body.textContent = detail
+  const hint = document.createElement('div')
+  hint.style.cssText = 'opacity:.72;margin-top:4px'
+  hint.textContent = 'F12 opens DevTools · save the file in skins to reload'
+  box.append(title, body, hint)
+  root.appendChild(box)
 }
 
 export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
@@ -270,10 +307,11 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
   const scopesRef = useRef<Scopes>(new WeakMap())
   const permissionsRef = useRef<string[]>(widget.permissions)
   const inlineListeners = useRef(new Set<(payload: InlinePayload) => void>())
+  const errorRef = useRef<((error: unknown) => void) | null>(null)
   contextRef.current = context
   permissionsRef.current = widget.permissions
 
-  // 只在组件本身变化时重建 DOM（首次加载 / 热重载）。
+  // 只在组件本身变化时重建 DOM（首次加载 / 热重载 / 保存文件）。
   useLayoutEffect(() => {
     const element = host.current
     if (!element) return
@@ -295,21 +333,53 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
       clickBound.current = true
     }
 
-    root.innerHTML = `<style>:host{display:block;color:var(--ink);font-family:var(--sans)}[hidden]{display:none!important}${rewriteCss(widget.css, widget.id)}</style>${widget.html}`
+    // CSS 用 textContent 注入：组件 CSS 里出现 `</style>` 也不会提前闭合样式表。
+    const style = document.createElement('style')
+    style.textContent = `:host{display:block;color:var(--ink);font-family:var(--sans)}[hidden]{display:none!important}${rewriteCss(widget.css, widget.id)}`
+    root.replaceChildren(style)
+    // 用 innerHTML 解析 HTML：<script> 仍然不会执行，想写 JS 请放 ui/main.js。
+    const holder = document.createElement('div')
+    holder.innerHTML = widget.html
+    root.append(...holder.childNodes)
     rewriteAssets(root, widget.id)
     mountLists(root)
 
     const listeners = new Set<(payload: InlinePayload) => void>()
     inlineListeners.current = listeners
-    if (!widget.js) return
+    const disposers: Array<() => void> = []
+    let errorShown = false
+    const reportError = (error: unknown): void => {
+      console.error(`[sill] ${widget.id}:`, error)
+      if (errorShown) return
+      errorShown = true
+      renderWidgetError(root, widget.id, error)
+    }
+    errorRef.current = reportError
 
-    const sill: InlineApi = {
+    const cleanup = (): void => {
+      for (const dispose of disposers) {
+        try {
+          dispose()
+        } catch (error) {
+          console.error(`[sill] ${widget.id} dispose:`, error)
+        }
+      }
+      disposers.length = 0
+      errorRef.current = null
+    }
+
+    if (!widget.js) return cleanup
+
+    const sill: InlineApi & { __fail?: (error: unknown) => void } = {
       id: widget.id,
       root,
       host: window.sill,
       data: () => dataRef.current,
       onData: (callback) => {
         listeners.add(callback)
+      },
+      onDispose: (callback) => {
+        if (typeof callback === 'function') disposers.push(callback)
       },
       command: (action, arg) => {
         runWidgetAction(action, arg, contextRef.current, permissionsRef.current)
@@ -321,30 +391,53 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
           const current = (await window.sill?.getWidgetData(widget.id)) ?? {}
           return (await window.sill?.setWidgetData(widget.id, { ...current, ...value })) ?? {}
         }
-      }
+      },
+      __fail: reportError
     }
 
     // 延后一拍：StrictMode 会 setup → cleanup → setup，作者脚本不能跑两遍。
-    // 用 <script> 执行：CSP 允许内联脚本，堆栈也和普通脚本一致。
+    // 用 <script> 执行：CSP 允许内联脚本，堆栈也和普通脚本一致；包一层 try/catch，
+    // 让同步错误落到卡内错误条，而不是只剩一条 console。
     let cancelled = false
     const timer = window.setTimeout(() => {
       if (cancelled) return
       const script = document.createElement('script')
-      script.textContent = `(function (sill, root) {\n${widget.js}\n})(window.__sillInline, window.__sillInlineRoot)`
+      script.textContent = [
+        '(function (sill, root) {',
+        '  try {',
+        widget.js,
+        '  } catch (error) {',
+        '    if (sill && typeof sill.__fail === "function") sill.__fail(error)',
+        '    else throw error',
+        '  }',
+        '})(window.__sillInline, window.__sillInlineRoot)'
+      ].join('\n')
       const scope = window as unknown as Record<string, unknown>
       scope.__sillInline = sill
       scope.__sillInlineRoot = root
-      root.appendChild(script)
-      script.remove()
-      delete scope.__sillInline
-      delete scope.__sillInlineRoot
+      try {
+        root.appendChild(script)
+      } catch (error) {
+        reportError(error)
+      } finally {
+        script.remove()
+        delete scope.__sillInline
+        delete scope.__sillInlineRoot
+      }
       // 脚本注册完 onData 后立刻给一帧当前数据。
-      notifyInline(listeners, widget.id, dataRef.current, contextRef.current.language)
+      notifyInline(
+        listeners,
+        widget.id,
+        dataRef.current,
+        contextRef.current.language,
+        reportError
+      )
     }, 0)
 
     return () => {
       cancelled = true
       window.clearTimeout(timer)
+      cleanup()
     }
   }, [widget])
 
@@ -363,7 +456,9 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
     applyConditions(root, data, scopes)
     applyBindings(root, data, scopes, widget, context.language)
 
-    notifyInline(inlineListeners.current, widget.id, data, context.language)
+    notifyInline(inlineListeners.current, widget.id, data, context.language, (error) => {
+      errorRef.current?.(error)
+    })
   }, [
     widget,
     context.now,

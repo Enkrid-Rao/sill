@@ -22,6 +22,28 @@ interface LoadedInstalled {
   payload: DevWidgetPayload
 }
 
+/**
+ * 热重载时只替换「真的变了」的组件：payload 内容一致就复用旧对象。
+ * 否则保存一个文件会让所有卡片重建 DOM、重跑 main.js、重置 CSS 过渡。
+ */
+function samePayload(a: DevWidgetPayload, b: DevWidgetPayload): boolean {
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    a.kind === b.kind &&
+    a.trust === b.trust &&
+    a.span === b.span &&
+    a.height === b.height &&
+    a.dir === b.dir &&
+    a.html === b.html &&
+    a.css === b.css &&
+    a.js === b.js &&
+    JSON.stringify(a.data) === JSON.stringify(b.data) &&
+    JSON.stringify(a.permissions) === JSON.stringify(b.permissions) &&
+    JSON.stringify(a.strings) === JSON.stringify(b.strings)
+  )
+}
+
 export function WidgetRegistryProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [dev, setDev] = useState<DevWidgetPayload | null>(null)
   const [installed, setInstalled] = useState<InstalledWidgetInfo[]>([])
@@ -43,13 +65,21 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
         }))
       )
       if (!alive) return
-      setDev(devPayload ?? null)
-      setInstalled(list ?? [])
-      setLoaded(
-        payloads.filter(
-          (item): item is LoadedInstalled => item.payload !== null && item.payload !== undefined
-        )
+      setDev((previous) =>
+        previous && devPayload && samePayload(previous, devPayload) ? previous : (devPayload ?? null)
       )
+      setInstalled(list ?? [])
+      setLoaded((previous) => {
+        const byId = new Map(previous.map((item) => [item.info.id, item]))
+        return payloads
+          .filter(
+            (item): item is LoadedInstalled => item.payload !== null && item.payload !== undefined
+          )
+          .map((item) => {
+            const old = byId.get(item.info.id)
+            return old && samePayload(old.payload, item.payload) ? old : item
+          })
+      })
       setReady(true)
     }
 

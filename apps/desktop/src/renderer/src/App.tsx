@@ -276,36 +276,92 @@ export default function App(): React.JSX.Element {
       ) + 24
     : undefined
 
-  // 第一次进 free：先让数据落一帧，再量真实尺寸；默认 flow 期间不会跳。
+  // 新增组件 / 第一次进 free：按当时 flow 的真实排布量一次尺寸，补出缺失的 box。
+  // 刻意不把 snapshot 放进依赖：数据每 1–5s 换一次引用，依赖它会让定时器永远被打断，
+  // 结果就是「面板 layout.json 写着 free，实际一直按 flow 画」。
+  // 量尺寸同步做（useLayoutEffect 时卡片已经在 DOM 里），不排 rAF：依赖一变就会
+  // cleanup，rAF 会被取消，之前正是这样漏掉的。
+  const seededRef = useRef('')
+  const refineTimerRef = useRef<number | null>(null)
   useLayoutEffect(() => {
-    if (!free || !snapshot) return
-    const timer = window.setTimeout(() => {
-      const sheet = sheetRef.current
-      if (!sheet) return
-      const latest = layoutRef.current
-      const missing = latest.order
-        .filter((id) => !latest.hidden.includes(id))
-        .filter((id) => !latest.boxes[id])
-      if (!missing.length) return
-      const base = sheet.getBoundingClientRect()
-      const boxes = { ...latest.boxes }
-      let changed = false
-      for (const element of sheet.querySelectorAll<HTMLElement>('.card')) {
-        const id = element.dataset.card
-        if (!id || !missing.includes(id)) continue
-        const rect = element.getBoundingClientRect()
-        boxes[id] = {
-          x: Math.round(rect.left - base.left),
-          y: Math.round(rect.top - base.top),
-          w: Math.round(rect.width),
-          h: Math.round(rect.height)
-        }
-        changed = true
+    // 磁盘布局还没回来之前不能写：否则补种会用默认布局覆盖用户的 hidden / boxes。
+    if (!settings.layoutReady || !free || !snapshot) return
+    const visible = layout.order.filter((id) => !layout.hidden.includes(id))
+    const missing = visible.filter((id) => !layout.boxes[id])
+    if (!missing.length) return
+    const signature = `${visible.join('|')}#${missing.join('|')}`
+    if (seededRef.current === signature) return
+    seededRef.current = signature
+
+    const sheet = sheetRef.current
+    if (!sheet) {
+      seededRef.current = ''
+      return
+    }
+    const latest = layoutRef.current
+    const stillMissing = latest.order
+      .filter((id) => !latest.hidden.includes(id))
+      .filter((id) => !latest.boxes[id])
+    if (!stillMissing.length) return
+
+    const base = sheet.getBoundingClientRect()
+    const boxes = { ...latest.boxes }
+    let changed = false
+    for (const element of sheet.querySelectorAll<HTMLElement>('.card')) {
+      const id = element.dataset.card
+      if (!id || !stillMissing.includes(id)) continue
+      const rect = element.getBoundingClientRect()
+      boxes[id] = {
+        x: Math.max(0, Math.round(rect.left - base.left)),
+        y: Math.max(0, Math.round(rect.top - base.top)),
+        w: Math.max(120, Math.round(rect.width)),
+        h: Math.max(48, Math.round(rect.height))
       }
-      if (changed) setLayoutRef.current({ ...latest, boxes })
-    }, 2400)
-    return () => window.clearTimeout(timer)
-  }, [free, snapshot])
+      changed = true
+    }
+    if (!changed) return
+    setLayoutRef.current({ ...latest, boxes })
+
+    // 媒体 / 进程这类卡的首帧是空的，数据晚到后才变高。对这次自动补出来的
+    // box 做一次「只增不减」的修正，避免内容被 overflow:hidden 裁掉。
+    const seededIds = stillMissing.slice()
+    if (refineTimerRef.current) window.clearTimeout(refineTimerRef.current)
+    refineTimerRef.current = window.setTimeout(() => {
+      refineTimerRef.current = null
+      const current = sheetRef.current
+      if (!current) return
+      const latestLayout = layoutRef.current
+      const grown = { ...latestLayout.boxes }
+      // 补种时的 y 是按「当时更矮的卡」算的；长高后要把下面的卡一起往下推，
+      // 否则会出现叠卡。
+      let grew = false
+      for (const element of current.querySelectorAll<HTMLElement>('.card')) {
+        const id = element.dataset.card
+        if (!id || !seededIds.includes(id)) continue
+        const box = grown[id]
+        if (!box) continue
+        const needed = Math.ceil(element.scrollHeight)
+        if (needed <= box.h + 1) continue
+        const delta = needed - box.h
+        const oldBottom = box.y + box.h
+        grown[id] = { ...box, h: needed }
+        for (const other of Object.keys(grown)) {
+          if (other === id) continue
+          const target = grown[other]
+          if (target.y >= oldBottom) grown[other] = { ...target, y: target.y + delta }
+        }
+        grew = true
+      }
+      if (grew) setLayoutRef.current({ ...latestLayout, boxes: grown })
+    }, 2800)
+  }, [free, snapshot, layout.order, layout.hidden, layout.boxes, settings.layoutReady])
+
+  useEffect(
+    () => () => {
+      if (refineTimerRef.current) window.clearTimeout(refineTimerRef.current)
+    },
+    []
+  )
   const updateBox = useCallback(
     (id: string, box: WidgetBox) => {
       settings.setLayout({

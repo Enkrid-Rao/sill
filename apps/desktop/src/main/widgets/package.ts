@@ -16,21 +16,11 @@ import type { InstallOutcome, InstalledWidgetInfo } from '../../shared/widgets'
 const MAX_ARCHIVE = 50 * 1024 * 1024
 const MAX_FILES = 500
 const MAX_FILE = 20 * 1024 * 1024
-const BASE_FILES = ['widget.json', 'ui/index.html', 'ui/style.css'] as const
-const WEB_FILES = [...BASE_FILES, 'ui/main.js'] as const
-// template 也可以带 ui/main.js：它跑在宿主页面里，不是 webview。没有 main.js 就是纯静态卡。
-const TEMPLATE_FILES = [...BASE_FILES, 'ui/main.js'] as const
-const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/
-const ID = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/
-const PERMISSIONS = new Set([
-  'data.time',
-  'data.system',
-  'data.media',
-  'data.weather',
-  'data.todo',
-  'action.media',
-  'action.todo'
-])
+// 除了 widget.json / README / LICENSE，其余文件都在 ui/ 下：
+// 想怎么拆目录都行（ui/lib、ui/data、ui/assets、ui/fonts…），只要入口还在 ui/index.html。
+const ROOT_FILES = new Set(['widget.json', 'README.md', 'LICENSE', 'LICENSE.txt', 'NOTICE'])
+const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/
+const ID = /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/
 
 interface Manifest {
   id: string
@@ -82,12 +72,10 @@ function within(root: string, target: string): boolean {
 function parseManifest(raw: Record<string, unknown>): Manifest | null {
   if (raw.schema !== 1) return null
   const id = typeof raw.id === 'string' ? raw.id : ''
-  const name = typeof raw.name === 'string' ? raw.name.trim() : ''
+  const name = (typeof raw.name === 'string' ? raw.name : '').trim().slice(0, 40)
   const version = typeof raw.version === 'string' ? raw.version : ''
-  const author = typeof raw.author === 'string' ? raw.author.trim() : ''
-  const license = typeof raw.license === 'string' ? raw.license.trim() : ''
-  const runtime = typeof raw.runtime === 'string' ? raw.runtime.trim() : ''
-  const engine = typeof raw.engine === 'string' ? raw.engine.trim() : ''
+  // license / runtime / engine 只是元数据，不填也能装；author 缺省用 unknown。
+  const author = (typeof raw.author === 'string' ? raw.author : '').trim().slice(0, 80) || 'unknown'
   const kind = raw.type === 'web' ? 'web' : raw.type === 'template' ? 'template' : ''
   const trust = kind === 'web' && raw.trust === 'trusted' ? 'trusted' : 'sandboxed'
   const ui = raw.ui === 'ui/index.html' ? 'ui/index.html' : ''
@@ -95,7 +83,8 @@ function parseManifest(raw: Record<string, unknown>): Manifest | null {
     raw.span && typeof raw.span === 'object'
       ? Number((raw.span as Record<string, unknown>).default)
       : NaN
-  const span = Number.isFinite(spanRaw) ? Math.max(1, Math.min(3, Math.round(spanRaw))) : NaN
+  // span 可以省略；写了就夹到 1–3。
+  const span = Number.isFinite(spanRaw) ? Math.max(1, Math.min(3, Math.round(spanRaw))) : 1
   const heightRaw =
     raw.size && typeof raw.size === 'object'
       ? Number((raw.size as Record<string, unknown>).h)
@@ -104,20 +93,19 @@ function parseManifest(raw: Record<string, unknown>): Manifest | null {
     ? Math.max(48, Math.min(1200, Math.round(heightRaw)))
     : 160
 
+  if (id.length < 2 || id.length > 64) return null
   if (!ID.test(id)) return null
-  if (!name || name.length > 24) return null
+  if (!name) return null
   if (!SEMVER.test(version)) return null
-  if (!author || author.length > 80) return null
-  if (!license || license.length > 40) return null
-  if (!runtime || !engine) return null
   if (!kind || !ui) return null
-  if (!Number.isFinite(span)) return null
 
   const permissionsRaw = Array.isArray(raw.permissions) ? raw.permissions : []
-  const permissions = permissionsRaw.filter(
-    (item): item is string => typeof item === 'string' && PERMISSIONS.has(item)
-  )
-  if (permissions.length !== permissionsRaw.length) return null
+  // 权限是给安装提示看的元数据，不做强制：未知项保留但不阻塞安装。
+  const permissions = permissionsRaw
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 16)
 
   return {
     id,
@@ -191,12 +179,10 @@ function packageDirs(root: string, id?: string): string[] {
     })
 }
 
-function allowedFiles(kind: 'template' | 'web'): readonly string[] {
-  return kind === 'web' ? WEB_FILES : TEMPLATE_FILES
-}
-
-function isAssetFile(name: string): boolean {
-  return name.startsWith('ui/assets/') && safeEntry(name)
+/** 允许的包内文件：根目录少量元数据 + ui/ 下的任意文件。 */
+function isAllowedFile(name: string): boolean {
+  if (ROOT_FILES.has(name)) return true
+  return name.startsWith('ui/')
 }
 
 function readPackage(file: string): { data: PackageData } | { error: string } {
@@ -244,15 +230,11 @@ function readPackage(file: string): { data: PackageData } | { error: string } {
   }
 
   if (!manifest) return { error: 'widget.json 字段不合法' }
-  const allowed = allowedFiles(manifest.kind)
   for (const name of files.keys()) {
-    if (!allowed.includes(name) && !isAssetFile(name)) {
-      return { error: `组件包包含不允许的文件：${name}` }
-    }
+    if (!isAllowedFile(name)) return { error: `组件包包含不允许的文件：${name}` }
   }
-  if (!files.has(manifest.kind === 'web' ? 'ui/main.js' : 'ui/style.css')) {
-    return { error: manifest.kind === 'web' ? '缺少 ui/main.js' : '缺少 ui/style.css' }
-  }
+  if (!files.has('ui/index.html')) return { error: '缺少 ui/index.html' }
+  if (manifest.kind === 'web' && !files.has('ui/main.js')) return { error: '缺少 ui/main.js' }
 
   // 模板内容不做标签/属性审查：宿主用 innerHTML 挂载，浏览器不会执行其中的脚本；
   // SVG、内联 style、img 这些都是正常写法，交给作者。

@@ -34,6 +34,8 @@ export interface SillSettingsController {
   version: string
   update: UpdateState
   layout: PanelLayout
+  /** 首次 layout:get 是否已经回来；在它之前不要写布局，否则会用默认值覆盖磁盘。 */
+  layoutReady: boolean
   limits: { maxWidth: number; maxHeight: number }
   panelColumns: number
   widgets: readonly { id: string; label: string; hidden: boolean }[]
@@ -85,6 +87,7 @@ export function useSillSettings(): SillSettingsController {
   const [version, setVersion] = useState('')
   const [update, setUpdate] = useState<UpdateState>(EMPTY_UPDATE)
   const [layout, setLayoutState] = useState<PanelLayout>(DEFAULT_LAYOUT)
+  const [layoutReady, setLayoutReady] = useState(false)
   const themeRef = useRef<Theme>(DEFAULT_THEME)
   const saveTimer = useRef<number | null>(null)
   const pendingTheme = useRef<Theme | null>(null)
@@ -110,6 +113,7 @@ export function useSillSettings(): SillSettingsController {
   useEffect(() => {
     if (!registry.ready) return
     let alive = true
+    let loaded = false
     void (async () => {
       try {
         const [settings, appVersion, initialLayout, updateState] = await Promise.all([
@@ -121,10 +125,17 @@ export function useSillSettings(): SillSettingsController {
         if (!alive) return
         if (settings) adopt(settings)
         if (appVersion) setVersion(appVersion)
-        if (initialLayout) setLayoutState(normalizeLayout(initialLayout, registry.ids))
+        if (initialLayout) {
+          setLayoutState(normalizeLayout(initialLayout, registry.ids))
+          loaded = true
+        }
         if (updateState) setUpdate(updateState)
       } catch {
         // 浏览器预览 / IPC 失败时保持默认值
+      } finally {
+        // 只有真的拿到磁盘布局才允许写盘：否则自动补种会用默认布局覆盖
+        // 用户的 hidden / boxes / mode。
+        if (alive && loaded) setLayoutReady(true)
       }
     })()
 
@@ -361,6 +372,7 @@ export function useSillSettings(): SillSettingsController {
     version,
     update,
     layout,
+    layoutReady,
     limits,
     panelColumns,
     widgets,
