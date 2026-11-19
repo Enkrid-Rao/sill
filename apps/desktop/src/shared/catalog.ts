@@ -31,6 +31,14 @@ export interface CatalogUpdate {
   download: string
 }
 
+export interface CatalogUpdatesState {
+  ok: boolean
+  checkedAt: number
+  count: number
+  updates: CatalogUpdate[]
+  error?: string
+}
+
 /** 只比较 major.minor.patch；prerelease 低于同号正式版，build metadata 忽略。 */
 export function compareSemver(a: string, b: string): number | null {
   const parse = (value: string): { numbers: number[]; pre: string } | null => {

@@ -1,0 +1,33 @@
+<div class="sys">
+  <div class="sys__head">
+    <span class="sys__title" data-sill-i18n="title">SYSTEM</span>
+    <span class="sys__cores">
+      <span data-sill-text="cpu.cores">--</span>
+      <span data-sill-i18n="cores">cores</span>
+    </span>
+  </div>
+
+  <div class="sys__row">
+    <span class="sys__label">CPU</span>
+    <span class="sys__value" id="cpu">--</span>
+    <div class="sys__bar"><i data-sill-meter="cpu.usage"></i></div>
+  </div>
+
+  <div class="sys__row">
+    <span class="sys__label" data-sill-i18n="mem">MEMORY</span>
+    <span class="sys__value" id="mem">--</span>
+    <div class="sys__bar"><i data-sill-meter="mem.percent"></i></div>
+  </div>
+
+  <div class="sys__row sys__row--gpu">
+    <span class="sys__label" data-sill-i18n="gpu">GPU</span>
+    <span class="sys__value" id="gpu">--</span>
+    <div class="sys__bar"><i data-sill-meter="gpu.usage"></i></div>
+  </div>
+
+  <div class="sys__row">
+    <span class="sys__label" data-sill-i18n="net">NETWORK</span>
+    <span class="sys__value" id="net">--</span>
+    <div class="sys__bar"><i id="netbar"></i></div>
+  </div>
+</div>

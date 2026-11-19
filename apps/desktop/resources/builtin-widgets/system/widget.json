@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "id": "system",
+  "name": "System",
+  "version": "1.0.0",
+  "author": "Sill",
+  "type": "template",
+  "span": { "default": 1 },
+  "data": [
+    { "id": "cpu", "source": "system.cpu" },
+    { "id": "mem", "source": "system.memory" },
+    { "id": "gpu", "source": "system.gpu" },
+    { "id": "net", "source": "system.network" }
+  ],
+  "strings": {
+    "en": { "title": "SYSTEM", "cores": "cores", "mem": "MEMORY", "gpu": "GPU", "net": "NETWORK" },
+    "zh": { "title": "系统", "cores": "核", "mem": "内存", "gpu": "显卡", "net": "网络" }
+  },
+  "ui": "ui/index.html"
+}

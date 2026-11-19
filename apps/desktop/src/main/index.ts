@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Menu, app, dialog } from 'electron'
 import { handleAssetProtocol, registerAssetScheme } from './assets'
+import { checkComponentUpdates } from './catalog'
 import { applyAutostart } from './autostart'
 import { broadcast } from './broadcast'
 import { sillFileArgs } from './file-assoc'
@@ -112,6 +113,12 @@ function scheduleUpdateChecks(): void {
   setInterval(() => void run(), 6 * 60 * 60 * 1000)
 }
 
+/** 组件更新：只检查目录版本并广播，不自动下载/安装。 */
+function scheduleComponentUpdateChecks(): void {
+  setTimeout(() => void checkComponentUpdates(true), 20_000)
+  setInterval(() => void checkComponentUpdates(true), 6 * 60 * 60 * 1000)
+}
+
 /** Explorer 双击 / 右键用 Sill 打开 .sill 时走这里。 */
 async function handleOpenFileArgs(argv: readonly string[]): Promise<void> {
   const file = sillFileArgs(argv)[0]
@@ -178,6 +185,7 @@ async function boot(): Promise<void> {
     if (settings.startAtLogin) applyAutostart(true)
 
     scheduleUpdateChecks()
+    scheduleComponentUpdateChecks()
   }
 
   if (SMOKE) await runSmoke()

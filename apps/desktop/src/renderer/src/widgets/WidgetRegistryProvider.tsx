@@ -22,6 +22,12 @@ interface LoadedInstalled {
   payload: DevWidgetPayload
 }
 
+/** 内置模板沿用原有的 i18n 名称，别的模板用 manifest 的 name。 */
+const BUILTIN_NAME_KEYS: Partial<Record<string, WidgetDefinition['nameKey']>> = {
+  system: 'widget.system',
+  processes: 'widget.processes'
+}
+
 /**
  * 热重载时只替换「真的变了」的组件：payload 内容一致就复用旧对象。
  * 否则保存一个文件会让所有卡片重建 DOM、重跑 main.js、重置 CSS 过渡。
@@ -40,12 +46,14 @@ function samePayload(a: DevWidgetPayload, b: DevWidgetPayload): boolean {
     a.js === b.js &&
     JSON.stringify(a.data) === JSON.stringify(b.data) &&
     JSON.stringify(a.permissions) === JSON.stringify(b.permissions) &&
+    JSON.stringify(a.settings) === JSON.stringify(b.settings) &&
     JSON.stringify(a.strings) === JSON.stringify(b.strings)
   )
 }
 
 export function WidgetRegistryProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [dev, setDev] = useState<DevWidgetPayload | null>(null)
+  const [builtin, setBuiltin] = useState<DevWidgetPayload[]>([])
   const [installed, setInstalled] = useState<InstalledWidgetInfo[]>([])
   const [loaded, setLoaded] = useState<LoadedInstalled[]>([])
   const [ready, setReady] = useState(false)
@@ -54,9 +62,10 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
     let alive = true
 
     const load = async (): Promise<void> => {
-      const [devPayload, list] = await Promise.all([
+      const [devPayload, list, builtins] = await Promise.all([
         window.sill?.getDevWidget(),
-        window.sill?.getInstalledWidgets()
+        window.sill?.getInstalledWidgets(),
+        window.sill?.getBuiltinWidgets()
       ])
       const payloads = await Promise.all(
         (list ?? []).map(async (info) => ({
@@ -68,6 +77,16 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
       setDev((previous) =>
         previous && devPayload && samePayload(previous, devPayload) ? previous : (devPayload ?? null)
       )
+      setBuiltin((previous) => {
+        if (previous.length === (builtins ?? []).length) {
+          const same = previous.every((item, index) => {
+            const next = (builtins ?? [])[index]
+            return next && samePayload(item, next)
+          })
+          if (same) return previous
+        }
+        return builtins ?? []
+      })
       setInstalled(list ?? [])
       setLoaded((previous) => {
         const byId = new Map(previous.map((item) => [item.info.id, item]))
@@ -99,44 +118,61 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
   }, [])
 
   const registry = useMemo<WidgetRegistry>(() => {
-    const widgets: WidgetDefinition[] = [...BUILTIN_WIDGETS]
-    const byId: Record<string, WidgetDefinition> = Object.fromEntries(
-      widgets.map((widget) => [widget.id, widget])
-    )
+    const widgets: WidgetDefinition[] = []
+    const byId: Record<string, WidgetDefinition> = {}
+    const push = (definition: WidgetDefinition): void => {
+      if (byId[definition.id]) return
+      widgets.push(definition)
+      byId[definition.id] = definition
+    }
 
-    for (const { info, payload } of loaded) {
-      if (byId[info.id]) continue
-      const definition: WidgetDefinition = {
-        id: info.id,
-        label: info.name,
-        spanFor: () => info.span,
-        render: (context) => (
+    // 1. 随应用发布的内置模板（system / processes）
+    for (const payload of builtin) {
+      const nameKey = BUILTIN_NAME_KEYS[payload.id]
+      push({
+        id: payload.id,
+        ...(nameKey ? { nameKey } : { label: payload.name }),
+        spanFor: () => payload.span,
+        render: (context) =>
           payload.kind === 'web' ? (
             <WebWidget widget={payload} context={context} />
           ) : (
             <TemplateWidget widget={payload} context={context} />
           )
-        )
-      }
-      widgets.push(definition)
-      byId[info.id] = definition
+      })
     }
 
-    if (dev && !byId[dev.id]) {
-      const definition: WidgetDefinition = {
+    // 2. 仍是 React 的内置组件（hero / media / shelf / todo）兜底
+    for (const widget of BUILTIN_WIDGETS) push(widget)
+
+    // 3. 安装的组件
+    for (const { info, payload } of loaded) {
+      push({
+        id: info.id,
+        label: info.name,
+        spanFor: () => info.span,
+        render: (context) =>
+          payload.kind === 'web' ? (
+            <WebWidget widget={payload} context={context} />
+          ) : (
+            <TemplateWidget widget={payload} context={context} />
+          )
+      })
+    }
+
+    // 4. 开发中的单文件夹组件
+    if (dev) {
+      push({
         id: dev.id,
         label: dev.name,
         spanFor: () => dev.span,
-        render: (context) => (
+        render: (context) =>
           dev.kind === 'web' ? (
             <WebWidget widget={dev} context={context} />
           ) : (
             <TemplateWidget widget={dev} context={context} />
           )
-        )
-      }
-      widgets.push(definition)
-      byId[dev.id] = definition
+      })
     }
 
     return {
@@ -146,7 +182,7 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
       installed,
       ready
     }
-  }, [dev, loaded, installed, ready])
+  }, [dev, builtin, loaded, installed, ready])
 
   return <WidgetRegistryContext.Provider value={registry}>{children}</WidgetRegistryContext.Provider>
 }

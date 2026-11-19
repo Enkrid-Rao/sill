@@ -44,8 +44,9 @@ Snapshots are pushed while the panel is visible; the renderer does not poll prov
 
 ## Widget runtime
 
-1. **Registry** — `WidgetRegistryProvider` merges the five built-in definitions, installed packages
-   and the optional dev folder. Every definition has an `id`, a label, a span and a render function.
+1. **Registry** — `WidgetRegistryProvider` merges template built-ins from `resources/builtin-widgets/`
+   (`system`, `processes`), the remaining React definitions, installed packages and the optional dev
+   folder. Every definition has an `id`, a label, a span and a render function.
 2. **Layout** — `layout.json` stores `order`, `spans`, `hidden` as string ids. `normalizeLayout`
    filters to known ids, appends missing ones and clamps spans.
 3. **Card** — `WidgetShell` renders `.card` with glass, radius, border, padding, drag/span tools.
@@ -103,7 +104,7 @@ hygiene, not containment:
 
 | Point | Where | Rule |
 |---|---|---|
-| New built-in card | `renderer/src/widgets/registry.tsx` | add a definition + i18n key |
+| New built-in card | `resources/builtin-widgets/<id>/` (template) or `renderer/src/widgets/registry.tsx` (React fallback) | add a package / definition + i18n key |
 | New provider | `main/data` + `renderer/src/widgets/providers.ts` | public shape, permission, docs |
 | New directive | `TemplateWidget.tsx` | no arbitrary expressions; update spec/validator |
 | New action | `TemplateWidget.tsx` + main IPC | permission + allowlist + docs |
@@ -140,6 +141,7 @@ docs/           DEVELOPMENT, WIDGET-SURFACE, ARCHITECTURE
 - Trust tiers are not implemented: every `.sill` shows the same confirmation, nothing is remembered.
 - Web `sandboxed` guests have no storage / fetch and almost no API; the tier is due for a decision
   (isolation mode with real APIs, or removal).
-- The six built-ins remain React, not templates.
+- `system` and `processes` ship as template packages under `resources/builtin-widgets/`; hero, media,
+  shelf and todo remain React definitions.
 - Free layout has no snapping, guides or nested containers yet.
 - No root license yet.

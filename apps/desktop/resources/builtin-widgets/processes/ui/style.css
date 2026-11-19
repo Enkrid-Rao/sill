@@ -1,0 +1,77 @@
+:host { display: block; }
+
+.proc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink);
+  font-family: var(--sans);
+}
+
+.proc__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.proc__title {
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.proc__hint {
+  color: var(--ink-dim);
+  font-size: 10px;
+}
+
+.proc__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.proc__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.proc__name {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proc__mb {
+  color: var(--ink);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+.proc__gpu {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.proc__label {
+  color: var(--ink-dim);
+  font-size: 11.5px;
+}
+
+.proc__value {
+  color: var(--ink);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}

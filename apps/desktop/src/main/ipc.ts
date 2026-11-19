@@ -2,7 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions, typ
 import { rmSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { broadcast } from './broadcast'
-import { fetchCatalog } from './catalog'
+import { listBuiltinWidgets } from './builtin-widgets'
+import { checkComponentUpdates, fetchCatalog, getComponentUpdates } from './catalog'
 import { downloadPackage } from './widget-download'
 import {
   isSillAssociation,
@@ -143,6 +144,7 @@ export function registerIpc(deps: IpcDeps): void {
 
   // Spike: read SILL_DEV_WIDGET once. Returns null in a normal launch.
   ipcMain.handle('widgets:dev-get', () => getDevWidget())
+  ipcMain.handle('widgets:builtins', () => listBuiltinWidgets())
 
   ipcMain.handle('widgets:preload', () => join(__dirname, '../preload/widget.js'))
 
@@ -271,6 +273,8 @@ export function registerIpc(deps: IpcDeps): void {
   })
 
   ipcMain.handle('widgets:catalog', (_event, force: unknown) => fetchCatalog(force === true))
+  ipcMain.handle('widgets:updates', () => getComponentUpdates())
+  ipcMain.handle('widgets:check-updates', () => checkComponentUpdates(true))
 
   ipcMain.handle('widgets:assoc-get', async () => isSillAssociation())
 

@@ -53,6 +53,8 @@
 | 组件设置 | `widget.json` 的 `settings` 解析、默认值/范围/select 校验单测覆盖；宿主表单与 `sill.settings.onChange` 实测（选 °F 后组件收到更新） |
 | URL / 目录安装 | 本地 HTTP 源实测：URL 与目录条目各装一个静态组件；下载后按包内容校验（单测覆盖 URL 与目录规范化） |
 | 组件更新 | 预装 v1.0.0 + 目录 v2.0.0，组件页显示「v1.0.0 → v2.0.0」，点更新后只剩 v2.0.0（实测） |
+| 内置模板迁移 | system / processes 从 resources 加载，卡片渲染与数据格式化正常（smoke 截图核对） |
+| 后台更新检查 | 启动 20s 后自动检查目录并广播；实测 `count=1`，设置按钮出现小圆点 |
 | 组件升级 | 同 id 新版本覆盖旧目录、布局槽位保留（单测覆盖） |
 | Web 隔离层 | 非 Node guest 拥有 `sill.storage` 与 `https:` 网络；每个组件独立 partition（实测写入 widget-data） |
 | 热重载作用域 | 只改 a 的样式，a 重新执行、b 不重新执行（boot 计数 2 / 1） |
@@ -67,7 +69,7 @@
 
 - 后台自动检查更新 / 目录托管与审核流水线；更新需要打开组件页手动点。升级是覆盖式。
 - 签名 / 哈希；安装器只做静态校验 + 权限提示。
-- 内置六个组件仍是 React，不是模板。
+- hero / media / shelf / todo 仍是 React；`system` / `processes` 已迁到 `resources/builtin-widgets/` 模板包。
 - 文档：`DEVPLAN.md` 的 IR / rmskin 章节是历史规划。
 
 ## 下一条命令
@@ -98,6 +100,7 @@ pnpm sill pack .\clock -o clock.sill
 3. 把 system / processes 迁到模板，验证模板能力足够。
 4. 签名 / 哈希。
 5. `webview` → `WebContentsView` 迁移。
+
 
 
 

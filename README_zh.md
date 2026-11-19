@@ -34,7 +34,8 @@ Windows 桌面上的玻璃侧边廊：热键唤出，停靠在屏幕边缘，用
   它是收纳盒，不是文件管理器。
 - **组件平台——已落地。** 卡片从注册表（`WidgetShell` + `WIDGETS`）渲染。模板组件从 `.sill`
   安装，在卡片的 Shadow DOM 里运行，用宿主的 time / system / media / weather / todo provider；
-  文本、i18n、条件、repeat、动作和 meter 都已支持；六个内置组件仍是 React 实现。
+  文本、i18n、条件、repeat、动作和 meter 都已支持；`system` / `processes` 已作为模板包随应用发布，
+hero、media、shelf、todo 暂时仍是 React 实现。
 - **组件 CLI——已落地。** 独立 `sill-cli`（`npm i -g @heavenlydemon/sill-cli`，命令 `sill new / dev / pack`）可以不碰源码，直接面向
   已安装或便携版 Sill；`sill dev` 用独立 `Sill-dev` 数据并热重载。本地 `.sill` 安装前会确认
   id / 版本 / 作者 / 权限。

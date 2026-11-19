@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "id": "processes",
+  "name": "Processes",
+  "version": "1.0.0",
+  "author": "Sill",
+  "type": "template",
+  "span": { "default": 1 },
+  "data": [{ "id": "proc", "source": "system.processes" }],
+  "strings": {
+    "en": { "title": "MEMORY", "label": "MEMORY", "gpu": "GPU MEMORY" },
+    "zh": { "title": "内存占用", "label": "内存", "gpu": "显存" }
+  },
+  "ui": "ui/index.html"
+}

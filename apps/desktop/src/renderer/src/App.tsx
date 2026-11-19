@@ -66,6 +66,7 @@ export default function App(): React.JSX.Element {
   const [tick, setTick] = useState(0)
   const [editing, setEditing] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
+  const [componentUpdates, setComponentUpdates] = useState(0)
   const sheetRef = useRef<HTMLDivElement>(null)
 
   const { layout, setLayout } = settings
@@ -95,6 +96,22 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     const off = window.sill?.onSnapshot((next) => setSnapshot(next))
     return () => off?.()
+  }, [])
+
+  // 后台检查到的组件更新：只显示一个小圆点，点进设置再决定更不更
+  useEffect(() => {
+    let alive = true
+    void window.sill
+      ?.getWidgetUpdates()
+      .then((state) => {
+        if (alive && state) setComponentUpdates(state.count)
+      })
+      .catch(() => undefined)
+    const off = window.sill?.onWidgetUpdates((state) => setComponentUpdates(state.count))
+    return () => {
+      alive = false
+      off?.()
+    }
   }, [])
 
   // 第一次显示 / 重新显示时补一次，防止 push 发生在监听器挂上之前
@@ -450,6 +467,7 @@ export default function App(): React.JSX.Element {
                 aria-haspopup="dialog"
                 aria-expanded={customizing}
                 title={t(settings.language, 'settings.title')}
+                data-updates={componentUpdates > 0 ? 'true' : undefined}
                 onClick={() => void openSettings()}
               >
                 <SlidersIcon />

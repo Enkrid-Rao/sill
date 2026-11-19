@@ -11,12 +11,20 @@ const api = {
   setHotkey: (accel: string) => ipcRenderer.invoke('hotkey:set', accel),
   getVersion: () => ipcRenderer.invoke('app:version'),
   getDevWidget: () => ipcRenderer.invoke('widgets:dev-get'),
+  getBuiltinWidgets: () => ipcRenderer.invoke('widgets:builtins'),
   getWidgetPreload: () => ipcRenderer.invoke('widgets:preload'),
   getInstalledWidgets: () => ipcRenderer.invoke('widgets:list'),
   getInstalledWidget: (id: string) => ipcRenderer.invoke('widgets:load', id),
   installWidget: () => ipcRenderer.invoke('widgets:install'),
   installWidgetFromUrl: (url: string) => ipcRenderer.invoke('widgets:install-url', url),
   getWidgetCatalog: (force?: boolean) => ipcRenderer.invoke('widgets:catalog', force === true),
+  getWidgetUpdates: () => ipcRenderer.invoke('widgets:updates'),
+  checkWidgetUpdates: () => ipcRenderer.invoke('widgets:check-updates'),
+  onWidgetUpdates: (callback: (state: unknown) => void) => {
+    const listener = (_event: unknown, state: unknown) => callback(state)
+    ipcRenderer.on('widgets:updates', listener)
+    return () => ipcRenderer.removeListener('widgets:updates', listener)
+  },
   uninstallWidget: (id: string) => ipcRenderer.invoke('widgets:uninstall', id),
   openSkinsFolder: () => ipcRenderer.invoke('widgets:open-skins'),
   getComponentDiagnostics: () => ipcRenderer.invoke('widgets:diagnostics'),
