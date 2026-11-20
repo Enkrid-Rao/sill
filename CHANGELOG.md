@@ -1,6 +1,6 @@
 # Changelog
 
-## 未发布
+## 0.7.0-dev.2 — 2026-11-20
 
 ### 界面
 
@@ -20,7 +20,7 @@
 - 监控环改为官方组件 `sill.rings`：一张卡里的 CPU / GPU / RAM / SWAP 四个独立圆环，Apple 风格渐变、圆角、发光与呼吸动画。
 - 展示组件 `analog` / `halo` / `tasks` / `wave` 去掉组件名标题；`halo` 增加 SWAP 并统一 CPU/GPU/RAM 命名；`pnpm dev` 自动清理 `ELECTRON_RUN_AS_NODE`。
 
-### 组件与布局（0.7.0-dev.2）
+### 组件与布局
 
 - 卡片改为容器查询单位：`.card` 自身是 `container-type: inline-size`，Hero 时钟用 `clamp(40px, 26cqw, 100px)`，自由布局拖窄不再裁字；free 卡最小宽度从 120 提到 150。
 - 自由布局拖拽改为本地草稿 + 松手提交：拖动 / 缩放不再每个 `pointermove` 都写 `layout.json`；把手改成可聚焦按钮，方向键移动（Shift 加速），`pointercancel` 与卸载时清理监听。
