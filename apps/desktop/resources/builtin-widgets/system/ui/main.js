@@ -38,9 +38,7 @@ sill.onData(({ data }) => {
 
   const memEl = el('mem')
   if (memEl) {
-    memEl.textContent = finite(mem.percent)
-      ? `${Math.round(mem.percent)}% · ${Number(mem.usedGb ?? 0).toFixed(1)} GB`
-      : '—'
+    memEl.textContent = finite(mem.percent) ? `${Math.round(mem.percent)}%` : '—'
   }
 
   const gpuEl = el('gpu')

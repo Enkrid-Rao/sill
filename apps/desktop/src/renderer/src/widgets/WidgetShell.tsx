@@ -18,6 +18,7 @@ interface Props {
   onDragStart: (id: string) => void
   onDragEnd: () => void
   onDrop: (from: string, to: string) => void
+  onGuides: (guides: { x: number | null; y: number | null } | null) => void
   children: ReactNode
 }
 
@@ -26,6 +27,74 @@ const KEY_STEP = 4
 const KEY_STEP_FAST = 16
 const MIN_BOX_WIDTH = 150
 const MIN_BOX_HEIGHT = 48
+const SNAP_PX = 6
+
+interface SnapResult {
+  box: WidgetBox
+  guideX: number | null
+  guideY: number | null
+}
+
+function closestSnap(edges: readonly number[], targets: readonly number[]): { delta: number; line: number } | null {
+  let best: { delta: number; line: number } | null = null
+  for (const edge of edges) {
+    for (const target of targets) {
+      const delta = target - edge
+      if (Math.abs(delta) > SNAP_PX) continue
+      if (!best || Math.abs(delta) < Math.abs(best.delta)) best = { delta, line: target }
+    }
+  }
+  return best
+}
+
+/** 吸附到面板边缘 / 中线和其他卡片的边、中线；返回相对 sheet 的辅助线位置。 */
+function snapBox(
+  box: WidgetBox,
+  mode: 'move' | 'resize',
+  id: string,
+  card: HTMLElement | null
+): SnapResult {
+  const sheet = card?.closest<HTMLElement>('.sheet')
+  if (!sheet) return { box, guideX: null, guideY: null }
+  const base = sheet.getBoundingClientRect()
+  const targetsX = [0, base.width / 2, base.width]
+  const targetsY = [0, base.height / 2, base.height]
+
+  for (const element of sheet.querySelectorAll<HTMLElement>('.card')) {
+    if (element === card || element.dataset.card === id) continue
+    const rect = element.getBoundingClientRect()
+    const left = rect.left - base.left
+    const top = rect.top - base.top
+    targetsX.push(left, left + rect.width / 2, left + rect.width)
+    targetsY.push(top, top + rect.height / 2, top + rect.height)
+  }
+
+  if (mode === 'move') {
+    const x = closestSnap([box.x, box.x + box.w / 2, box.x + box.w], targetsX)
+    const y = closestSnap([box.y, box.y + box.h / 2, box.y + box.h], targetsY)
+    return {
+      box: {
+        ...box,
+        x: Math.max(0, Math.round(box.x + (x?.delta ?? 0))),
+        y: Math.max(0, Math.round(box.y + (y?.delta ?? 0)))
+      },
+      guideX: x?.line ?? null,
+      guideY: y?.line ?? null
+    }
+  }
+
+  const w = closestSnap([box.x + box.w], targetsX)
+  const h = closestSnap([box.y + box.h], targetsY)
+  return {
+    box: {
+      ...box,
+      w: Math.max(MIN_BOX_WIDTH, Math.round(box.w + (w?.delta ?? 0))),
+      h: Math.max(MIN_BOX_HEIGHT, Math.round(box.h + (h?.delta ?? 0)))
+    },
+    guideX: w?.line ?? null,
+    guideY: h?.line ?? null
+  }
+}
 
 /**
  * 一张卡的容器。flow 模式走网格；free 模式走绝对定位。
@@ -46,9 +115,11 @@ export function WidgetShell({
   onDragStart,
   onDragEnd,
   onDrop,
+  onGuides,
   children
 }: Props): React.JSX.Element {
   const id = definition.id
+  const cardRef = useRef<HTMLElement>(null)
   const configured = layout.spans[id]
   const span =
     configured === undefined
@@ -76,19 +147,21 @@ export function WidgetShell({
     const originY = event.clientY
     let frame = 0
     let pending: WidgetBox | null = null
+    let pendingGuides: { x: number | null; y: number | null } | null = null
 
     const flush = (): void => {
       frame = 0
       if (!pending) return
       draftRef.current = pending
       setDraft(pending)
+      onGuides(pendingGuides)
       pending = null
     }
 
     const move = (next: PointerEvent): void => {
       const dx = next.clientX - originX
       const dy = next.clientY - originY
-      pending =
+      const raw: WidgetBox =
         mode === 'move'
           ? {
               ...start,
@@ -100,6 +173,9 @@ export function WidgetShell({
               w: Math.max(MIN_BOX_WIDTH, start.w + dx),
               h: Math.max(MIN_BOX_HEIGHT, start.h + dy)
             }
+      const snapped = snapBox(raw, mode, id, cardRef.current)
+      pending = snapped.box
+      pendingGuides = { x: snapped.guideX, y: snapped.guideY }
       if (!frame) frame = window.requestAnimationFrame(flush)
     }
 
@@ -120,6 +196,7 @@ export function WidgetShell({
       const next = draftRef.current
       draftRef.current = null
       setDraft(null)
+      onGuides(null)
       stop()
       if (next) onBox(next)
     }
@@ -159,6 +236,7 @@ export function WidgetShell({
   const shown = draft ?? box
   return (
     <section
+      ref={cardRef}
       className={`card ${definition.className ?? ''}`.trim()}
       data-card={id}
       data-free={absolute ? 'true' : undefined}

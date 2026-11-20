@@ -31,6 +31,7 @@ export const BUILTIN_WIDGETS: readonly WidgetDefinition[] = [
     render: (context) => (
       <MediaWidget
         media={context.snapshot?.media ?? null}
+        mediaKnown={Boolean(context.snapshot?.mediaAt)}
         position={context.mediaPosition}
         progress={context.mediaProgress}
         volume={context.snapshot?.volume ?? -1}

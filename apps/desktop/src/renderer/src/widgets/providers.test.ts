@@ -6,6 +6,7 @@ import { buildProviderData } from './providers'
 const snapshot: PanelSnapshot = {
   cpu: 42,
   cores: 16,
+  cpuGhz: 3.6,
   memPct: 55,
   memUsed: 8.8,
   memTotal: 16,
@@ -26,7 +27,9 @@ const snapshot: PanelSnapshot = {
     status: 'Playing',
     position: 30,
     duration: 120,
-    app: 'Spotify'
+    app: 'Spotify',
+    artwork: 'data:image/png;base64,xx',
+    lyricLine: 'hello'
   },
   weather: {
     temp: 21,
@@ -79,7 +82,7 @@ describe('buildProviderData', () => {
       ],
       context
     )
-    expect(data.cpu).toEqual({ usage: 42, cores: 16 })
+    expect(data.cpu).toEqual({ usage: 42, cores: 16, speedGhz: 3.6 })
     expect(data.memory).toEqual({ percent: 55, usedGb: 8.8, totalGb: 16 })
     expect(data.gpu).toEqual({ usage: 33, memMb: 2048, totalMb: 8192 })
     expect(data.network).toEqual({ downBps: 1024, upBps: 512 })
@@ -102,7 +105,10 @@ describe('buildProviderData', () => {
       active: true,
       title: 'Song',
       progress: 25,
-      volume: 60
+      volume: 60,
+      artwork: 'data:image/png;base64,xx',
+      lyricLine: 'hello',
+      sampledAt: 1
     })
     expect(data.weather).toMatchObject({ temp: 21, cityId: 'shanghai', code: 1 })
     expect(data.todo).toEqual([{ id: 'a', text: 'write tests', done: false }])
@@ -116,7 +122,7 @@ describe('buildProviderData', () => {
       ],
       { ...context, snapshot: null }
     )
-    expect(data.cpu).toEqual({ usage: null, cores: null })
+    expect(data.cpu).toEqual({ usage: null, cores: null, speedGhz: null })
     expect(data.media).toMatchObject({ active: false, title: null })
   })
 })

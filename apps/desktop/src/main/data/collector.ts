@@ -6,6 +6,8 @@ import { RESOURCES_DIR } from '../paths'
 
 /** collector.ps1 按当前监测间隔输出的一行 JSON */
 export interface CollectedSample {
+  /** collector 输出这一行的时间；媒体 position 也以它为基准 */
+  sampledAt: number
   down: number
   up: number
   gpu: number | null
@@ -24,6 +26,8 @@ let restartTimer: NodeJS.Timeout | null = null
 let latest: CollectedSample | null = null
 let latestAt = 0
 let intervalMs = 2000
+let gpuTimer: NodeJS.Timeout | null = null
+let gpuChild: ChildProcess | null = null
 
 function normalizeProcs(raw: unknown): ProcessSample[] {
   if (!Array.isArray(raw)) return []
@@ -60,8 +64,57 @@ function normalizeMedia(raw: unknown): MediaSample | null {
     status: String(media.status ?? ''),
     position: Number(media.position) || 0,
     duration: Number(media.duration) || 0,
-    app: String(media.app ?? '')
+    app: String(media.app ?? ''),
+    artwork: typeof media.artwork === 'string' ? media.artwork : null,
+    lyricLine: typeof media.lyricLine === 'string' ? media.lyricLine : null
   }
+}
+
+function scheduleGpuProcs(delay = 15000): void {
+  if (!wanted || gpuTimer || gpuChild) return
+  gpuTimer = setTimeout(() => {
+    gpuTimer = null
+    sampleGpuProcs()
+  }, delay)
+}
+
+/**
+ * GPU 进程计数单独跑：Get-Counter 在这台机器上可能阻塞数秒，
+ * 放进主采集循环会把 1s/2s 的 JSON 行拖成 10s+，视图就会误判为 stale。
+ */
+function sampleGpuProcs(): void {
+  if (!wanted || gpuChild) return
+  const script = join(RESOURCES_DIR, 'gpu-procs.ps1')
+  const proc = spawn(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script],
+    { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }
+  )
+  gpuChild = proc
+  let output = ''
+  const timeout = setTimeout(() => proc.kill(), 30000)
+
+  proc.stdout?.on('data', (chunk: Buffer) => {
+    output += chunk.toString('utf8')
+  })
+  proc.on('error', () => {
+    clearTimeout(timeout)
+    if (gpuChild === proc) gpuChild = null
+    scheduleGpuProcs()
+  })
+  proc.on('exit', () => {
+    clearTimeout(timeout)
+    if (gpuChild === proc) gpuChild = null
+    const text = output.trim()
+    if (text && latest) {
+      try {
+        latest = { ...latest, gpuProcs: normalizeGpuProcs(JSON.parse(text)) }
+      } catch {
+        // 半截输出：下一次再试
+      }
+    }
+    scheduleGpuProcs()
+  })
 }
 
 function spawnCollector(): void {
@@ -79,9 +132,13 @@ function spawnCollector(): void {
       '-IntervalMs',
       String(intervalMs)
     ],
-    { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] }
+    { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] }
   )
   child = proc
+  proc.stderr?.on('data', (chunk: Buffer) => {
+    const text = chunk.toString('utf8').trim()
+    if (text) console.error('[sill] collector stderr:', text.slice(0, 500))
+  })
 
   if (proc.stdout) {
     const lines = createInterface({ input: proc.stdout })
@@ -90,16 +147,21 @@ function spawnCollector(): void {
       if (!text.startsWith('{')) return
       try {
         const raw = JSON.parse(text) as Record<string, unknown>
+        const procs = normalizeProcs(raw.procs)
+        const gpuProcs = normalizeGpuProcs(raw.gpuProcs)
         latest = {
+          sampledAt: Date.now(),
           down: Number(raw.down) || 0,
           up: Number(raw.up) || 0,
           gpu: raw.gpu == null ? null : Number(raw.gpu),
           gpuMem: raw.gpuMem == null ? null : Number(raw.gpuMem),
           gpuTotal: raw.gpuTotal == null ? null : Number(raw.gpuTotal),
-          gpuProcs: normalizeGpuProcs(raw.gpuProcs),
+          gpuProcs: gpuProcs.length ? gpuProcs : (latest?.gpuProcs ?? []),
           swapUsedMb: raw.swapUsedMb == null ? null : Number(raw.swapUsedMb),
           swapTotalMb: raw.swapTotalMb == null ? null : Number(raw.swapTotalMb),
-          procs: normalizeProcs(raw.procs),
+          // 进程采样偶尔会给空数组（CIM/PowerShell 忙），不要让这一帧把
+          // 上一帧已经画出来的进程行清空：保留 last good，等下一帧。
+          procs: procs.length ? procs : (latest?.procs ?? []),
           media: normalizeMedia(raw.media)
         }
         latestAt = Date.now()
@@ -114,9 +176,10 @@ function spawnCollector(): void {
     if (child === proc) child = null
   })
 
-  proc.on('exit', () => {
+  proc.on('exit', (code) => {
     if (child !== proc) return
     child = null
+    console.error('[sill] collector exited', code)
     if (!wanted) return
     restartTimer = setTimeout(spawnCollector, 5000)
   })
@@ -137,8 +200,8 @@ export function startCollector(nextIntervalMs = 2000): void {
       old.kill()
     }
   }
-  if (child) return
-  spawnCollector()
+  if (!child) spawnCollector()
+  scheduleGpuProcs(12000)
 }
 
 export function stopCollector(): void {
@@ -147,6 +210,13 @@ export function stopCollector(): void {
     clearTimeout(restartTimer)
     restartTimer = null
   }
+  if (gpuTimer) {
+    clearTimeout(gpuTimer)
+    gpuTimer = null
+  }
+  const gpu = gpuChild
+  gpuChild = null
+  gpu?.kill()
   const old = child
   child = null
   old?.kill()

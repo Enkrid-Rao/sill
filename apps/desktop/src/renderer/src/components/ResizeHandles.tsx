@@ -96,7 +96,7 @@ export function ResizeHandles({ side, language, onCommitted }: Props): React.JSX
   const commitTimer = useRef<number | null>(null)
   const limitsRef = useRef({
     maxWidth: PANEL_MAX_WIDTH,
-    maxHeight: Math.max(PANEL_MIN_HEIGHT, window.screen.availHeight - 80)
+    maxHeight: Math.max(PANEL_MIN_HEIGHT, window.screen.availHeight - 32)
   })
 
   const flush = useCallback(async function run(): Promise<void> {

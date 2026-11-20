@@ -106,7 +106,8 @@
 
 .cz-tabs {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: auto;
   flex: none;
   gap: 2px;
   margin: 0 0 12px;
@@ -114,6 +115,61 @@
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 9px;
   background: rgba(255, 255, 255, 0.05);
+}
+
+.cz-search {
+  grid-column: 1 / -1;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.cz-search__input {
+  width: 100%;
+  max-width: none;
+  height: 28px;
+  padding: 0 9px;
+  font-size: 10.5px;
+}
+
+.cz-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cz-search-result {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cz-search-result:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cz-search-result:focus-visible {
+  outline: 1.5px solid hsl(var(--accent-h) 85% 80% / 0.7);
+  outline-offset: -1px;
+}
+
+.cz-search-result__name {
+  font-size: 11.5px;
+}
+
+.cz-search-result__section {
+  flex: none;
+  color: var(--ink-faint);
+  font-size: 9.5px;
 }
 
 .cz-tab {
@@ -680,94 +736,6 @@
   box-shadow: 0 0 7px hsl(var(--accent-h) 88% 72% / 0.36);
 }
 
-.cz-reset {
-  margin-left: auto;
-  height: 24px;
-  padding: 0 9px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.045);
-  color: rgba(244, 250, 248, 0.7);
-  font: inherit;
-  font-size: 9px;
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.cz-reset:hover {
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.09);
-  color: #fff;
-}
-
-/* ---------- 折叠的「Details」 ---------- */
-
-.cz-details {
-  margin-top: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.035);
-  overflow: hidden;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease;
-}
-
-.cz-details:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.cz-details__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  height: 42px;
-  padding: 0 12px;
-  border: 0;
-  background: none;
-  color: rgba(246, 252, 249, 0.8);
-  font: inherit;
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.cz-details__head:hover {
-  color: #fff;
-}
-
-.cz-details__head svg {
-  transition: transform 0.22s var(--ease-out);
-}
-
-.cz-details.is-open .cz-details__head svg {
-  transform: rotate(180deg);
-}
-
-.cz-details__body {
-  padding: 4px 12px 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-  animation: cz-details-in 0.22s var(--ease-out) both;
-}
-
-@keyframes cz-details-in {
-  from {
-    opacity: 0;
-    transform: translateY(-3px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 
 /* ---------- 快捷键 ---------- */
 
@@ -978,6 +946,143 @@
   cursor: default;
 }
 
+.cz-widget {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 我的组件 / 组件仓库：可折叠分组，默认只展开本地组件 */
+.cz-fold {
+  margin: 2px 0 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.cz-fold__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cz-fold__head:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.cz-fold__head:focus-visible {
+  outline: 1.5px solid hsl(var(--accent-h) 85% 80% / 0.7);
+  outline-offset: -1px;
+}
+
+.cz-fold__title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.cz-fold__count {
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.075);
+  color: var(--ink-faint);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cz-fold__head svg {
+  margin-left: auto;
+  transition: transform 0.2s var(--ease-out);
+}
+
+.cz-fold.is-open .cz-fold__head svg {
+  transform: rotate(180deg);
+}
+
+.cz-fold__note {
+  margin: 0 2px 6px;
+  color: var(--ink-faint);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.cz-fold__body {
+  padding-bottom: 5px;
+}
+
+.cz-installed {
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  color: var(--ink-faint);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.cz-widget:last-of-type {
+  border-bottom: 0;
+}
+
+.cz-widget__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 2px 7px 2px;
+}
+
+.cz-widget__permissions {
+  overflow: hidden;
+  color: var(--ink-faint);
+  font-size: 9.5px;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cz-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px;
+}
+
+.cz-link {
+  padding: 4px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  font-size: 10.5px;
+  text-decoration: none;
+  transition:
+    color 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.cz-link:hover {
+  border-color: transparent;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.cz-link:focus-visible {
+  outline: 1.5px solid hsl(var(--accent-h) 85% 80% / 0.7);
+  outline-offset: 2px;
+}
+
 .cz-widget-actions {
   display: flex;
   justify-content: flex-end;
@@ -996,10 +1101,20 @@
 /* 宽面板：顶部横排 tab 变成左侧竖向导航 */
 .cz-sheet[data-wide='true'] .cz-tabs {
   grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: auto;
   align-content: start;
   gap: 2px;
   margin: 0;
   padding: 3px;
+}
+
+.cz-sheet[data-wide='true'] .cz-search {
+  margin-bottom: 5px;
+}
+
+.cz-sheet[data-wide='true'] .cz-search__input {
+  height: 30px;
+  font-size: 10.5px;
 }
 
 .cz-sheet[data-wide='true'] .cz-tab {
@@ -1091,7 +1206,6 @@
 @media (prefers-reduced-motion: reduce) {
   .cz-sheet,
   .cz-body,
-  .cz-details__body,
   .cz-keycap {
     animation: none;
     transition: none;
@@ -1260,16 +1374,6 @@
   font-size: 10.5px;
 }
 
-:root[lang='zh'] .cz-details__head {
-  font-size: 11px;
-  letter-spacing: 0.055em;
-  font-weight: 600;
-}
-
-:root[lang='zh'] .cz-reset {
-  font-size: 10px;
-}
-
 :root[lang='zh'] .cz-error {
   font-size: 10.5px;
   line-height: 1.55;
@@ -1333,6 +1437,20 @@
 
 .cz-input::placeholder {
   color: var(--ink-faint);
+}
+
+/* 搜索框在导航里占满整行：.cz-input 的 200px 上限不适用 */
+.cz-tabs .cz-search__input {
+  width: 100%;
+  max-width: none;
+  height: 28px;
+  padding: 0 9px;
+  font-size: 10.5px;
+}
+
+.cz-tabs .cz-search__input:focus-visible {
+  outline: 1.5px solid hsl(var(--accent-h) 85% 80% / 0.7);
+  outline-offset: 1px;
 }
 
 .cz-input:focus-visible {
@@ -1473,4 +1591,3 @@
 .cz-fold[open] .cz-fold__head::after {
   transform: rotate(90deg);
 }
-

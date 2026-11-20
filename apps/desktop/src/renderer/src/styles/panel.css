@@ -449,6 +449,34 @@ body {
   cursor: nwse-resize;
 }
 
+/* ---------- 自由布局的吸附辅助线 ---------- */
+.layout-guides {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.layout-guide {
+  position: absolute;
+  background: hsl(var(--accent-h) 90% 82% / 0.78);
+  box-shadow: 0 0 7px hsl(var(--accent-h) 90% 75% / 0.42);
+}
+
+.layout-guide--v {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform: translateX(-0.5px);
+}
+
+.layout-guide--h {
+  left: 0;
+  right: 0;
+  height: 1px;
+  transform: translateY(-0.5px);
+}
+
 .sheet__empty {
   display: grid;
   min-height: 220px;
@@ -695,6 +723,14 @@ body {
   background: radial-gradient(64% 44% at 30% 18%, rgba(255, 255, 255, 0.4), transparent 72%);
 }
 
+.cover__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .chip {
   font-size: 9.5px;
   letter-spacing: 0.14em;
@@ -749,6 +785,12 @@ body {
   display: flex;
   align-items: center;
   gap: 9px;
+}
+
+.brand .chip {
+  margin-left: 2px;
+  padding: 3px 6px;
+  font-size: 9px;
 }
 
 /* 品牌行右侧：热键 chip + 主题入口 */
@@ -892,6 +934,18 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 当前歌词行：只占一行，放不下就用省略号；没有共享歌词数据时不占位 */
+.media__lyric {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--accent-pale);
+  font-size: 10px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .media__empty {

@@ -13,7 +13,7 @@ import {
 } from '../shared/layout'
 
 /** 上下留白：面板可以长到几乎整块工作区，同时仍能看见壁纸的呼吸 */
-const PANEL_MARGIN_Y = 40
+const PANEL_MARGIN_Y = 16
 const SLIDE_IN_MS = 240
 const SLIDE_OUT_MS = 160
 const TICK_MS = 10

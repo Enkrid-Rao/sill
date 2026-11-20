@@ -306,6 +306,12 @@ function renderWidgetError(root: ShadowRoot, id: string, error: unknown): void {
 
 export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
+  // 只有读时间的模板才需要每秒重新绑定；system/processes 这类只看快照的模板
+  // 不应该被 1s 的时钟拖着跑一遍 getComputedStyle 和全部绑定。
+  const clockKey =
+    widget.data.some((item) => item.source === 'time.now' || item.source === 'host.state')
+      ? context.now.getTime()
+      : 0
   const clickBound = useRef(false)
   const contextRef = useRef(context)
   const dataRef = useRef<Record<string, unknown>>({})
@@ -482,7 +488,7 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
     })
   }, [
     widget,
-    context.now,
+    clockKey,
     context.snapshot,
     context.todos,
     context.mediaPosition,

@@ -75,6 +75,7 @@ export function SettingsWindow(): React.JSX.Element {
         onDownloadUpdate={settings.downloadUpdate}
         onInstallUpdate={settings.installUpdate}
         onEditLayout={() => void window.sill?.editLayout()}
+        onResetLayout={settings.resetLayout}
         layoutMode={settings.layout.mode}
         onLayoutModeChange={(mode) => settings.setLayout({ ...settings.layout, mode })}
         widgets={settings.widgets}
@@ -86,4 +87,3 @@ export function SettingsWindow(): React.JSX.Element {
     </div>
   )
 }
-

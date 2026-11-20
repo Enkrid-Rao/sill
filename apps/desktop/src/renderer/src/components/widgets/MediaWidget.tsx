@@ -96,6 +96,8 @@ function Equalizer(): React.JSX.Element {
 
 interface Props {
   media: MediaSample | null
+  /** 是否已经收到过至少一份媒体样本；false 时显示“连接中”而不是“未在播放” */
+  mediaKnown: boolean
   position: number
   progress: number
   volume: number
@@ -109,6 +111,7 @@ interface Props {
 
 export function MediaWidget({
   media,
+  mediaKnown,
   position,
   progress,
   volume: volumeProp,
@@ -197,7 +200,11 @@ export function MediaWidget({
   }
 
   if (!media) {
-    return <div className="media__empty sub">{t(language, 'media.nothing')}</div>
+    return (
+      <div className="media__empty sub">
+        {t(language, mediaKnown ? 'media.nothing' : 'media.connecting')}
+      </div>
+    )
   }
 
   const artist = [media.artist, media.album].filter(Boolean).join(' · ') || media.app
@@ -208,7 +215,11 @@ export function MediaWidget({
       <div className="media" data-playing={playing}>
         <div className="media__now">
           <span className="cover" data-playing={playing} aria-hidden="true">
-            <i className="cover__shine" />
+            {media.artwork ? (
+              <img className="cover__img" src={media.artwork} alt="" draggable={false} />
+            ) : (
+              <i className="cover__shine" />
+            )}
           </span>
           <div className="media__info">
             <div className="media__title" title={media.title}>
@@ -225,7 +236,13 @@ export function MediaWidget({
           <i style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
         </div>
         <div className="media__meta-row">
-          <span className="cap media__status">{statusLabel}</span>
+          {media.lyricLine ? (
+            <span className="media__lyric" title={media.lyricLine}>
+              {media.lyricLine}
+            </span>
+          ) : (
+            <span className="cap media__status">{statusLabel}</span>
+          )}
           <span className="cap media__time">
             {formatClock(position)} / {formatClock(media.duration)}
           </span>

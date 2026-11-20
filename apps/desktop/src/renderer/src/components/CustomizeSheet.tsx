@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MONITOR_INTERVALS } from '../../../shared/data'
-import { LANGUAGES, t, type Language } from '../../../shared/i18n'
+import { LANGUAGES, t, type Language, type TranslationKey } from '../../../shared/i18n'
 import {
   getWeatherCity,
   WEATHER_CITIES,
@@ -28,7 +28,75 @@ import { useWidgetRegistry } from '../widgets/WidgetRegistryProvider'
 import type { ComponentProblem } from '../../../shared/widgets'
 import { pickLocalized, findUpdates, type CatalogEntry, type CatalogUpdate } from '../../../shared/catalog'
 
-type Tab = 'appearance' | 'panel' | 'widgets' | 'data' | 'general'
+type Section =
+  | 'general'
+  | 'appearance'
+  | 'panel'
+  | 'widgets'
+  | 'data'
+  | 'updates'
+  | 'advanced'
+  | 'about'
+
+const SECTIONS: readonly Section[] = [
+  'general',
+  'appearance',
+  'panel',
+  'widgets',
+  'data',
+  'updates',
+  'advanced',
+  'about'
+]
+
+/** 设置关闭后仍保留：同一窗口内重开时回到上次分组与滚动位置。 */
+const sectionScroll = new Map<Section, number>()
+let lastSection: Section | null = null
+
+interface SearchEntry {
+  section: Section
+  labelKey: TranslationKey
+}
+
+/** 搜索索引：设置项名称 → 所在分组。只用于跳转，不复制具体控件。 */
+const SEARCH_INDEX: readonly SearchEntry[] = [
+  { section: 'general', labelKey: 'general.language' },
+  { section: 'general', labelKey: 'general.settingsWindow' },
+  { section: 'general', labelKey: 'behavior.startup' },
+  { section: 'general', labelKey: 'behavior.shortcut' },
+  { section: 'appearance', labelKey: 'appearance.presets' },
+  { section: 'appearance', labelKey: 'appearance.accent' },
+  { section: 'appearance', labelKey: 'theme.atmosphere' },
+  { section: 'appearance', labelKey: 'theme.hue' },
+  { section: 'appearance', labelKey: 'theme.tint' },
+  { section: 'appearance', labelKey: 'theme.opacity' },
+  { section: 'appearance', labelKey: 'theme.halo' },
+  { section: 'appearance', labelKey: 'theme.grain' },
+  { section: 'panel', labelKey: 'behavior.shape' },
+  { section: 'panel', labelKey: 'size.width' },
+  { section: 'panel', labelKey: 'size.height' },
+  { section: 'panel', labelKey: 'size.auto' },
+  { section: 'panel', labelKey: 'behavior.dock' },
+  { section: 'panel', labelKey: 'behavior.edge' },
+  { section: 'panel', labelKey: 'behavior.layoutMode' },
+  { section: 'panel', labelKey: 'behavior.layout' },
+  { section: 'widgets', labelKey: 'widgets.installed' },
+  { section: 'widgets', labelKey: 'widgets.visibility' },
+  { section: 'widgets', labelKey: 'widgets.installWidget' },
+  { section: 'widgets', labelKey: 'widgets.installUrl' },
+  { section: 'widgets', labelKey: 'widgets.catalog' },
+  { section: 'widgets', labelKey: 'widgets.create' },
+  { section: 'widgets', labelKey: 'widgets.skinsFolder' },
+  { section: 'data', labelKey: 'general.refresh' },
+  { section: 'data', labelKey: 'weather.group' },
+  { section: 'data', labelKey: 'weather.location' },
+  { section: 'updates', labelKey: 'general.autoUpdate' },
+  { section: 'updates', labelKey: 'updates.components' },
+  { section: 'advanced', labelKey: 'general.dataFolder' },
+  { section: 'advanced', labelKey: 'widgets.assoc' },
+  { section: 'advanced', labelKey: 'general.uninstall' },
+  { section: 'about', labelKey: 'general.version' }
+]
 
 /** Open-Meteo geocoding 返回的最小字段集。 */
 interface WeatherGeoResult {
@@ -89,6 +157,7 @@ interface Props {
   onDownloadUpdate: () => void
   onInstallUpdate: () => void
   onEditLayout: () => void
+  onResetLayout: () => void
   layoutMode: 'flow' | 'free'
   onLayoutModeChange: (mode: 'flow' | 'free') => void
   widgets: readonly { id: string; label: string; hidden: boolean }[]
@@ -189,8 +258,63 @@ function Switch({
   )
 }
 
+function Fold({
+  id,
+  title,
+  note,
+  count,
+  open,
+  onToggle,
+  children
+}: {
+  id: string
+  title: string
+  note?: string
+  count?: number
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <section className={`cz-fold${open ? ' is-open' : ''}`}>
+      <button
+        className="cz-fold__head"
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={onToggle}
+      >
+        <span className="cz-fold__title">{title}</span>
+        {typeof count === 'number' ? <span className="cz-fold__count">{count}</span> : null}
+        <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
+          <path
+            d="m3 4.5 3 3 3-3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {note ? <p className="cz-fold__note">{note}</p> : null}
+      {open ? (
+        <div className="cz-fold__body" id={id}>
+          {children}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 /** 数据位置 + 卸载入口。两种发布形态的行为不同，全部由主进程的 UninstallInfo 决定。 */
-function UninstallSection({ language }: { language: Language }): React.JSX.Element {
+function UninstallSection({
+  language,
+  part = 'all'
+}: {
+  language: Language
+  part?: 'data' | 'uninstall' | 'all'
+}): React.JSX.Element {
   const [info, setInfo] = useState<UninstallInfo | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [deleteData, setDeleteData] = useState(false)
@@ -234,44 +358,48 @@ function UninstallSection({ language }: { language: Language }): React.JSX.Eleme
 
   return (
     <>
-      <p className="cz-group">{t(language, 'general.dataUninstall')}</p>
+      {part === 'all' ? <p className="cz-group">{t(language, 'general.dataUninstall')}</p> : null}
 
-      <div className="cz-setrow">
-        <div className="cz-setrow__copy">
-          <span className="cz-setrow__name">{t(language, 'general.dataFolder')}</span>
-          <span className="cz-setrow__note cz-path" title={info?.dataDir ?? ''}>
-            {info?.dataDir ?? '—'}
-          </span>
-          <span className="cz-setrow__note">{t(language, 'general.dataFolderNote')}</span>
+      {part !== 'uninstall' ? (
+        <div className="cz-setrow">
+          <div className="cz-setrow__copy">
+            <span className="cz-setrow__name">{t(language, 'general.dataFolder')}</span>
+            <span className="cz-setrow__note cz-path" title={info?.dataDir ?? ''}>
+              {info?.dataDir ?? '—'}
+            </span>
+            <span className="cz-setrow__note">{t(language, 'general.dataFolderNote')}</span>
+          </div>
+          <button
+            className="cz-action"
+            type="button"
+            disabled={!info}
+            onClick={() => void window.sill?.openDataFolder()}
+          >
+            {t(language, 'general.openDataFolder')}
+          </button>
         </div>
-        <button
-          className="cz-action"
-          type="button"
-          disabled={!info}
-          onClick={() => void window.sill?.openDataFolder()}
-        >
-          {t(language, 'general.openDataFolder')}
-        </button>
-      </div>
+      ) : null}
 
-      <div className="cz-setrow">
-        <div className="cz-setrow__copy">
-          <span className="cz-setrow__name">{t(language, 'general.uninstall')}</span>
-          <span className="cz-setrow__note">{note}</span>
+      {part !== 'data' ? (
+        <div className="cz-setrow">
+          <div className="cz-setrow__copy">
+            <span className="cz-setrow__name">{t(language, 'general.uninstall')}</span>
+            <span className="cz-setrow__note">{note}</span>
+          </div>
+          <button
+            className="cz-action cz-action--danger"
+            type="button"
+            disabled={!info?.canUninstall || starting || confirming}
+            onClick={() => {
+              setDeleteData(false)
+              setFailed(false)
+              setConfirming(true)
+            }}
+          >
+            {t(language, 'general.uninstallButton')}
+          </button>
         </div>
-        <button
-          className="cz-action cz-action--danger"
-          type="button"
-          disabled={!info?.canUninstall || starting || confirming}
-          onClick={() => {
-            setDeleteData(false)
-            setFailed(false)
-            setConfirming(true)
-          }}
-        >
-          {t(language, 'general.uninstallButton')}
-        </button>
-      </div>
+      ) : null}
 
       {confirming ? (
         <div
@@ -418,32 +546,6 @@ function HotkeyRow({
   )
 }
 
-function Details({ label, children }: { label: string; children: React.ReactNode }): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className={`cz-details${open ? ' is-open' : ''}`}>
-      <button
-        className="cz-details__head"
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span>{label}</span>
-        <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden="true">
-          <path
-            d="m3 4.5 3 3 3-3"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      {open ? <div className="cz-details__body">{children}</div> : null}
-    </div>
-  )
-}
 
 export function CustomizeSheet({
   theme,
@@ -483,6 +585,7 @@ export function CustomizeSheet({
   onDownloadUpdate,
   onInstallUpdate,
   onEditLayout,
+  onResetLayout,
   layoutMode,
   onLayoutModeChange,
   widgets,
@@ -492,7 +595,9 @@ export function CustomizeSheet({
   standalone = false
 }: Props): React.JSX.Element {
   const closeRef = useRef<HTMLButtonElement>(null)
-  const [tab, setTab] = useState<Tab>('appearance')
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [section, setSection] = useState<Section>(() => lastSection ?? 'general')
+  const [query, setQuery] = useState('')
   const registry = useWidgetRegistry()
   const [installing, setInstalling] = useState(false)
   const [uninstalling, setUninstalling] = useState<string | null>(null)
@@ -513,6 +618,10 @@ export function CustomizeSheet({
   const [catalog, setCatalog] = useState<CatalogEntry[]>([])
   const [catalogBusy, setCatalogBusy] = useState(false)
   const [catalogError, setCatalogError] = useState('')
+  const [catalogLoaded, setCatalogLoaded] = useState(false)
+  const [catalogUpdated, setCatalogUpdated] = useState<string | null>(null)
+  const [myComponentsOpen, setMyComponentsOpen] = useState(true)
+  const [repoOpen, setRepoOpen] = useState(false)
   const [updating, setUpdating] = useState<string | null>(null)
 
   const loadDiagnostics = async (): Promise<void> => {
@@ -541,6 +650,12 @@ export function CustomizeSheet({
   }, [])
   const activePreset = matchThemePreset(theme)
   const activeSize = matchPreset(panelWidth, panelHeight)
+  const searching = query.trim().length > 0
+  const searchResults = searching
+    ? SEARCH_INDEX.filter((entry) =>
+        t(language, entry.labelKey).toLowerCase().includes(query.trim().toLowerCase())
+      )
+    : []
   const weatherCity = weatherLocation === 'auto' ? null : getWeatherCity(weatherLocation)
   const weatherLabel = weatherCustom
     ? weatherCustom.name
@@ -550,7 +665,7 @@ export function CustomizeSheet({
 
   useEffect(() => {
     const query = weatherQuery.trim()
-    if (tab !== 'data' || query.length < 2) {
+    if (section !== 'data' || query.length < 2) {
       setWeatherResults([])
       setWeatherError('')
       return
@@ -585,7 +700,7 @@ export function CustomizeSheet({
       alive = false
       window.clearTimeout(timer)
     }
-  }, [weatherQuery, tab, language])
+  }, [weatherQuery, section, language])
 
   const selectWeatherPlace = (result: WeatherGeoResult): void => {
     const label = [result.name, result.admin1].filter(Boolean).join(', ').slice(0, 60)
@@ -652,14 +767,16 @@ export function CustomizeSheet({
     setCatalogError('')
     const result = await window.sill?.getWidgetCatalog?.(force)
     setCatalogBusy(false)
+    setCatalogLoaded(true)
     if (!result) return
     setCatalog(result.entries)
+    setCatalogUpdated(result.updated ?? null)
     if (!result.ok) setCatalogError(result.error ?? t(language, 'widgets.catalogFailed'))
   }
 
   useEffect(() => {
-    if (tab === 'widgets') void loadCatalog(false)
-  }, [tab])
+    if (section === 'updates') void loadCatalog(false)
+  }, [section])
 
   const openWidgetSettings = async (id: string): Promise<void> => {
     if (settingsFor === id) {
@@ -751,9 +868,42 @@ export function CustomizeSheet({
     catalog
   )
 
+  // 已安装但还不在布局里的组件也要出现在列表里，否则安装完在设置里找不到。
+  const widgetRows = [
+    ...widgets,
+    ...registry.installed
+      .filter((item) => !widgets.some((widget) => widget.id === item.id))
+      .map((item) => ({ id: item.id, label: item.name || item.id, hidden: true }))
+  ]
+
+  // 仓库只列可安装项；内置卡已经在「我的组件」里，不再重复展示。
+  const repoEntries = catalog.filter((entry) => entry.status !== 'builtin')
+
   useEffect(() => {
     closeRef.current?.focus({ preventScroll: true })
   }, [])
+
+  useLayoutEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    body.scrollTop = searching ? 0 : (sectionScroll.get(section) ?? 0)
+  }, [section, searching])
+
+  useEffect(() => {
+    lastSection = section
+  }, [section])
+
+  const changeSection = (next: Section): void => {
+    if (!searching && bodyRef.current) {
+      sectionScroll.set(section, bodyRef.current.scrollTop)
+    }
+    setSection(next)
+    setQuery('')
+  }
+
+  const rememberScroll = (event: React.UIEvent<HTMLDivElement>): void => {
+    if (!searching) sectionScroll.set(section, event.currentTarget.scrollTop)
+  }
 
   return (
     <section
@@ -790,23 +940,58 @@ export function CustomizeSheet({
       </header>
 
       <div className="cz-tabs" role="tablist" aria-label={t(language, 'settings.title')}>
-        {(['appearance', 'panel', 'widgets', 'data', 'general'] as const).map((id) => (
+        <label className="cz-search">
+          <input
+            className="cz-input cz-search__input"
+            type="search"
+            value={query}
+            placeholder={t(language, 'settings.searchPlaceholder')}
+            aria-label={t(language, 'settings.searchPlaceholder')}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+          />
+        </label>
+        {SECTIONS.map((id) => (
           <button
             key={id}
             className="cz-tab"
             type="button"
             role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
+            aria-selected={section === id}
+            onClick={() => {
+              changeSection(id)
+            }}
           >
             {t(language, `tab.${id}`)}
           </button>
         ))}
       </div>
 
-      <div className="cz-body" key={tab}>
-        {tab === 'appearance' ? (
+      <div className="cz-body" key={section} ref={bodyRef} onScroll={rememberScroll}>
+        {searching ? (
+          <div className="cz-search-results">
+            {searchResults.map((entry) => (
+              <button
+                key={`${entry.section}:${entry.labelKey}`}
+                className="cz-search-result"
+                type="button"
+                onClick={() => {
+                  changeSection(entry.section)
+                }}
+              >
+                <span className="cz-search-result__name">{t(language, entry.labelKey)}</span>
+                <span className="cz-search-result__section">
+                  {t(language, `tab.${entry.section}`)}
+                </span>
+              </button>
+            ))}
+            {!searchResults.length ? (
+              <p className="cz-note">{t(language, 'settings.searchEmpty')}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {!searching && section === 'appearance' ? (
           <>
+            <p className="cz-group">{t(language, 'appearance.theme')}</p>
             <p className="cz-label">{t(language, 'appearance.presets')}</p>
             <div className="cz-grid" role="group" aria-label={t(language, 'appearance.presets')}>
               {PRESETS.map((preset) => (
@@ -848,7 +1033,7 @@ export function CustomizeSheet({
               ))}
             </div>
 
-            <Details label={t(language, 'appearance.details')}>
+            <p className="cz-group">{t(language, 'appearance.glass')}</p>
               <Switch
                 id="cz-atmosphere"
                 label={t(language, 'theme.atmosphere')}
@@ -940,16 +1125,25 @@ export function CustomizeSheet({
                 checked={theme.grain}
                 onChange={(value) => onChange({ grain: value })}
               />
-            </Details>
 
             <p className="cz-note">{t(language, 'appearance.note')}</p>
+
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">
+                  {t(language, 'appearance.resetAppearance')}
+                </span>
+              </div>
+              <button className="cz-action" type="button" onClick={onReset}>
+                {t(language, 'footer.reset')}
+              </button>
+            </div>
           </>
         ) : null}
 
-        {tab === 'panel' ? (
+        {!searching && section === 'panel' ? (
           <>
-            <p className="cz-group">{t(language, 'behavior.panel')}</p>
-            <HotkeyRow hotkey={hotkey} language={language} onChange={onHotkeyChange} />
+            <p className="cz-group">{t(language, 'panel.sizeGroup')}</p>
 
             <div className="cz-setrow cz-setrow--stack">
               <div className="cz-setrow__copy">
@@ -1020,6 +1214,8 @@ export function CustomizeSheet({
 
             <p className="cz-note">{t(language, 'size.hint')}</p>
 
+            <p className="cz-group">{t(language, 'panel.positionGroup')}</p>
+
             <div className="cz-setrow">
               <div className="cz-setrow__copy">
                 <span className="cz-setrow__name">{t(language, 'behavior.dock')}</span>
@@ -1042,6 +1238,19 @@ export function CustomizeSheet({
                 </button>
               </div>
             </div>
+
+            <Slider
+              id="cz-edge"
+              label={t(language, 'behavior.edge')}
+              value={edgeGap}
+              min={0}
+              max={80}
+              suffix="px"
+              onChange={onEdgeGapChange}
+            />
+            <p className="cz-note">{t(language, 'behavior.edgeNote')}</p>
+
+            <p className="cz-group">{t(language, 'panel.cardsGroup')}</p>
 
             <div className="cz-setrow">
               <div className="cz-setrow__copy">
@@ -1078,22 +1287,298 @@ export function CustomizeSheet({
               </div>
             </div>
 
-            <Slider
-              id="cz-edge"
-              label={t(language, 'behavior.edge')}
-              value={edgeGap}
-              min={0}
-              max={80}
-              suffix="px"
-              onChange={onEdgeGapChange}
-            />
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'panel.resetLayout')}</span>
+              </div>
+              <button className="cz-action" type="button" onClick={onResetLayout}>
+                {t(language, 'footer.reset')}
+              </button>
+            </div>
 
           </>
         ) : null}
 
-        {tab === 'widgets' ? (
+        {!searching && section === 'widgets' ? (
           <>
-            <p className="cz-group">{t(language, 'widgets.install')}</p>
+            <Fold
+              id="cz-my-components"
+              title={t(language, 'widgets.myComponents')}
+              count={widgetRows.length}
+              open={myComponentsOpen}
+              onToggle={() => setMyComponentsOpen((value) => !value)}
+            >
+              <p className="cz-note" style={{ margin: '0 2px 6px' }}>
+                {t(language, 'widgets.visibilityNote')}
+              </p>
+
+              {widgetRows.map((widget) => {
+              const installed = registry.installed.find((item) => item.id === widget.id)
+              const tierKey: TranslationKey | null = installed
+                ? installed.tier === 'static'
+                  ? 'widgets.tier.static'
+                  : installed.tier === 'script'
+                    ? 'widgets.tier.script'
+                    : installed.tier === 'isolated'
+                      ? 'widgets.tier.isolated'
+                      : 'widgets.tier.node'
+                : null
+              return (
+                <div className="cz-widget" key={widget.id}>
+                  <Switch
+                    id={`cz-widget-${widget.id}`}
+                    label={widget.label}
+                    note={
+                      installed
+                        ? `${installed.id} · v${installed.version} · ${t(language, tierKey!)}`
+                        : ''
+                    }
+                    checked={!widget.hidden}
+                    onChange={(value) => onToggleWidget(widget.id, value)}
+                  />
+                  {installed ? (
+                    <div className="cz-widget__meta">
+                      <span className="cz-widget__permissions">
+                        {installed.permissions.join(' / ') || '—'}
+                      </span>
+                      <span className="cz-widget-actions">
+                        {installed.settings.length ? (
+                          <button
+                            className="cz-action"
+                            type="button"
+                            disabled={settingsBusy}
+                            onClick={() => void openWidgetSettings(installed.id)}
+                          >
+                            {t(
+                              language,
+                              settingsFor === installed.id
+                                ? 'widgets.settingsClose'
+                                : 'widgets.settings'
+                            )}
+                          </button>
+                        ) : null}
+                        <button
+                          className="cz-action"
+                          type="button"
+                          disabled={uninstalling === installed.id}
+                          onClick={() => void uninstall(installed.id)}
+                        >
+                          {uninstalling === installed.id
+                            ? '…'
+                            : t(language, 'widgets.uninstall')}
+                        </button>
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {installed && settingsFor === installed.id && installed.settings.length ? (
+                    <div className="cz-settings">
+                      {installed.settings.map((field) =>
+                        field.type === 'switch' ? (
+                          <Switch
+                            key={field.key}
+                            id={`cz-set-${installed.id}-${field.key}`}
+                            label={settingText(field.label, language, field.key)}
+                            note={
+                              field.description
+                                ? settingText(field.description, language, '')
+                                : ''
+                            }
+                            checked={settingsValues[field.key] === true}
+                            onChange={(value) =>
+                              void saveWidgetSetting(installed.id, field.key, value)
+                            }
+                          />
+                        ) : (
+                          <div className="cz-setrow" key={field.key}>
+                            <div className="cz-setrow__copy">
+                              <span className="cz-setrow__name">
+                                {settingText(field.label, language, field.key)}
+                              </span>
+                              {field.description ? (
+                                <span className="cz-setrow__note">
+                                  {settingText(field.description, language, '')}
+                                </span>
+                              ) : null}
+                            </div>
+                            {field.type === 'select' ? (
+                              <div className="cz-seg">
+                                {(field.options ?? []).map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    aria-pressed={settingsValues[field.key] === option.value}
+                                    onClick={() =>
+                                      void saveWidgetSetting(
+                                        installed.id,
+                                        field.key,
+                                        option.value
+                                      )
+                                    }
+                                  >
+                                    {settingText(option.label, language, option.value)}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <input
+                                className="cz-input"
+                                type={field.type === 'number' ? 'number' : 'text'}
+                                value={String(settingsValues[field.key] ?? '')}
+                                placeholder={field.placeholder}
+                                min={field.min}
+                                max={field.max}
+                                onChange={(event) =>
+                                  setSettingsValues((current) => ({
+                                    ...current,
+                                    [field.key]:
+                                      field.type === 'number'
+                                        ? Number(event.target.value)
+                                        : event.target.value
+                                  }))
+                                }
+                                onBlur={(event) =>
+                                  void saveWidgetSetting(
+                                    installed.id,
+                                    field.key,
+                                    field.type === 'number'
+                                      ? Number(event.target.value)
+                                      : event.target.value
+                                  )
+                                }
+                              />
+                            )}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+
+            {problems.length ? (
+              <>
+                <p className="cz-group">{t(language, 'widgets.problems')}</p>
+                <p className="cz-note" style={{ margin: '0 2px 6px' }}>
+                  {t(language, 'widgets.problemsNote')}
+                </p>
+                {problems.map((problem) => (
+                  <div className="cz-setrow" key={`${problem.source}:${problem.dir}`}>
+                    <div className="cz-setrow__copy">
+                      <span className="cz-setrow__name">{problem.folder}</span>
+                      <span className="cz-setrow__note">{problem.error}</span>
+                    </div>
+                    <button
+                      className="cz-action"
+                      type="button"
+                      onClick={() => revealComponent(problem.dir)}
+                    >
+                      {t(language, 'widgets.reveal')}
+                    </button>
+                  </div>
+                ))}
+              </>
+            ) : null}
+            </Fold>
+
+            <Fold
+              id="cz-repos"
+              title={t(language, 'widgets.repos')}
+              count={catalogLoaded ? 1 : undefined}
+              open={repoOpen}
+              onToggle={() => {
+                if (!repoOpen && !catalogLoaded) void loadCatalog(false)
+                setRepoOpen((value) => !value)
+              }}
+            >
+              <p className="cz-note" style={{ margin: '0 2px 6px' }}>
+                {t(language, 'widgets.repoOfficialNote')}
+              </p>
+              <div className="cz-setrow">
+                <div className="cz-setrow__copy">
+                  <span className="cz-setrow__name">{t(language, 'widgets.repoOfficial')}</span>
+                  <span className="cz-setrow__note">
+                    {catalogUpdated
+                      ? `${t(language, 'widgets.repoUpdated')} ${new Date(
+                          catalogUpdated
+                        ).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-GB')}`
+                      : t(language, 'widgets.repoOfficialNote')}
+                  </span>
+                </div>
+                <button
+                  className="cz-action"
+                  type="button"
+                  disabled={catalogBusy}
+                  onClick={() => void loadCatalog(true)}
+                >
+                  {catalogBusy
+                    ? '…'
+                    : catalogLoaded
+                      ? t(language, 'widgets.catalogRefresh')
+                      : t(language, 'widgets.repoBrowse')}
+                </button>
+              </div>
+
+              {catalogBusy ? (
+                <p className="cz-note">{t(language, 'widgets.repoLoading')}</p>
+              ) : null}
+              {catalogError ? <p className="cz-error">{catalogError}</p> : null}
+              {catalogLoaded && repoEntries.length ? (
+                <ul className="cz-catalog">
+                  {repoEntries.map((entry) => {
+                    const installed = registry.installed.some((item) => item.id === entry.id)
+                    return (
+                      <li className="cz-setrow" key={entry.id}>
+                        <div className="cz-setrow__copy">
+                          <span className="cz-setrow__name">
+                            {pickLocalized(entry.name, language)}
+                          </span>
+                          <span className="cz-setrow__note">
+                            {entry.id} · v{entry.version} ·{' '}
+                            {entry.status === 'builtin'
+                              ? t(language, 'widgets.catalogBuiltin')
+                              : entry.status}
+                            {pickLocalized(entry.summary, language)
+                              ? ` — ${pickLocalized(entry.summary, language)}`
+                              : ''}
+                          </span>
+                        </div>
+                        {installed ? (
+                          <span className="cz-installed">
+                            {t(language, 'widgets.installedBadge')}
+                          </span>
+                        ) : entry.installable && entry.download ? (
+                          <button
+                            className="cz-action"
+                            type="button"
+                            disabled={urlBusy}
+                            onClick={() => void installFromUrl(entry.download!)}
+                          >
+                            {urlBusy ? '…' : t(language, 'widgets.catalogInstall')}
+                          </button>
+                        ) : null}
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : null}
+              {catalogLoaded && !repoEntries.length && !catalogError && !catalogBusy ? (
+                <p className="cz-note">{t(language, 'widgets.catalogEmpty')}</p>
+              ) : null}
+
+              <div className="cz-setrow">
+                <div className="cz-setrow__copy">
+                  <span className="cz-setrow__name">{t(language, 'widgets.repoAdd')}</span>
+                  <span className="cz-setrow__note">{t(language, 'widgets.repoAddNote')}</span>
+                </div>
+                <button className="cz-action" type="button" disabled>
+                  {t(language, 'widgets.repoAdd')}
+                </button>
+              </div>
+            </Fold>
+
+            <p className="cz-group">{t(language, 'widgets.get')}</p>
 
             <div className="cz-setrow">
               <div className="cz-setrow__copy">
@@ -1137,12 +1622,9 @@ export function CustomizeSheet({
               </span>
             </div>
 
-            <details className="cz-fold">
-              <summary className="cz-fold__head">
-                <span>{t(language, 'widgets.groupDev')}</span>
-                <span className="cz-fold__hint">{t(language, 'widgets.groupDevHint')}</span>
-              </summary>
-              <div className="cz-fold__body">
+            {installError ? <p className="cz-error">{installError}</p> : null}
+
+            <p className="cz-group">{t(language, 'widgets.developer')}</p>
 
             <div className="cz-setrow">
               <div className="cz-setrow__copy">
@@ -1172,301 +1654,10 @@ export function CustomizeSheet({
                 {t(language, 'widgets.openSkinsFolder')}
               </button>
             </div>
-
-            <div className="cz-setrow">
-              <div className="cz-setrow__copy">
-                <span className="cz-setrow__name">{t(language, 'widgets.assoc')}</span>
-                <span className="cz-setrow__note">
-                  {t(language, associated ? 'widgets.assocOn' : 'widgets.assocOff')}
-                </span>
-              </div>
-              <button
-                className="cz-action"
-                type="button"
-                disabled={assocBusy}
-                onClick={() => void toggleAssociation()}
-              >
-                {assocBusy
-                  ? '…'
-                  : t(language, associated ? 'widgets.assocUnregister' : 'widgets.assocRegister')}
-              </button>
-            </div>
-              </div>
-            </details>
-
-            {installError ? <p className="cz-error">{installError}</p> : null}
-
-            <details className="cz-fold">
-              <summary className="cz-fold__head">
-                <span>{t(language, 'widgets.catalog')}</span>
-                <span className="cz-fold__hint">{t(language, 'widgets.catalogNote')}</span>
-              </summary>
-              <div className="cz-fold__body">
-              <div className="cz-setrow">
-              <div className="cz-setrow__copy">
-                <span className="cz-setrow__name">{t(language, 'widgets.catalog')}</span>
-                <span className="cz-setrow__note">{t(language, 'widgets.catalogNote')}</span>
-              </div>
-              <button
-                className="cz-action"
-                type="button"
-                disabled={catalogBusy}
-                onClick={() => void loadCatalog(true)}
-              >
-                {catalogBusy ? '…' : t(language, 'widgets.catalogRefresh')}
-              </button>
-            </div>
-
-            {catalog.length ? (
-              <ul className="cz-catalog">
-                {catalog.map((entry) => (
-                  <li className="cz-setrow" key={entry.id}>
-                    <div className="cz-setrow__copy">
-                      <span className="cz-setrow__name">
-                        {pickLocalized(entry.name, language)}
-                      </span>
-                      <span className="cz-setrow__note">
-                        {entry.id} · v{entry.version} ·{' '}
-                        {entry.status === 'builtin'
-                          ? t(language, 'widgets.catalogBuiltin')
-                          : entry.status}
-                        {pickLocalized(entry.summary, language)
-                          ? ` — ${pickLocalized(entry.summary, language)}`
-                          : ''}
-                      </span>
-                    </div>
-                    {entry.installable && entry.download ? (
-                      <button
-                        className="cz-action"
-                        type="button"
-                        disabled={urlBusy}
-                        onClick={() => void installFromUrl(entry.download!)}
-                      >
-                        {urlBusy ? '…' : t(language, 'widgets.catalogInstall')}
-                      </button>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            {catalogError ? <p className="cz-error">{catalogError}</p> : null}
-            {!catalog.length && !catalogError && !catalogBusy ? (
-              <p className="cz-note">{t(language, 'widgets.catalogEmpty')}</p>
-            ) : null}
-              </div>
-            </details>
-
-            {problems.length ? (
-              <>
-                <p className="cz-group">{t(language, 'widgets.problems')}</p>
-                <p className="cz-note" style={{ margin: '0 2px 6px' }}>
-                  {t(language, 'widgets.problemsNote')}
-                </p>
-                {problems.map((problem) => (
-                  <div className="cz-setrow" key={`${problem.source}:${problem.dir}`}>
-                    <div className="cz-setrow__copy">
-                      <span className="cz-setrow__name">{problem.folder}</span>
-                      <span className="cz-setrow__note">{problem.error}</span>
-                    </div>
-                    <button
-                      className="cz-action"
-                      type="button"
-                      onClick={() => revealComponent(problem.dir)}
-                    >
-                      {t(language, 'widgets.reveal')}
-                    </button>
-                  </div>
-                ))}
-              </>
-            ) : null}
-
-            <details className="cz-fold">
-              <summary className="cz-fold__head">
-                <span>{t(language, 'widgets.visibility')}</span>
-                <span className="cz-fold__hint">{t(language, 'widgets.visibilityNote')}</span>
-              </summary>
-              <div className="cz-fold__body">
-            {widgets.map((widget) => (
-              <Switch
-                key={widget.id}
-                id={`cz-widget-${widget.id}`}
-                label={widget.label}
-                note=""
-                checked={!widget.hidden}
-                onChange={(value) => onToggleWidget(widget.id, value)}
-              />
-            ))}
-              </div>
-            </details>
-
-            <details className="cz-fold" open>
-              <summary className="cz-fold__head">
-                <span>{t(language, 'widgets.installed')}</span>
-                <span className="cz-fold__hint">{registry.installed.length}</span>
-              </summary>
-              <div className="cz-fold__body">
-            {catalogUpdates.length ? (
-              <>
-                <p className="cz-group">{t(language, 'widgets.updates')}</p>
-                <p className="cz-note" style={{ margin: '0 2px 6px' }}>
-                  {t(language, 'widgets.updatesNote')}
-                </p>
-                {catalogUpdates.map((update) => (
-                  <div className="cz-setrow" key={update.id}>
-                    <div className="cz-setrow__copy">
-                      <span className="cz-setrow__name">
-                        {pickLocalized(update.name, language)}
-                      </span>
-                      <span className="cz-setrow__note">
-                        v{update.from} → v{update.to}
-                      </span>
-                    </div>
-                    <button
-                      className="cz-action"
-                      type="button"
-                      disabled={urlBusy || updating === update.id}
-                      onClick={() => void updateComponent(update)}
-                    >
-                      {updating === update.id ? '…' : t(language, 'widgets.update')}
-                    </button>
-                  </div>
-                ))}
-              </>
-            ) : null}
-            {registry.installed.length ? (
-              registry.installed.map((item) => (
-                <div key={item.id}>
-                  <div className="cz-setrow">
-                    <div className="cz-setrow__copy">
-                      <span className="cz-setrow__name">{item.name}</span>
-                      <span className="cz-setrow__note">
-                        {item.id} · v{item.version} ·{' '}
-                        {t(
-                          language,
-                          item.tier === 'static'
-                            ? 'widgets.tier.static'
-                            : item.tier === 'script'
-                              ? 'widgets.tier.script'
-                              : item.tier === 'isolated'
-                                ? 'widgets.tier.isolated'
-                                : 'widgets.tier.node'
-                        )}{' '}
-                        · {item.permissions.join(' / ') || '—'}
-                      </span>
-                    </div>
-                    <span className="cz-widget-actions">
-                      {item.settings.length ? (
-                        <button
-                          className="cz-action"
-                          type="button"
-                          disabled={settingsBusy}
-                          onClick={() => void openWidgetSettings(item.id)}
-                        >
-                          {t(
-                            language,
-                            settingsFor === item.id ? 'widgets.settingsClose' : 'widgets.settings'
-                          )}
-                        </button>
-                      ) : null}
-                      <button
-                        className="cz-action"
-                        type="button"
-                        disabled={uninstalling === item.id}
-                        onClick={() => void uninstall(item.id)}
-                      >
-                        {t(language, 'widgets.uninstall')}
-                      </button>
-                    </span>
-                  </div>
-
-                  {settingsFor === item.id && item.settings.length ? (
-                    <div className="cz-settings">
-                      {item.settings.map((field) =>
-                        field.type === 'switch' ? (
-                          <Switch
-                            key={field.key}
-                            id={`cz-set-${item.id}-${field.key}`}
-                            label={settingText(field.label, language, field.key)}
-                            note={
-                              field.description
-                                ? settingText(field.description, language, '')
-                                : ''
-                            }
-                            checked={settingsValues[field.key] === true}
-                            onChange={(value) => void saveWidgetSetting(item.id, field.key, value)}
-                          />
-                        ) : (
-                          <div className="cz-setrow" key={field.key}>
-                            <div className="cz-setrow__copy">
-                              <span className="cz-setrow__name">
-                                {settingText(field.label, language, field.key)}
-                              </span>
-                              {field.description ? (
-                                <span className="cz-setrow__note">
-                                  {settingText(field.description, language, '')}
-                                </span>
-                              ) : null}
-                            </div>
-                            {field.type === 'select' ? (
-                              <div className="cz-seg">
-                                {(field.options ?? []).map((option) => (
-                                  <button
-                                    key={option.value}
-                                    type="button"
-                                    aria-pressed={settingsValues[field.key] === option.value}
-                                    onClick={() =>
-                                      void saveWidgetSetting(item.id, field.key, option.value)
-                                    }
-                                  >
-                                    {settingText(option.label, language, option.value)}
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <input
-                                className="cz-input"
-                                type={field.type === 'number' ? 'number' : 'text'}
-                                value={String(settingsValues[field.key] ?? '')}
-                                placeholder={field.placeholder}
-                                min={field.min}
-                                max={field.max}
-                                onChange={(event) =>
-                                  setSettingsValues((current) => ({
-                                    ...current,
-                                    [field.key]:
-                                      field.type === 'number'
-                                        ? Number(event.target.value)
-                                        : event.target.value
-                                  }))
-                                }
-                                onBlur={(event) =>
-                                  void saveWidgetSetting(
-                                    item.id,
-                                    field.key,
-                                    field.type === 'number'
-                                      ? Number(event.target.value)
-                                      : event.target.value
-                                  )
-                                }
-                              />
-                            )}
-                          </div>
-                        )
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              ))
-            ) : (
-              <p className="cz-note">{t(language, 'widgets.installedEmpty')}</p>
-            )}
-              </div>
-            </details>
           </>
         ) : null}
 
-        {tab === 'data' ? (
+        {!searching && section === 'data' ? (
           <>
             <p className="cz-group">{t(language, 'general.monitoring')}</p>
             <div className="cz-setrow cz-setrow--stack">
@@ -1574,7 +1765,7 @@ export function CustomizeSheet({
           </>
         ) : null}
 
-        {tab === 'general' ? (
+        {!searching && section === 'general' ? (
           <>
             <p className="cz-group">{t(language, 'general.interface')}</p>
             <div className="cz-setrow">
@@ -1604,7 +1795,7 @@ export function CustomizeSheet({
               onChange={onSettingsInWindowChange}
             />
 
-            <p className="cz-group">{t(language, 'behavior.system')}</p>
+            <p className="cz-group">{t(language, 'general.startupGroup')}</p>
             <Switch
               id="cz-autostart"
               label={t(language, 'behavior.startup')}
@@ -1613,7 +1804,14 @@ export function CustomizeSheet({
               onChange={onStartAtLoginChange}
             />
 
-            <p className="cz-group">{t(language, 'general.updates')}</p>
+            <p className="cz-group">{t(language, 'general.shortcutGroup')}</p>
+            <HotkeyRow hotkey={hotkey} language={language} onChange={onHotkeyChange} />
+          </>
+        ) : null}
+
+        {!searching && section === 'updates' ? (
+          <>
+            <p className="cz-group">{t(language, 'updates.app')}</p>
             <Switch
               id="cz-auto-update"
               label={t(language, 'general.autoUpdate')}
@@ -1639,6 +1837,81 @@ export function CustomizeSheet({
             </div>
             <p className="cz-note">{t(language, 'general.updateHint')}</p>
 
+            <p className="cz-group">{t(language, 'updates.components')}</p>
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'widgets.catalog')}</span>
+                <span className="cz-setrow__note">{t(language, 'widgets.catalogNote')}</span>
+              </div>
+              <button
+                className="cz-action"
+                type="button"
+                disabled={catalogBusy}
+                onClick={() => void loadCatalog(true)}
+              >
+                {catalogBusy ? '…' : t(language, 'widgets.catalogRefresh')}
+              </button>
+            </div>
+            {catalogUpdates.length ? (
+              catalogUpdates.map((update) => (
+                <div className="cz-setrow" key={update.id}>
+                  <div className="cz-setrow__copy">
+                    <span className="cz-setrow__name">
+                      {pickLocalized(update.name, language)}
+                    </span>
+                    <span className="cz-setrow__note">
+                      v{update.from} → v{update.to}
+                    </span>
+                  </div>
+                  <button
+                    className="cz-action"
+                    type="button"
+                    disabled={urlBusy || updating === update.id}
+                    onClick={() => void updateComponent(update)}
+                  >
+                    {updating === update.id ? '…' : t(language, 'widgets.update')}
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="cz-note">{t(language, 'updates.componentsEmpty')}</p>
+            )}
+            {catalogError ? <p className="cz-error">{catalogError}</p> : null}
+          </>
+        ) : null}
+
+        {!searching && section === 'advanced' ? (
+          <>
+            <p className="cz-group">{t(language, 'advanced.integration')}</p>
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'widgets.assoc')}</span>
+                <span className="cz-setrow__note">
+                  {t(language, associated ? 'widgets.assocOn' : 'widgets.assocOff')}
+                </span>
+              </div>
+              <button
+                className="cz-action"
+                type="button"
+                disabled={assocBusy}
+                onClick={() => void toggleAssociation()}
+              >
+                {assocBusy
+                  ? '…'
+                  : t(language, associated ? 'widgets.assocUnregister' : 'widgets.assocRegister')}
+              </button>
+            </div>
+
+            <p className="cz-group">{t(language, 'advanced.folders')}</p>
+            <UninstallSection language={language} part="data" />
+
+            <p className="cz-group">{t(language, 'advanced.danger')}</p>
+            <UninstallSection language={language} part="uninstall" />
+          </>
+        ) : null}
+
+        {!searching && section === 'about' ? (
+          <>
             <p className="cz-group">{t(language, 'general.about')}</p>
             <div className="cz-setrow">
               <div className="cz-setrow__copy">
@@ -1648,19 +1921,43 @@ export function CustomizeSheet({
               <span className="cz-version">{version || '0.1.0'}</span>
             </div>
 
-            <UninstallSection language={language} />
+            <p className="cz-group">{t(language, 'about.links')}</p>
+            <div className="cz-links">
+              <a
+                className="cz-link"
+                href="https://github.com/Enkrid-Rao/sill"
+                target="_blank"
+                rel="noreferrer"
+              >
+                GitHub
+              </a>
+              <a
+                className="cz-link"
+                href="https://github.com/Enkrid-Rao/sill-components"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Sill Components
+              </a>
+              <a
+                className="cz-link"
+                href="https://github.com/Enkrid-Rao/sill/blob/main/LICENSE"
+                target="_blank"
+                rel="noreferrer"
+              >
+                MIT License
+              </a>
+            </div>
+
+            <p className="cz-group">{t(language, 'about.credits')}</p>
+            <p className="cz-note">Open-Meteo · LRCLIB · Instrument Sans / Instrument Serif</p>
           </>
         ) : null}
       </div>
 
       <footer className="cz-foot">
         <span className="cz-dot" aria-hidden="true" />
-        {t(language, `footer.${tab}`)}
-        {tab === 'appearance' ? (
-          <button className="cz-reset" type="button" onClick={onReset}>
-            {t(language, 'footer.reset')}
-          </button>
-        ) : null}
+        {t(language, 'settings.saved')}
       </footer>
     </section>
   )

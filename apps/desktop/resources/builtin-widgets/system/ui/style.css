@@ -26,13 +26,6 @@
   text-transform: uppercase;
 }
 
-.sys__cores {
-  color: var(--ink-faint);
-  font-size: 9.5px;
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-}
-
 .sys__row {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -104,14 +97,9 @@
   letter-spacing: 0.12em;
 }
 
-:host([lang='zh']) .sys__cores,
 :host([lang='zh']) .sys__label,
 :host([lang='zh']) .sys__value {
   font-size: 12px;
-}
-
-:host([lang='zh']) .sys__cores {
-  font-size: 10.5px;
 }
 
 :host([lang='zh']) .sys__hint {

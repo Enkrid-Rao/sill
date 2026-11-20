@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "system",
   "name": "System",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "author": "Sill",
   "type": "template",
   "span": { "default": 1 },
@@ -15,7 +15,6 @@
   "strings": {
     "en": {
       "title": "SYSTEM",
-      "cores": "cores",
       "mem": "RAM",
       "gpu": "GPU",
       "net": "NETWORK",
@@ -24,7 +23,6 @@
     },
     "zh": {
       "title": "系统",
-      "cores": "核",
       "mem": "RAM",
       "gpu": "GPU",
       "net": "网络",
