@@ -25,7 +25,7 @@ export const PANEL_PRESETS: readonly PanelPreset[] = [
 export const PANEL_MIN_WIDTH = 320
 export const PANEL_MIN_HEIGHT = 420
 export const PANEL_MAX_WIDTH = 1180
-export const PANEL_MAX_HEIGHT = 2200
+export const PANEL_MAX_HEIGHT = 3200
 
 export function getPanelPreset(id: string | undefined): PanelPreset {
   return PANEL_PRESETS.find((preset) => preset.id === id) ?? PANEL_PRESETS[0]
@@ -89,7 +89,7 @@ function normalizeBox(value: unknown): WidgetBox | null {
   return {
     x: Math.max(0, Math.min(10000, Math.round(x))),
     y: Math.max(0, Math.min(10000, Math.round(y))),
-    w: Math.max(120, Math.min(4000, Math.round(w))),
+    w: Math.max(150, Math.min(4000, Math.round(w))),
     h: Math.max(48, Math.min(4000, Math.round(h)))
   }
 }

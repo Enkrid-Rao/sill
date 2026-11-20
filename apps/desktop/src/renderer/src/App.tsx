@@ -54,6 +54,55 @@ function SlidersIcon(): React.JSX.Element {
   )
 }
 
+function LayoutIcon(): React.JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+      <rect
+        x="2.2"
+        y="2.2"
+        width="4.8"
+        height="4.8"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="9"
+        y="2.2"
+        width="4.8"
+        height="4.8"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        opacity=".5"
+      />
+      <rect
+        x="2.2"
+        y="9"
+        width="4.8"
+        height="4.8"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        opacity=".5"
+      />
+      <rect
+        x="9"
+        y="9"
+        width="4.8"
+        height="4.8"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+    </svg>
+  )
+}
+
 export default function App(): React.JSX.Element {
   const registry = useWidgetRegistry()
   const settings = useSillSettings()
@@ -65,6 +114,7 @@ export default function App(): React.JSX.Element {
   const [todos, setTodos] = useState<TodoItem[]>([])
   const [tick, setTick] = useState(0)
   const [editing, setEditing] = useState(false)
+  const [guides, setGuides] = useState<{ x: number | null; y: number | null } | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [componentUpdates, setComponentUpdates] = useState(0)
   const [dismissedUpdate, setDismissedUpdate] = useState<string | null>(null)
@@ -271,6 +321,15 @@ export default function App(): React.JSX.Element {
     else setCustomizing(true)
   }, [settings.settingsInWindow])
 
+  useEffect(() => {
+    if (!editing) setGuides(null)
+  }, [editing])
+
+  const startLayoutEdit = useCallback((): void => {
+    setCustomizing(false)
+    setEditing(true)
+  }, [])
+
   // 托盘更新气泡点击后打开设置（主进程发 settings:open）
   useEffect(() => {
     const off = window.sill?.onOpenSettings(() => void openSettings())
@@ -346,7 +405,7 @@ export default function App(): React.JSX.Element {
       boxes[id] = {
         x: Math.max(0, Math.round(rect.left - base.left)),
         y: Math.max(0, Math.round(rect.top - base.top)),
-        w: Math.max(120, Math.round(rect.width)),
+        w: Math.max(150, Math.round(rect.width)),
         h: Math.max(48, Math.round(rect.height))
       }
       changed = true
@@ -472,9 +531,18 @@ export default function App(): React.JSX.Element {
             <div className="brand">
               <BrandMark />
               <span className="brand__word">sill</span>
+              <span className="chip chip--hotkey">{formatHotkey(settings.hotkey)}</span>
             </div>
             <div className="headtools">
-              <span className="chip">{formatHotkey(settings.hotkey)}</span>
+              <button
+                className="iconbtn"
+                type="button"
+                aria-label={t(settings.language, 'behavior.editLayout')}
+                title={t(settings.language, 'behavior.editLayout')}
+                onClick={startLayoutEdit}
+              >
+                <LayoutIcon />
+              </button>
               <button
                 className="iconbtn"
                 type="button"
@@ -510,6 +578,7 @@ export default function App(): React.JSX.Element {
                 onDragStart={setDragId}
                 onDragEnd={() => setDragId(null)}
                 onDrop={dropCard}
+                onGuides={setGuides}
               >
                 {definition.render(widgetContext)}
               </WidgetShell>
@@ -517,6 +586,16 @@ export default function App(): React.JSX.Element {
           })}
           {!visibleOrder.length ? (
             <div className="sheet__empty sub">{t(settings.language, 'widgets.empty')}</div>
+          ) : null}
+          {guides ? (
+            <div className="layout-guides" aria-hidden="true">
+              {guides.x != null ? (
+                <i className="layout-guide layout-guide--v" style={{ left: guides.x }} />
+              ) : null}
+              {guides.y != null ? (
+                <i className="layout-guide layout-guide--h" style={{ top: guides.y }} />
+              ) : null}
+            </div>
           ) : null}
         </div>
       </div>
@@ -612,10 +691,8 @@ export default function App(): React.JSX.Element {
           onCheckUpdate={settings.checkUpdate}
           onDownloadUpdate={settings.downloadUpdate}
           onInstallUpdate={settings.installUpdate}
-          onEditLayout={() => {
-            setCustomizing(false)
-            setEditing(true)
-          }}
+          onEditLayout={startLayoutEdit}
+          onResetLayout={() => void settings.resetLayout()}
           layoutMode={layout.mode}
           onLayoutModeChange={(mode) => settings.setLayout({ ...layout, mode })}
           widgets={settings.widgets}
@@ -634,4 +711,3 @@ export default function App(): React.JSX.Element {
     </div>
   )
 }
-

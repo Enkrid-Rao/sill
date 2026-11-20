@@ -203,7 +203,7 @@ async function boot(): Promise<void> {
 async function runSmoke(): Promise<void> {
   showPanel()
   // collector / 媒体控制各自启动一个 PowerShell，等第一帧真实数据再截图
-  await new Promise((resolve) => setTimeout(resolve, 4000))
+  await new Promise((resolve) => setTimeout(resolve, 6000))
   const win = getPanelWindow()
   if (!win) throw new Error('面板窗口没有创建')
   const image = await win.webContents.capturePage()

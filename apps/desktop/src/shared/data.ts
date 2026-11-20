@@ -34,11 +34,17 @@ export interface MediaSample {
   position: number
   duration: number
   app: string
+  /** 封面 data URL；当前 Windows SMTC 读取器暂未填充，留给后续官方接口 */
+  artwork?: string | null
+  /** 当前歌词行；由共享 lyrics provider 后续填充，组件自己不经过音乐 App 私有接口 */
+  lyricLine?: string | null
 }
 
 export interface PanelSnapshot {
   cpu: number
   cores: number
+  /** 约略 CPU 主频（GHz）；null = 系统没提供 */
+  cpuGhz?: number | null
   memPct: number
   /** GB */
   memUsed: number
@@ -61,6 +67,8 @@ export interface PanelSnapshot {
   gpuProcs: GpuProcessSample[]
   procs: ProcessSample[]
   media: MediaSample | null
+  /** 媒体样本最后一次到达的时间；0 / undefined = 还没拿到过（不是“没有播放”） */
+  mediaAt?: number
   weather: WeatherSnapshot | null
   /** 系统主音量 0–100；-1 = 还没读上来 */
   volume: number

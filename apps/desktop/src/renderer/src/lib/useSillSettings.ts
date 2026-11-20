@@ -349,7 +349,7 @@ export function useSillSettings(): SillSettingsController {
         PANEL_MIN_WIDTH,
         Math.min(PANEL_MAX_WIDTH, window.screen.availWidth - edgeGap * 2 - 16)
       ),
-      maxHeight: Math.max(PANEL_MIN_HEIGHT, window.screen.availHeight - 80)
+      maxHeight: Math.max(PANEL_MIN_HEIGHT, window.screen.availHeight - 32)
     }),
     [edgeGap]
   )

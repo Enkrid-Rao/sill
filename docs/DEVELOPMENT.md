@@ -170,11 +170,10 @@ Sill/
             │     └─ TodoWidget.tsx   待办列表、Open/Closed/All、编辑、撤销、原位收合
             ├─ widgets/
             │  ├─ types.ts            WidgetContext / WidgetDefinition
-            │  ├─ registry.tsx        WIDGETS + WIDGET_BY_ID
-            │  ├─ WidgetShell.tsx     网格落位、拖拽、跨列工具
+            │  ├─ registry.tsx        BUILTIN_WIDGETS（hero / media / shelf / todo）
+            │  ├─ WidgetShell.tsx     网格落位、拖拽、键盘移动 / 缩放、跨列工具
             │  ├─ HeroWidget.tsx      日期 / 时钟 / 真实天气 + WMO 图标
-            │  ├─ SystemWidget.tsx    CPU / 内存 / GPU / 网络
-            │  └─ ProcessesWidget.tsx TOP RAM / TOP GPU
+            │  └─ （system / processes 在 resources/builtin-widgets/ 里，是模板包）
             ├─ styles/
             │  ├─ panel.css     玻璃 token、8 套氛围配方、排版原子、卡片 / 缩放 / 动效
             │  └─ customize.css 主题表面的控件样式
@@ -528,10 +527,10 @@ Sill 主仓库只保留宿主实现（`WidgetShell`、`WIDGETS`、数据 provide
   真正过期的数据才显示 —。
 - `collector.ps1` 接受 `-IntervalMs`；网络计数先预热 250ms 再发首行，避免第一次输出 0 B/s；
   设置变更时 `refreshDataCadence()` 换节拍并重启采集。
-- `SystemWidget` 用 `useSmoothNumber` 对 CPU / 内存 / GPU / 网络做 560ms easeOutCubic 插值；
-  `prefers-reduced-motion` 下直接落值。柱宽和读数走同一份插值值。
+- `system` / `processes` 是模板包（`resources/builtin-widgets/`），数字、网络方向和空态由
+  各自的 `ui/main.js` 格式化；排版按卡片容器宽度缩放（`container-type: inline-size`）。
 - 相关：`shared/data.ts` 的 `MONITOR_INTERVALS` / `normalizeMonitorInterval`，
-  `main/data/index.ts`、`main/data/collector.ts`、`renderer/lib/useSmoothNumber.ts`。
+  `main/data/index.ts`、`main/data/collector.ts`、`resources/builtin-widgets/`。
 
 ### 6.25 卸载与用户数据（v0.5.4）
 
@@ -698,8 +697,8 @@ CLI 和安装器各自有一份校验逻辑，改规则时两边都要改；后�
    DEVPLAN 里写的 `com.sill.app` 是 AppUserModelId，两者不是一回事，**首次实跑后要核对并订正文档**。
 4. **托盘仍是「打开设置文件」**。面板内已有完整 Settings；托盘这一项保留给调试，M2 可换成直接打开设置页。
 5. **多屏只按鼠标所在屏计算**，未做每块屏的独立记忆；`panelOffsetY` 是全局值。
-6. **只有组件宿主，没有组件引擎**。hero/system/processes/media/todo 已全部走 `WIDGETS` 注册表，
-   但 registry 直接 import 组件、认识 `CardId`；IR / Validator / Compiler / Provider / 沙箱都还没写。
+6. **只有组件宿主，没有组件引擎**。hero/media/shelf/todo 走 React 注册表，system/processes 走
+   随应用发布的模板包；宿主认识 `CardId`，但 IR / Validator / Compiler / Provider / 沙箱都还没写。
    下一步是 `packages/engine`，别把宿主当引擎；组件契约在
    [Sill-Components](https://github.com/Enkrid-Rao/sill-components)。
 7. **设置窗口是固定尺寸、不可缩放**（≤760×820）。面板本身可自由缩放；设置窗口只在工作区太小时

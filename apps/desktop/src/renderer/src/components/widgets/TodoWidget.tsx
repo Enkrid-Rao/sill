@@ -60,8 +60,9 @@ export function TodoWidget({
   const itemsRef = useRef(items)
   const addRef = useRef<HTMLInputElement>(null)
   const editRef = useRef<HTMLInputElement>(null)
+  const undoRef = useRef<HTMLButtonElement>(null)
   const editSettled = useRef(false)
-  const timers = useRef<number[]>([])
+  const timers = useRef<Set<number>>(new Set())
   const undoTimer = useRef<number | null>(null)
 
   useEffect(() => {
@@ -96,28 +97,32 @@ export function TodoWidget({
   useEffect(
     () => () => {
       timers.current.forEach((id) => window.clearTimeout(id))
+      timers.current.clear()
       if (undoTimer.current) window.clearTimeout(undoTimer.current)
       void window.sill?.setTyping(false)
     },
     []
   )
 
-  const remember = (timer: number): void => {
-    timers.current.push(timer)
+  /** 统一登记短定时器：回调自己从集合里删掉，不会越积越多。 */
+  const later = (fn: () => void, ms: number): void => {
+    const id = window.setTimeout(() => {
+      timers.current.delete(id)
+      fn()
+    }, ms)
+    timers.current.add(id)
   }
 
   const hideLater = (id: string): void => {
     setHeld((current) => new Set(current).add(id))
-    remember(
-      window.setTimeout(() => {
-        setHeld((current) => {
-          if (!current.has(id)) return current
-          const next = new Set(current)
-          next.delete(id)
-          return next
-        })
-      }, FILTER_HOLD_MS)
-    )
+    later(() => {
+      setHeld((current) => {
+        if (!current.has(id)) return current
+        const next = new Set(current)
+        next.delete(id)
+        return next
+      })
+    }, FILTER_HOLD_MS)
   }
 
   const isHidden = (item: TodoItem): boolean => {
@@ -129,6 +134,7 @@ export function TodoWidget({
 
   const changeFilter = (next: Filter): void => {
     if (next === filter) return
+    if (editingId) finishEdit(true)
     editSettled.current = true
     setFilter(next)
     setHeld(new Set())
@@ -146,6 +152,7 @@ export function TodoWidget({
     if (leaving.has(id)) return
     const target = items.find((item) => item.id === id)
     if (!target) return
+    const previous = items
     const nextDone = !target.done
     setItems((current) =>
       current.map((item) => (item.id === id ? { ...item, done: nextDone } : item))
@@ -166,18 +173,32 @@ export function TodoWidget({
     // 只有勾上时才放 ripple；取消勾选是安静地退回未完成
     if (nextDone) {
       setJustChecked((current) => new Set(current).add(id))
-      remember(
-        window.setTimeout(() => {
-          setJustChecked((current) => {
-            if (!current.has(id)) return current
-            const next = new Set(current)
-            next.delete(id)
-            return next
-          })
-        }, RIPPLE_MS)
-      )
+      later(() => {
+        setJustChecked((current) => {
+          if (!current.has(id)) return current
+          const next = new Set(current)
+          next.delete(id)
+          return next
+        })
+      }, RIPPLE_MS)
     }
-    void onToggle(id)
+
+    // 主进程失败时回到点击前的列表，不把「已勾选」留在界面上
+    void onToggle(id).catch(() => {
+      setItems(previous)
+      setHeld((current) => {
+        if (!current.has(id)) return current
+        const next = new Set(current)
+        next.delete(id)
+        return next
+      })
+      setJustChecked((current) => {
+        if (!current.has(id)) return current
+        const next = new Set(current)
+        next.delete(id)
+        return next
+      })
+    })
   }
 
   const remove = (id: string): void => {
@@ -191,39 +212,49 @@ export function TodoWidget({
       editSettled.current = true
       setEditingId(null)
     }
-    remember(
-      window.setTimeout(() => {
-        // 先让行高收合、内容横移淡出，再交给主进程删除
-        void onRemove(id)
-          .then(() => {
-            clearUndoTimer()
-            setUndo({ item: target, index })
-            undoTimer.current = window.setTimeout(() => setUndo(null), UNDO_MS)
-          })
-          .catch(() => {
-            // 失败兜底：条目还在本地列表里就别让它一直保持收合态
-            remember(
-              window.setTimeout(() => {
-                if (!itemsRef.current.some((item) => item.id === id)) return
-                setLeaving((current) => {
-                  if (!current.has(id)) return current
-                  const next = new Set(current)
-                  next.delete(id)
-                  return next
-                })
-              }, 420)
-            )
-          })
-      }, LEAVE_MS)
-    )
+    later(() => {
+      // 先让行高收合、内容横移淡出，再交给主进程删除
+      void onRemove(id)
+        .then(() => {
+          clearUndoTimer()
+          setUndo({ item: target, index })
+          undoTimer.current = window.setTimeout(() => {
+            const active = document.activeElement
+            const hadFocus =
+              undoRef.current && active instanceof Node && undoRef.current.contains(active)
+            setUndo(null)
+            if (hadFocus) addRef.current?.focus({ preventScroll: true })
+          }, UNDO_MS)
+        })
+        .catch(() => {
+          // 失败兜底：条目还在本地列表里就别让它一直保持收合态
+          later(() => {
+            if (!itemsRef.current.some((item) => item.id === id)) return
+            setLeaving((current) => {
+              if (!current.has(id)) return current
+              const next = new Set(current)
+              next.delete(id)
+              return next
+            })
+          }, 420)
+        })
+    }, LEAVE_MS)
   }
+
+  // 撤销条出现时把焦点交给「撤销」，键盘用户不用重新 Tab 一遍
+  useEffect(() => {
+    if (undo) undoRef.current?.focus({ preventScroll: true })
+  }, [undo])
 
   const undoRemove = (): void => {
     if (!undo) return
     const target = undo
     clearUndoTimer()
     setUndo(null)
-    void onRestore(target.item, target.index)
+    void onRestore(target.item, target.index).then(
+      () => addRef.current?.focus({ preventScroll: true }),
+      () => addRef.current?.focus({ preventScroll: true })
+    )
   }
 
   const submit = (event: React.FormEvent<HTMLFormElement>): void => {
@@ -234,11 +265,15 @@ export function TodoWidget({
     // LiquidGlassTodo 在 Closed 下新增会切回 Open；Sill 也保持一致
     if (filter === 'closed') changeFilter('open')
     addRef.current?.focus({ preventScroll: true })
-    void onAdd(text)
+    void onAdd(text).catch(() => {
+      // 写入失败：把文字还给输入框，别让用户白打一遍
+      setDraft((current) => (current ? current : text))
+      addRef.current?.focus({ preventScroll: true })
+    })
   }
 
   const startEdit = (item: TodoItem): void => {
-    if (editingId) return
+    if (editingId) finishEdit(true)
     editSettled.current = false
     setEditingId(item.id)
     setEditDraft(item.text)
@@ -253,8 +288,13 @@ export function TodoWidget({
     if (!commit || !text) return
     const target = itemsRef.current.find((item) => item.id === id)
     if (!target || target.text === text) return
+    const previousText = target.text
     setItems((current) => current.map((item) => (item.id === id ? { ...item, text } : item)))
-    void onUpdate(id, text)
+    void onUpdate(id, text).catch(() => {
+      setItems((current) =>
+        current.map((item) => (item.id === id ? { ...item, text: previousText } : item))
+      )
+    })
   }
 
   // 面板的 Esc 是全局快捷键，输入框聚焦时主进程会把 Esc 交回这里取消输入
@@ -311,7 +351,7 @@ export function TodoWidget({
         </div>
       </div>
 
-      <div className="tasks" aria-live="polite">
+      <div className="tasks">
         {items.map((item) => {
           const hidden = isHidden(item)
           const editing = editingId === item.id
@@ -353,7 +393,9 @@ export function TodoWidget({
                         />
                       </svg>
                     </span>
-                    <span className="task__text">{item.text}</span>
+                    <span className="task__text" title={item.text}>
+                      {item.text}
+                    </span>
                   </button>
                   {editing ? (
                     <input
@@ -430,6 +472,7 @@ export function TodoWidget({
           ref={addRef}
           className="addrow__input"
           value={draft}
+          maxLength={200}
           onChange={(event) => setDraft(event.currentTarget.value)}
           onFocus={() => void window.sill?.setTyping(true)}
           onBlur={() => void window.sill?.setTyping(false)}
@@ -454,7 +497,7 @@ export function TodoWidget({
       {undo ? (
         <div className="todo-toast" role="status" aria-live="polite">
           <span className="todo-toast__msg">{t(language, 'todo.removed')}</span>
-          <button className="todo-toast__undo" type="button" onClick={undoRemove}>
+          <button ref={undoRef} className="todo-toast__undo" type="button" onClick={undoRemove}>
             {t(language, 'todo.undo')}
           </button>
         </div>

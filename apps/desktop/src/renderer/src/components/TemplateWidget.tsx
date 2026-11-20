@@ -306,6 +306,12 @@ function renderWidgetError(root: ShadowRoot, id: string, error: unknown): void {
 
 export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
+  // 只有读时间的模板才需要每秒重新绑定；system/processes 这类只看快照的模板
+  // 不应该被 1s 的时钟拖着跑一遍 getComputedStyle 和全部绑定。
+  const clockKey =
+    widget.data.some((item) => item.source === 'time.now' || item.source === 'host.state')
+      ? context.now.getTime()
+      : 0
   const clickBound = useRef(false)
   const contextRef = useRef(context)
   const dataRef = useRef<Record<string, unknown>>({})
@@ -342,6 +348,9 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
     const style = document.createElement('style')
     style.textContent = `:host{display:block;color:var(--ink);font-family:var(--sans)}[hidden]{display:none!important}${rewriteCss(widget.css, widget.id)}`
     root.replaceChildren(style)
+    // 模板挂在 Shadow DOM 里，:root[lang='zh'] 那套中文排版覆盖进不来；
+    // 把语言放到 host 上，模板可以用 :host([lang='zh']) 自己接。
+    element.setAttribute('lang', contextRef.current.language)
     // 用 innerHTML 解析 HTML：<script> 仍然不会执行，想写 JS 请放 ui/main.js。
     const holder = document.createElement('div')
     holder.innerHTML = widget.html
@@ -461,6 +470,8 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
   useLayoutEffect(() => {
     const root = host.current?.shadowRoot
     if (!root) return
+    // 语言切换时同步 host 的 lang，模板里的 :host([lang='zh']) 才会跟着变
+    if (host.current) host.current.setAttribute('lang', context.language)
     const data = buildProviderData(widget.data, context)
     const scopes: Scopes = new WeakMap()
     dataRef.current = data
@@ -477,7 +488,7 @@ export function TemplateWidget({ widget, context }: Props): React.JSX.Element {
     })
   }, [
     widget,
-    context.now,
+    clockKey,
     context.snapshot,
     context.todos,
     context.mediaPosition,

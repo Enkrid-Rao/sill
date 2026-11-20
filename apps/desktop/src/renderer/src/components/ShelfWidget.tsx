@@ -9,14 +9,24 @@ interface Props {
 /** 快捷方式收纳盒：添加 / 打开 / 删除，支持把文件或文件夹直接拖进来。 */
 export function ShelfWidget({ language }: Props): React.JSX.Element {
   const [items, setItems] = useState<ShelfShortcut[]>([])
+  const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [dragging, setDragging] = useState(false)
 
   useEffect(() => {
     let alive = true
-    void window.sill?.listShelf().then((next) => {
-      if (alive && next) setItems(next)
-    })
+    const request = window.sill?.listShelf()
+    if (!request) {
+      setLoaded(true)
+      return
+    }
+    void request
+      .then((next) => {
+        if (alive && next) setItems(next)
+      })
+      .finally(() => {
+        if (alive) setLoaded(true)
+      })
     return () => {
       alive = false
     }
@@ -25,14 +35,21 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
   const add = async (): Promise<void> => {
     if (busy) return
     setBusy(true)
-    const next = await window.sill?.addShelf()
-    setBusy(false)
-    if (next) setItems(next)
+    try {
+      const next = await window.sill?.addShelf()
+      if (next) setItems(next)
+    } finally {
+      setBusy(false)
+    }
   }
 
   const remove = async (id: string): Promise<void> => {
-    const next = await window.sill?.removeShelf(id)
-    if (next) setItems(next)
+    try {
+      const next = await window.sill?.removeShelf(id)
+      if (next) setItems(next)
+    } catch {
+      // 删除失败：保留当前图标，不把界面锁在 busy 上
+    }
   }
 
   const drop = async (event: DragEvent<HTMLDivElement>): Promise<void> => {
@@ -45,9 +62,12 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
       .filter((path): path is string => Boolean(path))
     if (!paths.length) return
     setBusy(true)
-    const next = await window.sill?.addShelfPaths(paths)
-    setBusy(false)
-    if (next) setItems(next)
+    try {
+      const next = await window.sill?.addShelfPaths(paths)
+      if (next) setItems(next)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -70,18 +90,30 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
       }}
       onDrop={(event) => void drop(event)}
     >
-      <button
-        className="shelf__add shelf__add--corner"
-        type="button"
-        aria-label={t(language, 'shelf.add')}
-        title={t(language, 'shelf.add')}
-        onClick={() => void add()}
-        disabled={busy}
-      >
-        +
-      </button>
+      <div className="shelf__head">
+        <span className="cap">{t(language, 'shelf.title')}</span>
+        <span className="shelf__meta">
+          {items.length ? (
+            <span className="shelf__count" aria-label={String(items.length)}>
+              {items.length}
+            </span>
+          ) : null}
+          <button
+            className="shelf__add"
+            type="button"
+            aria-label={t(language, 'shelf.add')}
+            title={t(language, 'shelf.add')}
+            onClick={() => void add()}
+            disabled={busy || !loaded}
+          >
+            +
+          </button>
+        </span>
+      </div>
 
-      {items.length ? (
+      {!loaded ? (
+        <div className="shelf__loading" aria-hidden="true" />
+      ) : items.length ? (
         <div className="shelf__grid">
           {items.map((item) => (
             <div className="shelf__item" key={item.id}>

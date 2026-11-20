@@ -30,6 +30,10 @@ function mediaValue(context: ProviderContext): Record<string, unknown> {
     position: context.mediaPosition,
     progress: context.mediaProgress,
     duration: media?.duration ?? 0,
+    artwork: media?.artwork ?? null,
+    lyricLine: media?.lyricLine ?? null,
+    /** 媒体样本到达时间；歌词据此补偿采样/传输延迟 */
+    sampledAt: context.snapshot?.mediaAt ?? context.snapshot?.at ?? 0,
     volume: context.snapshot?.volume ?? -1,
     muted: context.snapshot?.muted ?? false
   }
@@ -93,7 +97,11 @@ function providerValue(source: string, context: ProviderContext): unknown {
         weather: weatherValue(context)
       }
     case 'system.cpu':
-      return { usage: snapshot?.cpu ?? null, cores: snapshot?.cores ?? null }
+      return {
+        usage: snapshot?.cpu ?? null,
+        cores: snapshot?.cores ?? null,
+        speedGhz: snapshot?.cpuGhz ?? null
+      }
     case 'system.memory':
       return {
         percent: snapshot?.memPct ?? null,

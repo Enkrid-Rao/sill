@@ -52,8 +52,28 @@ function displayName(path: string): string {
   return name
 }
 
-export function listShelf(): ShelfShortcut[] {
-  return load()
+export async function listShelf(): Promise<ShelfShortcut[]> {
+  const items = load()
+  let changed = false
+  for (const item of items) {
+    if (item.icon || !existsSync(item.path)) continue
+    const icon = await readIcon(item.path)
+    if (icon) {
+      item.icon = icon
+      changed = true
+    }
+  }
+  if (changed) persist(items)
+  return items
+}
+
+async function readIcon(path: string): Promise<string | null> {
+  try {
+    const image = await app.getFileIcon(path, { size: 'normal' })
+    return image.isEmpty() ? null : image.toDataURL()
+  } catch {
+    return null
+  }
 }
 
 export async function addShelfPaths(paths: readonly string[]): Promise<ShelfShortcut[]> {
@@ -67,13 +87,7 @@ export async function addShelfPaths(paths: readonly string[]): Promise<ShelfShor
       continue
     }
     if (current.some((item) => item.path === path)) continue
-    let icon: string | null = null
-    try {
-      const image = await app.getFileIcon(path, { size: 'normal' })
-      icon = image.isEmpty() ? null : image.toDataURL()
-    } catch {
-      icon = null
-    }
+    const icon = await readIcon(path)
     current.push({ id: randomUUID(), name: displayName(path), path, icon })
   }
   cache = current

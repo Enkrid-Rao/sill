@@ -32,10 +32,14 @@ try {
 
 $hasNvidia = $null -ne (Get-Command nvidia-smi -ErrorAction SilentlyContinue)
 $gpuProcs = @()
-$gpuProcAt = [datetime]::MinValue
 $lastGpu = $null
 $lastGpuMem = $null
 $lastGpuTotal = $null
+$gpuAt = [datetime]::MinValue
+$lastProcs = @()
+$procsAt = [datetime]::MinValue
+$lastMedia = $null
+$mediaAt = [datetime]::MinValue
 $swapUsedMb = $null
 $swapTotalMb = $null
 $swapAt = [datetime]::MinValue
@@ -55,6 +59,7 @@ $prevAt = Get-Date
 Start-Sleep -Milliseconds 250
 
 while ($true) {
+  $loopStart = Get-Date
   $now = Get-Date
   $dt = ($now - $prevAt).TotalSeconds
 
@@ -74,42 +79,42 @@ while ($true) {
   $prevTx = $tx
   $prevAt = $now
 
+  # 进程列表是这一轮里最贵的采样（Get-Process + 分组），5s 一次足够；
+  # 其余轮次复用上一份，避免 1s/2s 档位把循环拖长。
   $systemProcs = @('Memory Compression', 'System', 'Registry', 'Secure System', 'Idle', 'vmmem', 'vmmemWSL')
-  $procs = @(Get-Process |
-    Where-Object { $systemProcs -notcontains $_.ProcessName } |
-    Group-Object ProcessName |
-    ForEach-Object {
-      [pscustomobject]@{
-        name = $_.Name
-        mb   = [math]::Round((($_.Group | Measure-Object WorkingSet64 -Sum).Sum) / 1MB, 1)
-      }
-    } |
-    Sort-Object mb -Descending |
-    Select-Object -First 3)
+  if (($now - $procsAt).TotalSeconds -ge 5) {
+    $procsAt = $now
+    $sampled = @(Get-Process |
+      Where-Object { $systemProcs -notcontains $_.ProcessName } |
+      Group-Object ProcessName |
+      ForEach-Object {
+        [pscustomobject]@{
+          name = $_.Name
+          mb   = [math]::Round((($_.Group | Measure-Object WorkingSet64 -Sum).Sum) / 1MB, 1)
+        }
+      } |
+      Sort-Object mb -Descending |
+      Select-Object -First 3)
+    if ($sampled.Count -gt 0) { $lastProcs = $sampled }
+  }
+  $procs = $lastProcs
 
-  $gpu = $null
-  $gpuMem = $null
-  $gpuTotal = $null
-  if ($hasNvidia) {
+  # GPU 利用率/显存 3s 一次；没有 nvidia-smi 或读不到时保留上一份。
+  if ($hasNvidia -and ($now - $gpuAt).TotalSeconds -ge 3) {
+    $gpuAt = $now
     $line = @(& nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits 2>$null | Select-Object -First 1)
     if ($line.Count -gt 0 -and $line[0]) {
       $parts = "$($line[0])".Split(',')
       if ($parts.Count -ge 3) {
-        $gpu = [int]($parts[0].Trim())
-        $gpuMem = [int]($parts[1].Trim())
-        $gpuTotal = [int]($parts[2].Trim())
+        $lastGpu = [int]($parts[0].Trim())
+        $lastGpuMem = [int]($parts[1].Trim())
+        $lastGpuTotal = [int]($parts[2].Trim())
       }
     }
   }
-  if ($null -ne $gpu) {
-    $lastGpu = $gpu
-    $lastGpuMem = $gpuMem
-    $lastGpuTotal = $gpuTotal
-  } elseif ($null -ne $lastGpu) {
-    $gpu = $lastGpu
-    $gpuMem = $lastGpuMem
-    $gpuTotal = $lastGpuTotal
-  }
+  $gpu = $lastGpu
+  $gpuMem = $lastGpuMem
+  $gpuTotal = $lastGpuTotal
 
   $loop += 1
   # Virtual memory / commit charge (physical + page file); cache for 10s.
@@ -125,25 +130,32 @@ while ($true) {
       }
     }
   }
-  $media = $null
-  if ($null -ne $manager) {
-    try {
-      $session = $manager.GetCurrentSession()
-      if ($null -ne $session) {
-        $props = Await ($session.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
-        $timeline = $session.GetTimelineProperties()
-        $playback = $session.GetPlaybackInfo()
-        $media = [pscustomobject]@{
-          title    = $props.Title
-          artist   = $props.Artist
-          album    = $props.AlbumTitle
-          status   = $playback.PlaybackStatus.ToString()
-          position = [math]::Round($timeline.Position.TotalSeconds, 1)
-          duration = [math]::Round($timeline.EndTime.TotalSeconds, 1)
-          app      = $session.SourceAppUserModelId
+  # SMTC 查询也做 2s 节流：位置由渲染进程按 snapshot.at 插值，
+  # 不需要 1s 档位每轮都走一遍 WinRT。
+  $media = $lastMedia
+  if (($now - $mediaAt).TotalSeconds -ge 2) {
+    $mediaAt = $now
+    $media = $null
+    if ($null -ne $manager) {
+      try {
+        $session = $manager.GetCurrentSession()
+        if ($null -ne $session) {
+          $props = Await ($session.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
+          $timeline = $session.GetTimelineProperties()
+          $playback = $session.GetPlaybackInfo()
+          $media = [pscustomobject]@{
+            title    = $props.Title
+            artist   = $props.Artist
+            album    = $props.AlbumTitle
+            status   = $playback.PlaybackStatus.ToString()
+            position = [math]::Round($timeline.Position.TotalSeconds, 1)
+            duration = [math]::Round($timeline.EndTime.TotalSeconds, 1)
+            app      = $session.SourceAppUserModelId
+          }
         }
-      }
-    } catch { }
+      } catch { }
+    }
+    $lastMedia = $media
   }
 
   [pscustomobject]@{
@@ -160,36 +172,10 @@ while ($true) {
   } | ConvertTo-Json -Compress -Depth 4
 
   [Console]::Out.Flush()
-  # GPU process counters are expensive (~2-3s); sample every 15s and cache.
-  if (($now - $gpuProcAt).TotalSeconds -ge 15) {
-    $gpuProcAt = $now
-    $byPid = @{}
-    $samples = @((Get-Counter '\GPU Engine(*)\Utilization Percentage' -ErrorAction SilentlyContinue).CounterSamples)
-    foreach ($sample in $samples) {
-      if ($sample.CookedValue -le 0) { continue }
-      if ($sample.InstanceName -match '^pid_(\d+)_') {
-        $procId = [int]$Matches[1]
-        $byPid[$procId] = [double]$byPid[$procId] + [double]$sample.CookedValue
-      }
-    }
 
-    $resolved = @()
-    foreach ($key in $byPid.Keys) {
-      $process = Get-Process -Id $key -ErrorAction SilentlyContinue
-      if ($null -ne $process) {
-        $resolved += [pscustomobject]@{ name = $process.ProcessName; pct = [double]$byPid[$key] }
-      }
-    }
-
-    $list = @()
-    foreach ($group in @($resolved | Group-Object name)) {
-      $sum = [double]($group.Group | Measure-Object pct -Sum).Sum
-      $list += [pscustomobject]@{ name = $group.Name; pct = [int][math]::Min(100, [math]::Round($sum)) }
-    }
-    $gpuProcs = @($list | Sort-Object pct -Descending | Select-Object -First 3)
-  }
-
-  Start-Sleep -Milliseconds $IntervalMs
+  $elapsedMs = ((Get-Date) - $loopStart).TotalMilliseconds
+  $sleepMs = [math]::Max(50, $IntervalMs - [int]$elapsedMs)
+  Start-Sleep -Milliseconds $sleepMs
 }
 
 

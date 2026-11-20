@@ -2,6 +2,7 @@ import type { PanelSnapshot } from '../../shared/data'
 import { loadSettings } from '../settings'
 import { getCollected, startCollector } from './collector'
 import { getMediaControlState, startMediaControl, stopMediaControl } from './media-control'
+import { getMediaLyricLine } from './lyrics'
 import { resetCpu, sampleSystem } from './system'
 import { getWeather, startWeather, stopWeather } from '../weather'
 
@@ -18,6 +19,7 @@ let intervalMs = 2000
 let snapshot: PanelSnapshot = {
   cpu: 0,
   cores: 0,
+  cpuGhz: null,
   memPct: 0,
   memUsed: 0,
   memTotal: 0,
@@ -32,6 +34,7 @@ let snapshot: PanelSnapshot = {
   gpuProcs: [],
   procs: [],
   media: null,
+  mediaAt: 0,
   weather: null,
   volume: -1,
   muted: false,
@@ -48,19 +51,28 @@ function tick(): void {
       : null
   const swapUsed = extra?.swapUsedMb == null ? null : extra.swapUsedMb / 1024
   const swapTotal = extra?.swapTotalMb == null ? null : extra.swapTotalMb / 1024
+  const media = extra ? extra.media : snapshot.media
+  const mediaAt = extra ? extra.sampledAt : (snapshot.mediaAt ?? 0)
+  const mediaWithLyric = media
+    ? { ...media, lyricLine: getMediaLyricLine(media, Date.now(), mediaAt) }
+    : null
   const next: PanelSnapshot = {
     ...system,
-    down: extra?.down ?? 0,
-    up: extra?.up ?? 0,
+    cpuGhz: system.speedGhz,
+    // 采集缺一帧时保留上一帧的值；只有拿到新鲜样本时才覆盖。
+    // 这样“偶尔漏采”不会把已经显示出来的进程 / 网络 / 媒体卡清空。
+    down: extra ? extra.down : snapshot.down,
+    up: extra ? extra.up : snapshot.up,
     gpu: extra?.gpu ?? snapshot.gpu,
     gpuMem: extra?.gpuMem ?? snapshot.gpuMem,
     gpuTotal: extra?.gpuTotal ?? snapshot.gpuTotal,
-    gpuProcs: extra?.gpuProcs ?? [],
+    gpuProcs: extra ? extra.gpuProcs : snapshot.gpuProcs,
     swapPct: swapPct ?? snapshot.swapPct,
     swapUsed: swapUsed ?? snapshot.swapUsed,
     swapTotal: swapTotal ?? snapshot.swapTotal,
-    procs: extra?.procs ?? [],
-    media: extra?.media ?? null,
+    procs: extra ? extra.procs : snapshot.procs,
+    media: mediaWithLyric,
+    mediaAt,
     weather: getWeather(),
     volume: control.volume,
     muted: control.muted,
@@ -77,6 +89,10 @@ function tick(): void {
 export function startData(onSnapshot?: SnapshotListener): void {
   if (onSnapshot) listener = onSnapshot
   const nextInterval = loadSettings().monitorIntervalMs
+
+  // 唤出面板时先把上一帧推给渲染进程：哪怕 collector 正在重启，
+  // 卡片也先显示缓存，而不是从“正在采样…”重新开始。
+  if (snapshot.at > 0) listener?.(getSnapshot())
 
   if (timer) {
     if (nextInterval !== intervalMs) {

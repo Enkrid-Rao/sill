@@ -2,16 +2,24 @@
   "schema": 1,
   "id": "processes",
   "name": "Processes",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Sill",
   "type": "template",
   "span": { "default": 1 },
   "data": [{ "id": "proc", "source": "system.processes" }],
   "strings": {
-    "en": { "title": "RAM", "label": "RAM", "gpuTitle": "GPU", "gpu": "GPU MEMORY", "sampling": "Sampling…" },
-    "zh": { "title": "RAM 占用", "label": "RAM", "gpuTitle": "GPU", "gpu": "GPU 显存", "sampling": "正在采样…" }
+    "en": {
+      "title": "TOP RAM",
+      "gpuTitle": "GPU",
+      "sampling": "Sampling…",
+      "empty": "No process data yet"
+    },
+    "zh": {
+      "title": "内存占用",
+      "gpuTitle": "GPU",
+      "sampling": "正在采样…",
+      "empty": "还没有进程数据"
+    }
   },
   "ui": "ui/index.html"
 }
-
-
