@@ -106,6 +106,9 @@ pnpm sill pack .\clock -o clock.sill
 
 ## 建议顺序
 
+> 2026-11-20 起的发布与生态战略（含验收标准、风险与判断依据）见
+> [RELEASE-STRATEGY.md](RELEASE-STRATEGY.md)；下面是旧的最小行动清单。
+
 1. 后台自动检查更新 + 目录托管 / 审核流水线。
 3. 把 system / processes 迁到模板，验证模板能力足够。
 4. 签名 / 哈希。
