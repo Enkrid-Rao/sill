@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import type { MediaSample, ProcessSample } from '../../shared/data'
+import type { GpuProcessSample, MediaSample, ProcessSample } from '../../shared/data'
 import { RESOURCES_DIR } from '../paths'
 
 /** collector.ps1 按当前监测间隔输出的一行 JSON */
@@ -11,6 +11,9 @@ export interface CollectedSample {
   gpu: number | null
   gpuMem: number | null
   gpuTotal: number | null
+  gpuProcs: GpuProcessSample[]
+  swapUsedMb: number | null
+  swapTotalMb: number | null
   procs: ProcessSample[]
   media: MediaSample | null
 }
@@ -31,6 +34,18 @@ function normalizeProcs(raw: unknown): ProcessSample[] {
       mb: Number(item.mb) || 0
     }))
     .filter((item) => item.name)
+}
+
+function normalizeGpuProcs(raw: unknown): GpuProcessSample[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+    .map((item) => ({
+      name: String(item.name ?? ''),
+      pct: Math.max(0, Math.min(100, Math.round(Number(item.pct) || 0)))
+    }))
+    .filter((item) => item.name && item.pct > 0)
+    .slice(0, 3)
 }
 
 function normalizeMedia(raw: unknown): MediaSample | null {
@@ -81,6 +96,9 @@ function spawnCollector(): void {
           gpu: raw.gpu == null ? null : Number(raw.gpu),
           gpuMem: raw.gpuMem == null ? null : Number(raw.gpuMem),
           gpuTotal: raw.gpuTotal == null ? null : Number(raw.gpuTotal),
+          gpuProcs: normalizeGpuProcs(raw.gpuProcs),
+          swapUsedMb: raw.swapUsedMb == null ? null : Number(raw.swapUsedMb),
+          swapTotalMb: raw.swapTotalMb == null ? null : Number(raw.swapTotalMb),
           procs: normalizeProcs(raw.procs),
           media: normalizeMedia(raw.media)
         }
@@ -140,3 +158,9 @@ export function getCollected(): CollectedSample | null {
   if (Date.now() - latestAt > Math.max(intervalMs * 2, 4000)) return null
   return latest
 }
+
+
+
+
+
+

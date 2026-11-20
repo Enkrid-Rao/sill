@@ -191,14 +191,7 @@ export function MediaWidget({
   }
 
   if (!media) {
-    return (
-      <>
-        <div className="row" style={{ marginBottom: 11 }}>
-          <span className="cap">{t(language, 'media.nowPlaying')}</span>
-        </div>
-        <div className="media__empty sub">{t(language, 'media.nothing')}</div>
-      </>
-    )
+    return <div className="media__empty sub">{t(language, 'media.nothing')}</div>
   }
 
   const artist = [media.artist, media.album].filter(Boolean).join(' · ') || media.app
@@ -206,9 +199,6 @@ export function MediaWidget({
 
   return (
     <>
-      <div className="row" style={{ marginBottom: 11 }}>
-        <span className="cap">{t(language, 'media.nowPlaying')}</span>
-      </div>
       <div className="media" data-playing={playing}>
         <div className="media__now">
           <span className="cover" data-playing={playing} aria-hidden="true">

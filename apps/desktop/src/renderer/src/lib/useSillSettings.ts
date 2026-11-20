@@ -12,6 +12,7 @@ import {
   type PanelLayout
 } from '../../../shared/layout'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../../../shared/theme'
+import type { WeatherCustomLocation } from '../../../shared/weather'
 import type { UpdateState } from '../../../shared/update'
 import { useWidgetRegistry } from '../widgets/WidgetRegistryProvider'
 import { applyTheme } from './theme'
@@ -30,6 +31,7 @@ export interface SillSettingsController {
   autoUpdate: boolean
   settingsInWindow: boolean
   weatherLocation: string
+  weatherCustom: WeatherCustomLocation | null
   monitorIntervalMs: number
   version: string
   update: UpdateState
@@ -54,6 +56,7 @@ export interface SillSettingsController {
   changeAutoUpdate: (value: boolean) => void
   changeSettingsInWindow: (value: boolean) => void
   changeWeatherLocation: (value: string) => void
+  changeWeatherCustom: (value: WeatherCustomLocation | null) => void
   changeMonitorIntervalMs: (value: number) => void
   checkUpdate: () => void
   downloadUpdate: () => void
@@ -83,6 +86,7 @@ export function useSillSettings(): SillSettingsController {
   const [autoUpdate, setAutoUpdate] = useState(true)
   const [settingsInWindow, setSettingsInWindow] = useState(false)
   const [weatherLocation, setWeatherLocation] = useState('auto')
+  const [weatherCustom, setWeatherCustom] = useState<WeatherCustomLocation | null>(null)
   const [monitorIntervalMs, setMonitorIntervalMs] = useState(2000)
   const [version, setVersion] = useState('')
   const [update, setUpdate] = useState<UpdateState>(EMPTY_UPDATE)
@@ -104,6 +108,7 @@ export function useSillSettings(): SillSettingsController {
     setAutoUpdate(next.autoUpdate)
     setSettingsInWindow(next.settingsInWindow)
     setWeatherLocation(next.weatherLocation)
+    setWeatherCustom(next.weatherCustom ?? null)
     setMonitorIntervalMs(next.monitorIntervalMs)
   }, [])
 
@@ -282,7 +287,13 @@ export function useSillSettings(): SillSettingsController {
 
   const changeWeatherLocation = useCallback((value: string) => {
     setWeatherLocation(value)
-    void window.sill?.updateSettings({ weatherLocation: value })
+    setWeatherCustom(null)
+    void window.sill?.updateSettings({ weatherLocation: value, weatherCustom: null })
+  }, [])
+
+  const changeWeatherCustom = useCallback((value: WeatherCustomLocation | null) => {
+    setWeatherCustom(value)
+    void window.sill?.updateSettings({ weatherCustom: value })
   }, [])
 
   const changeMonitorIntervalMs = useCallback((value: number) => {
@@ -368,6 +379,7 @@ export function useSillSettings(): SillSettingsController {
     autoUpdate,
     settingsInWindow,
     weatherLocation,
+    weatherCustom,
     monitorIntervalMs,
     version,
     update,
@@ -391,6 +403,7 @@ export function useSillSettings(): SillSettingsController {
     changeAutoUpdate,
     changeSettingsInWindow,
     changeWeatherLocation,
+    changeWeatherCustom,
     changeMonitorIntervalMs,
     checkUpdate,
     downloadUpdate,
@@ -400,3 +413,4 @@ export function useSillSettings(): SillSettingsController {
     toggleWidget
   }
 }
+

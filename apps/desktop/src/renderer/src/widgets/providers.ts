@@ -100,6 +100,12 @@ function providerValue(source: string, context: ProviderContext): unknown {
         usedGb: snapshot?.memUsed ?? null,
         totalGb: snapshot?.memTotal ?? null
       }
+    case 'system.swap':
+      return {
+        percent: snapshot?.swapPct ?? null,
+        usedGb: snapshot?.swapUsed ?? null,
+        totalGb: snapshot?.swapTotal ?? null
+      }
     case 'system.gpu':
       return {
         usage: snapshot?.gpu ?? null,
@@ -113,6 +119,10 @@ function providerValue(source: string, context: ProviderContext): unknown {
         topRam: (snapshot?.procs ?? []).map((process) => ({
           name: process.name,
           mb: process.mb
+        })),
+        topGpu: (snapshot?.gpuProcs ?? []).map((process) => ({
+          name: process.name,
+          pct: process.pct
         })),
         gpuMemMb: snapshot?.gpuMem ?? null,
         gpuTotalMb: snapshot?.gpuTotal ?? null
@@ -142,3 +152,4 @@ export function buildProviderData(
   }
   return data
 }
+

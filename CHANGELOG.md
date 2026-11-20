@@ -1,5 +1,18 @@
 # Changelog
 
+## 未发布
+
+### 界面
+
+- 时钟、日历、天气、监控环拆成独立卡片，并移到 `Sill-Components` 作为官方可安装组件；新装默认只含 hero / system / processes / media / shelf / todo 六个初始组件，hero 恢复显示；
+- 天气地区改为「搜索 + 结果列表 + 常用城市」；支持任意坐标，自动定位增加多源 IP 回退与「重新定位」；
+- 进程卡新增 GPU 占用最高的进程（Windows GPU Engine 计数器）；
+- 收纳支持把文件 / 文件夹直接拖进卡片；
+- 设置 → 组件页按安装、开发、目录、显示、已安装折叠分组，不再越加越长；
+- 中文界面里的装饰标题改用英文（`Make it yours.`）；CPU / GPU / RAM 不再翻译；
+- 监控环改为官方组件 `sill.rings`：一张卡里的 CPU / GPU / RAM / SWAP 四个独立圆环，Apple 风格渐变、圆角、发光与呼吸动画。
+- 展示组件 `analog` / `halo` / `tasks` / `wave` 去掉组件名标题；`halo` 增加 SWAP 并统一 CPU/GPU/RAM 命名；`pnpm dev` 自动清理 `ELECTRON_RUN_AS_NODE`。
+
 ## 0.6.1 — 2026-11-19
 
 - 更新提醒：发现新版本 / 下载完成时弹托盘气泡，点击直接打开设置；
@@ -51,3 +64,9 @@
 - 组件目录默认走 GitHub raw，国内网络可能不稳定，可改 jsDelivr 或自有 CDN；
 - 组件包没有签名 / 哈希校验；
 - `webview` 尚未迁移到 `WebContentsView`。
+
+
+
+
+
+

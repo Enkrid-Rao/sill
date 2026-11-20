@@ -40,8 +40,9 @@ built to host installable widgets.
 - **Widget platform — in.** Cards render from a registry (`WidgetShell` + `WIDGETS`). Template
   widgets install from `.sill`, run in a Shadow DOM inside the card, and use host providers for
   time / system / media / weather / todo. Text, i18n, conditions, repeat, actions and meter bindings
-  are implemented; `system` and `processes` already ship as template packages, while hero, media,
-shelf and todo remain React definitions.
+  are implemented; `system` and `processes` ship as template packages with the app; clock, calendar,
+  weather and rings are official installable packages in `Sill-Components`, while hero, media, shelf
+  and todo remain React definitions.
 - **Widget CLI — in.** Standalone `sill-cli` (`npm i -g @heavenlydemon/sill-cli`, commands
   `sill new / dev / pack`) can target an installed or
   portable Sill without the source repo; `sill dev` runs with separate `Sill-dev` data and hot reload.
@@ -171,6 +172,9 @@ data under `%APPDATA%\Sill\`. The reasoning is in [DEVPLAN §2](DEVPLAN.md).
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+
 
 
 

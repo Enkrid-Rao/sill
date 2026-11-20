@@ -9,11 +9,15 @@ const snapshot: PanelSnapshot = {
   memPct: 55,
   memUsed: 8.8,
   memTotal: 16,
+  swapPct: 3,
+  swapUsed: 1.2,
+  swapTotal: 32,
   down: 1024,
   up: 512,
   gpu: 33,
   gpuMem: 2048,
   gpuTotal: 8192,
+  gpuProcs: [{ name: 'chrome', pct: 12 }],
   procs: [{ name: 'chrome', mb: 1200 }],
   media: {
     title: 'Song',
@@ -116,3 +120,4 @@ describe('buildProviderData', () => {
     expect(data.media).toMatchObject({ active: false, title: null })
   })
 })
+

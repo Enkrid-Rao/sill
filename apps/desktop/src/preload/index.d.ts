@@ -3,6 +3,7 @@ import type { DevWidgetPayload } from '../shared/dev-widget'
 import type { Language } from '../shared/i18n'
 import type { PanelLayout } from '../shared/layout'
 import type { ShelfShortcut } from '../shared/shelf'
+import type { WeatherCustomLocation } from '../shared/weather'
 import type { Theme } from '../shared/theme'
 import type { UninstallInfo, UninstallResult } from '../shared/uninstall'
 import type { UpdateState } from '../shared/update'
@@ -27,6 +28,7 @@ export interface SillSettings {
   autoUpdate: boolean
   settingsInWindow: boolean
   weatherLocation: string
+  weatherCustom: WeatherCustomLocation | null
   monitorIntervalMs: number
   theme: Theme
 }
@@ -41,6 +43,7 @@ export interface PanelSizeInfo {
 export interface SillApi {
   getSettings: () => Promise<SillSettings>
   updateSettings: (patch: Partial<SillSettings>) => Promise<SillSettings>
+  refreshWeather: () => Promise<unknown>
   setHotkey: (accel: string) => Promise<{ ok: boolean; hotkey: string }>
   getVersion: () => Promise<string>
   getDevWidget: () => Promise<DevWidgetPayload | null>
@@ -77,6 +80,8 @@ export interface SillApi {
   mediaCommand: (action: string, value?: number) => Promise<MediaControlState | null>
   listShelf: () => Promise<ShelfShortcut[]>
   addShelf: () => Promise<ShelfShortcut[]>
+  addShelfPaths: (paths: string[]) => Promise<ShelfShortcut[]>
+  getPathForFile: (file: File) => string
   removeShelf: (id: string) => Promise<ShelfShortcut[]>
   openShelf: (id: string) => Promise<{ ok: boolean; error?: string }>
   listTodos: () => Promise<TodoItem[]>
@@ -123,3 +128,6 @@ declare global {
 }
 
 export {}
+
+
+

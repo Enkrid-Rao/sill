@@ -4,7 +4,8 @@ import { LANGUAGES, t, type Language } from '../../../shared/i18n'
 import {
   getWeatherCity,
   WEATHER_CITIES,
-  weatherCityName
+  weatherCityName,
+  type WeatherCustomLocation
 } from '../../../shared/weather'
 import {
   matchPreset,
@@ -28,6 +29,16 @@ import type { ComponentProblem } from '../../../shared/widgets'
 import { pickLocalized, findUpdates, type CatalogEntry, type CatalogUpdate } from '../../../shared/catalog'
 
 type Tab = 'appearance' | 'panel' | 'widgets' | 'data' | 'general'
+
+/** Open-Meteo geocoding 返回的最小字段集。 */
+interface WeatherGeoResult {
+  id?: number
+  name: string
+  latitude: number
+  longitude: number
+  admin1?: string
+  country?: string
+}
 
 /** 组件设置项的 label 支持纯文本或 { en, zh }。 */
 function settingText(
@@ -64,7 +75,9 @@ interface Props {
   settingsInWindow: boolean
   onSettingsInWindowChange: (value: boolean) => void
   weatherLocation: string
+  weatherCustom: WeatherCustomLocation | null
   onWeatherLocationChange: (value: string) => void
+  onWeatherCustomChange: (value: WeatherCustomLocation | null) => void
   monitorIntervalMs: number
   onMonitorIntervalChange: (value: number) => void
   startAtLogin: boolean
@@ -456,7 +469,9 @@ export function CustomizeSheet({
   settingsInWindow,
   onSettingsInWindowChange,
   weatherLocation,
+  weatherCustom,
   onWeatherLocationChange,
+  onWeatherCustomChange,
   monitorIntervalMs,
   onMonitorIntervalChange,
   startAtLogin,
@@ -489,6 +504,10 @@ export function CustomizeSheet({
   const [settingsFor, setSettingsFor] = useState<string | null>(null)
   const [settingsValues, setSettingsValues] = useState<Record<string, unknown>>({})
   const [settingsBusy, setSettingsBusy] = useState(false)
+  const [weatherQuery, setWeatherQuery] = useState('')
+  const [weatherResults, setWeatherResults] = useState<WeatherGeoResult[]>([])
+  const [weatherSearching, setWeatherSearching] = useState(false)
+  const [weatherError, setWeatherError] = useState('')
   const [urlValue, setUrlValue] = useState('')
   const [urlBusy, setUrlBusy] = useState(false)
   const [catalog, setCatalog] = useState<CatalogEntry[]>([])
@@ -523,6 +542,61 @@ export function CustomizeSheet({
   const activePreset = matchThemePreset(theme)
   const activeSize = matchPreset(panelWidth, panelHeight)
   const weatherCity = weatherLocation === 'auto' ? null : getWeatherCity(weatherLocation)
+  const weatherLabel = weatherCustom
+    ? weatherCustom.name
+    : weatherCity
+      ? weatherCityName(weatherCity, language)
+      : t(language, 'weather.auto')
+
+  useEffect(() => {
+    const query = weatherQuery.trim()
+    if (tab !== 'data' || query.length < 2) {
+      setWeatherResults([])
+      setWeatherError('')
+      return
+    }
+    let alive = true
+    const timer = window.setTimeout(() => {
+      setWeatherSearching(true)
+      setWeatherError('')
+      void fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+          query
+        )}&count=8&language=${language === 'zh' ? 'zh' : 'en'}&format=json`
+      )
+        .then((response) =>
+          response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`))
+        )
+        .then((raw: unknown) => {
+          if (!alive) return
+          const results = (raw as { results?: unknown }).results
+          setWeatherResults(Array.isArray(results) ? (results as WeatherGeoResult[]).slice(0, 8) : [])
+        })
+        .catch(() => {
+          if (!alive) return
+          setWeatherResults([])
+          setWeatherError(t(language, 'weather.searchFailed'))
+        })
+        .finally(() => {
+          if (alive) setWeatherSearching(false)
+        })
+    }, 320)
+    return () => {
+      alive = false
+      window.clearTimeout(timer)
+    }
+  }, [weatherQuery, tab, language])
+
+  const selectWeatherPlace = (result: WeatherGeoResult): void => {
+    const label = [result.name, result.admin1].filter(Boolean).join(', ').slice(0, 60)
+    onWeatherCustomChange({
+      name: label || result.name,
+      lat: result.latitude,
+      lon: result.longitude
+    })
+    setWeatherQuery('')
+    setWeatherResults([])
+  }
   // 独立窗口默认用左侧导航；窗口窄到放不下 152 + 可用表单时退回顶部 tab
   const wide = standalone ? window.innerWidth >= 600 : panelWidth >= 620
 
@@ -1063,6 +1137,13 @@ export function CustomizeSheet({
               </span>
             </div>
 
+            <details className="cz-fold">
+              <summary className="cz-fold__head">
+                <span>{t(language, 'widgets.groupDev')}</span>
+                <span className="cz-fold__hint">{t(language, 'widgets.groupDevHint')}</span>
+              </summary>
+              <div className="cz-fold__body">
+
             <div className="cz-setrow">
               <div className="cz-setrow__copy">
                 <span className="cz-setrow__name">{t(language, 'widgets.create')}</span>
@@ -1110,10 +1191,18 @@ export function CustomizeSheet({
                   : t(language, associated ? 'widgets.assocUnregister' : 'widgets.assocRegister')}
               </button>
             </div>
+              </div>
+            </details>
 
             {installError ? <p className="cz-error">{installError}</p> : null}
 
-            <div className="cz-setrow">
+            <details className="cz-fold">
+              <summary className="cz-fold__head">
+                <span>{t(language, 'widgets.catalog')}</span>
+                <span className="cz-fold__hint">{t(language, 'widgets.catalogNote')}</span>
+              </summary>
+              <div className="cz-fold__body">
+              <div className="cz-setrow">
               <div className="cz-setrow__copy">
                 <span className="cz-setrow__name">{t(language, 'widgets.catalog')}</span>
                 <span className="cz-setrow__note">{t(language, 'widgets.catalogNote')}</span>
@@ -1165,6 +1254,8 @@ export function CustomizeSheet({
             {!catalog.length && !catalogError && !catalogBusy ? (
               <p className="cz-note">{t(language, 'widgets.catalogEmpty')}</p>
             ) : null}
+              </div>
+            </details>
 
             {problems.length ? (
               <>
@@ -1190,10 +1281,12 @@ export function CustomizeSheet({
               </>
             ) : null}
 
-            <p className="cz-group">{t(language, 'widgets.visibility')}</p>
-            <p className="cz-note" style={{ margin: '0 2px 6px' }}>
-              {t(language, 'widgets.visibilityNote')}
-            </p>
+            <details className="cz-fold">
+              <summary className="cz-fold__head">
+                <span>{t(language, 'widgets.visibility')}</span>
+                <span className="cz-fold__hint">{t(language, 'widgets.visibilityNote')}</span>
+              </summary>
+              <div className="cz-fold__body">
             {widgets.map((widget) => (
               <Switch
                 key={widget.id}
@@ -1204,8 +1297,15 @@ export function CustomizeSheet({
                 onChange={(value) => onToggleWidget(widget.id, value)}
               />
             ))}
+              </div>
+            </details>
 
-            <p className="cz-group">{t(language, 'widgets.installed')}</p>
+            <details className="cz-fold" open>
+              <summary className="cz-fold__head">
+                <span>{t(language, 'widgets.installed')}</span>
+                <span className="cz-fold__hint">{registry.installed.length}</span>
+              </summary>
+              <div className="cz-fold__body">
             {catalogUpdates.length ? (
               <>
                 <p className="cz-group">{t(language, 'widgets.updates')}</p>
@@ -1361,6 +1461,8 @@ export function CustomizeSheet({
             ) : (
               <p className="cz-note">{t(language, 'widgets.installedEmpty')}</p>
             )}
+              </div>
+            </details>
           </>
         ) : null}
 
@@ -1392,32 +1494,80 @@ export function CustomizeSheet({
             </div>
 
             <p className="cz-group">{t(language, 'weather.group')}</p>
-            <div className="cz-field cz-field--select">
+            <div className="cz-field">
               <div className="cz-field__head">
-                <label className="cz-field__name" htmlFor="cz-weather-location">
+                <label className="cz-field__name" htmlFor="cz-weather-search">
                   {t(language, 'weather.location')}
                 </label>
-                <span className="cz-field__value">
-                  {weatherCity ? weatherCityName(weatherCity, language) : t(language, 'weather.auto')}
-                </span>
+                <span className="cz-field__value">{weatherLabel}</span>
               </div>
-              <select
-                id="cz-weather-location"
-                className="cz-select"
-                value={weatherLocation}
-                onChange={(event) => onWeatherLocationChange(event.currentTarget.value)}
-              >
-                <option value="auto">{t(language, 'weather.auto')}</option>
-                {WEATHER_CITIES.map((city) => (
-                  <option key={city.id} value={city.id}>
+
+              <div className="cz-weather-actions">
+                <button
+                  className="cz-action"
+                  type="button"
+                  aria-pressed={!weatherCustom && weatherLocation === 'auto'}
+                  onClick={() => {
+                    onWeatherLocationChange('auto')
+                    void window.sill?.refreshWeather()
+                  }}
+                >
+                  {t(language, 'weather.auto')}
+                </button>
+              </div>
+
+              <input
+                id="cz-weather-search"
+                className="cz-input cz-weather-search"
+                type="search"
+                value={weatherQuery}
+                placeholder={t(language, 'weather.searchPlaceholder')}
+                onChange={(event) => setWeatherQuery(event.currentTarget.value)}
+              />
+
+              {weatherSearching ? (
+                <p className="cz-note">{t(language, 'weather.searching')}</p>
+              ) : null}
+              {weatherError ? <p className="cz-error">{weatherError}</p> : null}
+
+              {weatherResults.length ? (
+                <div className="cz-weather-results">
+                  {weatherResults.map((result) => (
+                    <button
+                      key={`${result.id ?? result.name}:${result.latitude}:${result.longitude}`}
+                      className="cz-weather-result"
+                      type="button"
+                      onClick={() => selectWeatherPlace(result)}
+                    >
+                      <span className="cz-weather-result__name">{result.name}</span>
+                      <span className="cz-weather-result__meta">
+                        {[result.admin1, result.country].filter(Boolean).join(' · ')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="cz-chips">
+                {WEATHER_CITIES.slice(0, 8).map((city) => (
+                  <button
+                    key={city.id}
+                    className="cz-chip"
+                    type="button"
+                    aria-pressed={!weatherCustom && weatherLocation === city.id}
+                    onClick={() => onWeatherLocationChange(city.id)}
+                  >
                     {weatherCityName(city, language)}
-                  </option>
+                  </button>
                 ))}
-              </select>
+              </div>
+
               <p className="cz-note">
-                {weatherLocation === 'auto'
-                  ? t(language, 'weather.autoNote')
-                  : t(language, 'weather.locationNote')}
+                {weatherCustom
+                  ? t(language, 'weather.customNote')
+                  : weatherLocation === 'auto'
+                    ? t(language, 'weather.autoNote')
+                    : t(language, 'weather.locationNote')}
               </p>
               <p className="cz-note">{t(language, 'weather.credit')}</p>
             </div>

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { TodoItem } from '../shared/data'
 
 /**
@@ -7,6 +7,7 @@ import type { TodoItem } from '../shared/data'
  */
 const api = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
+  refreshWeather: () => ipcRenderer.invoke('weather:refresh'),
   updateSettings: (patch: unknown) => ipcRenderer.invoke('settings:update', patch),
   setHotkey: (accel: string) => ipcRenderer.invoke('hotkey:set', accel),
   getVersion: () => ipcRenderer.invoke('app:version'),
@@ -66,6 +67,9 @@ const api = {
   mediaCommand: (action: string, value?: number) => ipcRenderer.invoke('media:command', action, value),
   listShelf: () => ipcRenderer.invoke('shelf:list'),
   addShelf: () => ipcRenderer.invoke('shelf:add'),
+  addShelfPaths: (paths: string[]) => ipcRenderer.invoke('shelf:add-paths', paths),
+  getPathForFile: (file: Parameters<typeof webUtils.getPathForFile>[0]) =>
+    webUtils.getPathForFile(file),
   removeShelf: (id: string) => ipcRenderer.invoke('shelf:remove', id),
   openShelf: (id: string) => ipcRenderer.invoke('shelf:open', id),
   listTodos: () => ipcRenderer.invoke('todo:list'),
@@ -146,3 +150,6 @@ const api = {
 contextBridge.exposeInMainWorld('sill', api)
 
 export type SillApi = typeof api
+
+
+

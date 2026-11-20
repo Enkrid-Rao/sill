@@ -21,11 +21,15 @@ let snapshot: PanelSnapshot = {
   memPct: 0,
   memUsed: 0,
   memTotal: 0,
+  swapPct: null,
+  swapUsed: null,
+  swapTotal: null,
   down: 0,
   up: 0,
   gpu: null,
   gpuMem: null,
   gpuTotal: null,
+  gpuProcs: [],
   procs: [],
   media: null,
   weather: null,
@@ -38,13 +42,23 @@ function tick(): void {
   const system = sampleSystem()
   const extra = getCollected()
   const control = getMediaControlState()
+  const swapPct =
+    extra?.swapTotalMb && extra.swapTotalMb > 0
+      ? Number((((extra.swapUsedMb ?? 0) / extra.swapTotalMb) * 100).toFixed(1))
+      : null
+  const swapUsed = extra?.swapUsedMb == null ? null : extra.swapUsedMb / 1024
+  const swapTotal = extra?.swapTotalMb == null ? null : extra.swapTotalMb / 1024
   const next: PanelSnapshot = {
     ...system,
     down: extra?.down ?? 0,
     up: extra?.up ?? 0,
-    gpu: extra?.gpu ?? null,
-    gpuMem: extra?.gpuMem ?? null,
-    gpuTotal: extra?.gpuTotal ?? null,
+    gpu: extra?.gpu ?? snapshot.gpu,
+    gpuMem: extra?.gpuMem ?? snapshot.gpuMem,
+    gpuTotal: extra?.gpuTotal ?? snapshot.gpuTotal,
+    gpuProcs: extra?.gpuProcs ?? [],
+    swapPct: swapPct ?? snapshot.swapPct,
+    swapUsed: swapUsed ?? snapshot.swapUsed,
+    swapTotal: swapTotal ?? snapshot.swapTotal,
     procs: extra?.procs ?? [],
     media: extra?.media ?? null,
     weather: getWeather(),
@@ -133,3 +147,8 @@ export function getSnapshot(): PanelSnapshot {
   const control = getMediaControlState()
   return { ...snapshot, volume: control.volume, muted: control.muted }
 }
+
+
+
+
+

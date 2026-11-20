@@ -15,7 +15,11 @@ import {
   PANEL_MIN_WIDTH
 } from '../shared/layout'
 import { DEFAULT_THEME, normalizeTheme, type Theme } from '../shared/theme'
-import { isWeatherCityId } from '../shared/weather'
+import {
+  isWeatherCityId,
+  normalizeWeatherCustom,
+  type WeatherCustomLocation
+} from '../shared/weather'
 import { SETTINGS_FILE } from './paths'
 
 export type Side = 'right' | 'left'
@@ -43,6 +47,8 @@ export interface Settings {
   settingsInWindow: boolean
   /** 天气地区：auto 或 WEATHER_CITIES 的 id */
   weatherLocation: string
+  /** 搜索得到的自定义地点；设置后优先于 weatherLocation */
+  weatherCustom: WeatherCustomLocation | null
   /** 系统监测刷新间隔（毫秒） */
   monitorIntervalMs: MonitorInterval
   /** 玻璃主题：颜色、氛围、光晕、颗粒 */
@@ -61,6 +67,7 @@ export const DEFAULTS: Settings = {
   autoUpdate: true,
   settingsInWindow: false,
   weatherLocation: 'auto',
+  weatherCustom: null,
   monitorIntervalMs: DEFAULT_MONITOR_INTERVAL,
   theme: DEFAULT_THEME
 }
@@ -102,6 +109,7 @@ function coerce(raw: unknown): Settings {
     (typeof src.weatherLocation === 'string' && isWeatherCityId(src.weatherLocation))
       ? src.weatherLocation
       : 'auto'
+  const weatherCustom = normalizeWeatherCustom(src.weatherCustom)
   const monitorIntervalMs = normalizeMonitorInterval(src.monitorIntervalMs)
 
   return {
@@ -118,6 +126,7 @@ function coerce(raw: unknown): Settings {
     autoUpdate: src.autoUpdate !== false,
     settingsInWindow: src.settingsInWindow === true,
     weatherLocation,
+    weatherCustom,
     monitorIntervalMs,
     theme: normalizeTheme(src.theme)
   }
@@ -152,3 +161,4 @@ export function updateSettings(patch: Partial<Settings>): Settings {
   persist(next)
   return next
 }
+

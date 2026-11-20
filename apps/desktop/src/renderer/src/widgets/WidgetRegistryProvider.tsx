@@ -22,10 +22,14 @@ interface LoadedInstalled {
   payload: DevWidgetPayload
 }
 
-/** 内置模板沿用原有的 i18n 名称，别的模板用 manifest 的 name。 */
+/** 内置模板和官方安装包沿用原有的 i18n 名称，第三方组件用 manifest 的 name。 */
 const BUILTIN_NAME_KEYS: Partial<Record<string, WidgetDefinition['nameKey']>> = {
   system: 'widget.system',
-  processes: 'widget.processes'
+  processes: 'widget.processes',
+  'sill.clock': 'widget.clock',
+  'sill.calendar': 'widget.calendar',
+  'sill.weather': 'widget.weather',
+  'sill.rings': 'widget.rings'
 }
 
 /**
@@ -147,9 +151,10 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
 
     // 3. 安装的组件
     for (const { info, payload } of loaded) {
+      const nameKey = BUILTIN_NAME_KEYS[info.id]
       push({
         id: info.id,
-        label: info.name,
+        ...(nameKey ? { nameKey } : { label: info.name }),
         spanFor: () => info.span,
         render: (context) =>
           payload.kind === 'web' ? (
@@ -192,3 +197,7 @@ export function useWidgetRegistry(): WidgetRegistry {
   if (!registry) throw new Error('useWidgetRegistry must be used inside WidgetRegistryProvider')
   return registry
 }
+
+
+
+

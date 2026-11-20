@@ -17,6 +17,10 @@
 - 布局支持流式（拖拽/箭头/跨列）与自由画布（任意 x/y/w/h、拖拽、缩放）；
   新增组件会按当前流式排布自动补 box，数据晚到后只增不减地修正高度。
 - 快捷方式收纳盒、真实系统 / 媒体 / 天气 / 待办数据、五段式设置、自动更新、设置内卸载。
+- 时钟 / 日历 / 天气 / 监控环拆成独立卡片并移到 `Sill-Components`；新装默认只含 hero / system / processes / media / shelf / todo，hero 显示。
+- 收纳支持把文件 / 文件夹直接拖进卡片。
+- 设置 → 组件页按「安装 / 开发与文件 / 组件目录 / 面板显示 / 已安装」折叠分组。
+- 进程卡读取 GPU Engine 计数器，显示 GPU 占用最高的进程；圆形监控改为一张卡里的 CPU / GPU / RAM / SWAP 四个独立圆环。
 
 ### 组件平台（0.6 dev）
 
@@ -55,6 +59,11 @@
 | 组件更新 | 预装 v1.0.0 + 目录 v2.0.0，组件页显示「v1.0.0 → v2.0.0」，点更新后只剩 v2.0.0（实测） |
 | 内置模板迁移 | system / processes 从 resources 加载，卡片渲染与数据格式化正常（smoke 截图核对） |
 | 后台更新检查 | 启动 20s 后自动检查目录并广播；实测 `count=1`，设置按钮出现小圆点 |
+| 独立时钟 / 日历 / 天气 | smoke 截图核对；天气卡按自定义坐标显示 |
+| 天气地点搜索 | 搜索 Tokyo 返回 8 条；点选后 `settings.json` 写入 `weatherCustom`，卡片城市变为「東京, 东京都」 |
+| GPU 进程 | collector 输出 `gpuProcs`；进程卡显示 electron 12% / System 5% / dwm 3% |
+| 组件页分组 | 组件页 4 个折叠组，长度明显缩短（截图核对） |
+| 收纳拖放 | `addShelfPaths` 实测把 `notepad.exe` 加入收纳；拖放 UI 走同一 API |
 | 组件升级 | 同 id 新版本覆盖旧目录、布局槽位保留（单测覆盖） |
 | Web 隔离层 | 非 Node guest 拥有 `sill.storage` 与 `https:` 网络；每个组件独立 partition（实测写入 widget-data） |
 | 热重载作用域 | 只改 a 的样式，a 重新执行、b 不重新执行（boot 计数 2 / 1） |
@@ -69,7 +78,8 @@
 
 - 后台自动检查更新 / 目录托管与审核流水线；更新需要打开组件页手动点。升级是覆盖式。
 - 签名 / 哈希；安装器只做静态校验 + 权限提示。
-- hero / media / shelf / todo 仍是 React；`system` / `processes` 已迁到 `resources/builtin-widgets/` 模板包。
+- hero / media / shelf / todo 仍是 React；`system` / `processes` 仍随应用发布在 `resources/builtin-widgets/`；
+  时钟 / 日历 / 天气 / 监控环 已移到 `Sill-Components`，作为官方可安装包。
 - 文档：`DEVPLAN.md` 的 IR / rmskin 章节是历史规划。
 
 ## 下一条命令
@@ -100,6 +110,11 @@ pnpm sill pack .\clock -o clock.sill
 3. 把 system / processes 迁到模板，验证模板能力足够。
 4. 签名 / 哈希。
 5. `webview` → `WebContentsView` 迁移。
+
+
+
+
+
 
 
 

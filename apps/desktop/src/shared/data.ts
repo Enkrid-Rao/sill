@@ -19,6 +19,12 @@ export interface ProcessSample {
   mb: number
 }
 
+export interface GpuProcessSample {
+  name: string
+  /** 各 GPU 引擎利用率之和，夹到 0–100 */
+  pct: number
+}
+
 export interface MediaSample {
   title: string
   artist: string
@@ -38,6 +44,12 @@ export interface PanelSnapshot {
   memUsed: number
   /** GB */
   memTotal: number
+  /** 虚拟内存（commit）使用率 0–100 */
+  swapPct: number | null
+  /** GB */
+  swapUsed: number | null
+  /** GB */
+  swapTotal: number | null
   /** bytes/s */
   down: number
   up: number
@@ -46,6 +58,7 @@ export interface PanelSnapshot {
   gpuMem: number | null
   /** MiB */
   gpuTotal: number | null
+  gpuProcs: GpuProcessSample[]
   procs: ProcessSample[]
   media: MediaSample | null
   weather: WeatherSnapshot | null
@@ -70,3 +83,6 @@ export interface TodoItem {
   text: string
   done: boolean
 }
+
+
+

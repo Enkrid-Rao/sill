@@ -2160,10 +2160,29 @@ body {
 
 /* ---------- 快捷方式收纳 ---------- */
 .shelf {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+  border-radius: 12px;
+}
+
+.shelf[data-drag='true'] {
+  outline: 1px dashed hsl(var(--accent-h) 80% 76% / 0.55);
+  outline-offset: 4px;
+}
+
+.shelf__drop {
+  position: absolute;
+  inset: -4px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: hsl(var(--hue) 30% 8% / 0.88);
+  color: var(--accent);
+  font-size: 12px;
 }
 
 .shelf__head {
@@ -2349,6 +2368,29 @@ body {
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
+}
+
+
+
+
+
+.shelf {
+  padding-top: 14px;
+}
+
+.shelf__add--corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
 }
 
 

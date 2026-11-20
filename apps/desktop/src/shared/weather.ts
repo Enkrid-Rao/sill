@@ -6,6 +6,12 @@ import type { Language, TranslationKey } from './i18n'
  * 天气 provider 用 Open-Meteo，不需要 API key；自动定位用 ipwho.is 的 IP 粗略定位。
  * 城市表只负责「把坐标映射回一个可显示的名字」，不参与网络请求。
  */
+export interface WeatherCustomLocation {
+  name: string
+  lat: number
+  lon: number
+}
+
 export interface WeatherCity {
   id: string
   en: string
@@ -45,6 +51,19 @@ export const WEATHER_CITIES: readonly WeatherCity[] = [
 ]
 
 export const DEFAULT_WEATHER_CITY = WEATHER_CITIES[0]
+
+/** 设置里保存的自定义地点；名字只是显示用，坐标才是数据源。 */
+export function normalizeWeatherCustom(value: unknown): WeatherCustomLocation | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const raw = value as Record<string, unknown>
+  const name = typeof raw.name === 'string' ? raw.name.trim().slice(0, 60) : ''
+  const lat = Number(raw.lat)
+  const lon = Number(raw.lon)
+  if (!name) return null
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) return null
+  if (!Number.isFinite(lon) || lon < -180 || lon > 180) return null
+  return { name, lat, lon }
+}
 
 export function getWeatherCity(id: string): WeatherCity | null {
   return WEATHER_CITIES.find((city) => city.id === id) ?? null
@@ -141,3 +160,4 @@ export interface WeatherSnapshot {
   stale: boolean
   error: boolean
 }
+

@@ -37,7 +37,11 @@ const en = {
   'weather.auto': 'Auto locate',
   'weather.autoNote':
     'Auto uses a coarse IP lookup and falls back to Shanghai. No system location permission is requested.',
-  'weather.credit': 'Data by Open-Meteo · location by ipwho.is',
+  'weather.searchPlaceholder': 'Search a city or place…',
+  'weather.searching': 'Searching…',
+  'weather.searchFailed': 'Search failed. Try another name.',
+  'weather.customNote': 'Using the place you picked; the name is only a label.',
+  'weather.credit': 'Data by Open-Meteo · location based on IP',
 
   'system.title': 'System',
   'system.cores': '8 cores',
@@ -164,6 +168,8 @@ const en = {
   'widgets.installUrl': 'From URL',
   'widgets.installUrlNote': 'Download a .sill from an https link.',
   'widgets.installUrlAction': 'Install',
+  'widgets.groupDev': 'Development & files',
+  'widgets.groupDevHint': 'Create, folder, .sill association',
   'widgets.catalog': 'Catalog',
   'widgets.catalogNote': 'Read-only index of published components.',
   'widgets.catalogRefresh': 'Refresh',
@@ -191,14 +197,19 @@ const en = {
   'widgets.assocFailed': 'Could not update the .sill association',
   'widgets.empty': 'All widgets are hidden. Settings → Widgets brings them back.',
   'widget.hero': 'Now',
+  'widget.clock': 'Clock',
+  'widget.calendar': 'Calendar',
+  'widget.weather': 'Weather',
   'widget.system': 'System',
   'widget.processes': 'Processes',
+  'widget.rings': 'Rings',
   'widget.media': 'Now playing',
   'widget.todo': 'To-do',
   'widget.shelf': 'Shortcuts',
   'shelf.title': 'Shortcuts',
   'shelf.add': 'Add',
   'shelf.empty': 'Add a shortcut',
+  'shelf.drop': 'Drop files or folders here',
   'shelf.remove': 'Remove',
 
   'layout.title': 'Layout',
@@ -311,7 +322,11 @@ const zh: Record<Key, string> = {
   'weather.locationNote': '自动定位或手动选择城市',
   'weather.auto': '自动定位',
   'weather.autoNote': '自动定位只用 IP 粗略判断，失败时回退到上海；不申请系统定位权限。',
-  'weather.credit': '天气数据 Open-Meteo · 定位 ipwho.is',
+  'weather.searchPlaceholder': '搜索城市或地点…',
+  'weather.searching': '搜索中…',
+  'weather.searchFailed': '搜索失败，换个名字试试。',
+  'weather.customNote': '使用你选择的地点，显示名称只作标签。',
+  'weather.credit': '天气 Open-Meteo · 定位基于 IP',
 
   'system.title': '系统',
   'system.cores': '8 核',
@@ -354,7 +369,7 @@ const zh: Record<Key, string> = {
   'footer.version': 'sill · m0',
 
   'settings.title': '设置',
-  'settings.tagline': '按你的来。',
+  'settings.tagline': 'Make it yours.',
   'tab.appearance': '外观',
   'tab.panel': '面板',
   'tab.widgets': '组件',
@@ -438,6 +453,8 @@ const zh: Record<Key, string> = {
   'widgets.installUrl': '从 URL 安装',
   'widgets.installUrlNote': '从 https 链接下载 .sill 后安装。',
   'widgets.installUrlAction': '安装',
+  'widgets.groupDev': '开发与文件',
+  'widgets.groupDevHint': '新建、组件文件夹、.sill 关联',
   'widgets.catalog': '组件目录',
   'widgets.catalogNote': '已发布组件的只读索引。',
   'widgets.catalogRefresh': '刷新',
@@ -465,14 +482,19 @@ const zh: Record<Key, string> = {
   'widgets.assocFailed': '无法更新 .sill 文件关联',
   'widgets.empty': '所有组件都被隐藏了。设置 → 组件可以重新打开。',
   'widget.hero': '此刻',
+  'widget.clock': '时钟',
+  'widget.calendar': '日历',
+  'widget.weather': '天气',
   'widget.system': '系统',
   'widget.processes': '进程',
+  'widget.rings': '监控环',
   'widget.media': '正在播放',
   'widget.todo': '待办',
   'widget.shelf': '收纳',
   'shelf.title': '快捷方式',
   'shelf.add': '添加',
   'shelf.empty': '添加快捷方式',
+  'shelf.drop': '拖入文件或文件夹',
   'shelf.remove': '删除',
 
   'layout.title': '布局',
@@ -569,3 +591,11 @@ export function formatDate(date: Date, language: Language): string {
     month: 'long'
   }).format(date)
 }
+
+
+
+
+
+
+
+

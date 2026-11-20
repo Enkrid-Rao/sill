@@ -8,8 +8,10 @@
   "span": { "default": 1 },
   "data": [{ "id": "proc", "source": "system.processes" }],
   "strings": {
-    "en": { "title": "MEMORY", "label": "MEMORY", "gpu": "GPU MEMORY" },
-    "zh": { "title": "内存占用", "label": "内存", "gpu": "显存" }
+    "en": { "title": "RAM", "label": "RAM", "gpuTitle": "GPU", "gpu": "GPU MEMORY", "sampling": "Sampling…" },
+    "zh": { "title": "RAM 占用", "label": "RAM", "gpuTitle": "GPU", "gpu": "GPU 显存", "sampling": "正在采样…" }
   },
   "ui": "ui/index.html"
 }
+
+

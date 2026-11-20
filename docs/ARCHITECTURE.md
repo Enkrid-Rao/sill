@@ -141,7 +141,9 @@ docs/           DEVELOPMENT, WIDGET-SURFACE, ARCHITECTURE
 - Trust tiers are not implemented: every `.sill` shows the same confirmation, nothing is remembered.
 - Web `sandboxed` guests have no storage / fetch and almost no API; the tier is due for a decision
   (isolation mode with real APIs, or removal).
-- `system` and `processes` ship as template packages under `resources/builtin-widgets/`; hero, media,
+- `system` and `processes` ship as template packages under `resources/builtin-widgets/`; clock,
+  calendar, weather and rings are official installable packages in `Sill-Components`; hero, media,
   shelf and todo remain React definitions.
 - Free layout has no snapping, guides or nested containers yet.
 - No root license yet.
+

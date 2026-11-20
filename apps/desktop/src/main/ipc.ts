@@ -45,7 +45,7 @@ import { loadSettings, updateSettings, type Settings } from './settings'
 import { closeSettingsWindow, hasSettingsWindow, openSettingsWindow } from './settings-window'
 import { getUninstallInfo, openDataFolder, startUninstall } from './uninstall'
 import { checkForUpdates, downloadUpdate, getUpdateState, installUpdate } from './updates'
-import { refreshWeather } from './weather'
+import { refreshWeather, resetAutoLocation, getWeather } from './weather'
 
 export interface IpcDeps {
   /** 设置变更后需要重新贴到系统上的副作用（自启、置顶、停靠边、托盘菜单） */
@@ -56,12 +56,17 @@ export interface IpcDeps {
 
 export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle('settings:get', () => loadSettings())
+  ipcMain.handle('weather:refresh', async () => {
+    resetAutoLocation()
+    await refreshWeather()
+    return getWeather()
+  })
 
   ipcMain.handle('settings:update', (_event, patch: Partial<Settings>) => {
     const next = updateSettings(patch ?? {})
     deps.apply(next, patch ?? {})
     // 换城市 / 切回自动定位：不等 15 分钟，立刻重新取一次天气
-    if ('weatherLocation' in (patch ?? {})) void refreshWeather()
+    if ('weatherLocation' in (patch ?? {}) || 'weatherCustom' in (patch ?? {})) void refreshWeather()
     // 监测间隔变了：当前可见的采样器立即换节拍
     if ('monitorIntervalMs' in (patch ?? {})) refreshDataCadence()
     // 设置窗口和面板共用一份状态：谁改的都广播出去
@@ -307,6 +312,13 @@ export function registerIpc(deps: IpcDeps): void {
     if (picked.canceled) return listShelf()
     return addShelfPaths(picked.filePaths)
   })
+  ipcMain.handle('shelf:add-paths', (_event, paths: unknown) => {
+    if (!Array.isArray(paths)) return listShelf()
+    return addShelfPaths(
+      paths.filter((path): path is string => typeof path === 'string').slice(0, 32)
+    )
+  })
+
   ipcMain.handle('shelf:remove', (_event, id: unknown) =>
     typeof id === 'string' ? removeShelf(id) : listShelf()
   )
@@ -360,3 +372,5 @@ export function registerIpc(deps: IpcDeps): void {
     app.quit()
   })
 }
+
+

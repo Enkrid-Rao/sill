@@ -13,8 +13,11 @@
     { "id": "net", "source": "system.network" }
   ],
   "strings": {
-    "en": { "title": "SYSTEM", "cores": "cores", "mem": "MEMORY", "gpu": "GPU", "net": "NETWORK" },
-    "zh": { "title": "系统", "cores": "核", "mem": "内存", "gpu": "显卡", "net": "网络" }
+    "en": { "title": "SYSTEM", "cores": "cores", "mem": "RAM", "gpu": "GPU", "net": "NETWORK" },
+    "zh": { "title": "系统", "cores": "核", "mem": "RAM", "gpu": "GPU", "net": "网络" }
   },
   "ui": "ui/index.html"
 }
+
+
+

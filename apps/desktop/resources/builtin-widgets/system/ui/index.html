@@ -1,20 +1,18 @@
 <div class="sys">
-  <div class="sys__head">
-    <span class="sys__title" data-sill-i18n="title">SYSTEM</span>
-    <span class="sys__cores">
-      <span data-sill-text="cpu.cores">--</span>
-      <span data-sill-i18n="cores">cores</span>
-    </span>
-  </div>
-
   <div class="sys__row">
-    <span class="sys__label">CPU</span>
+    <span class="sys__label">
+      CPU
+      <span class="sys__cores">
+        <span data-sill-text="cpu.cores">--</span>
+        <span data-sill-i18n="cores">cores</span>
+      </span>
+    </span>
     <span class="sys__value" id="cpu">--</span>
     <div class="sys__bar"><i data-sill-meter="cpu.usage"></i></div>
   </div>
 
   <div class="sys__row">
-    <span class="sys__label" data-sill-i18n="mem">MEMORY</span>
+    <span class="sys__label" data-sill-i18n="mem">RAM</span>
     <span class="sys__value" id="mem">--</span>
     <div class="sys__bar"><i data-sill-meter="mem.percent"></i></div>
   </div>

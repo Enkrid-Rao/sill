@@ -31,6 +31,15 @@ try {
 } catch { }
 
 $hasNvidia = $null -ne (Get-Command nvidia-smi -ErrorAction SilentlyContinue)
+$gpuProcs = @()
+$gpuProcAt = [datetime]::MinValue
+$lastGpu = $null
+$lastGpuMem = $null
+$lastGpuTotal = $null
+$swapUsedMb = $null
+$swapTotalMb = $null
+$swapAt = [datetime]::MinValue
+$loop = 0
 $prevRx = $null
 $prevTx = $null
 $prevAt = Get-Date
@@ -92,7 +101,30 @@ while ($true) {
       }
     }
   }
+  if ($null -ne $gpu) {
+    $lastGpu = $gpu
+    $lastGpuMem = $gpuMem
+    $lastGpuTotal = $gpuTotal
+  } elseif ($null -ne $lastGpu) {
+    $gpu = $lastGpu
+    $gpuMem = $lastGpuMem
+    $gpuTotal = $lastGpuTotal
+  }
 
+  $loop += 1
+  # Virtual memory / commit charge (physical + page file); cache for 10s.
+  if ($loop -le 3 -or (($now - $swapAt).TotalSeconds -ge 10)) {
+    $swapAt = $now
+    $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+    if ($null -ne $os) {
+      $virtualKb = [double]$os.TotalVirtualMemorySize
+      $freeKb = [double]$os.FreeVirtualMemory
+      if ($virtualKb -gt 0) {
+        $swapTotalMb = [int]($virtualKb / 1024)
+        $swapUsedMb = [int](($virtualKb - $freeKb) / 1024)
+      }
+    }
+  }
   $media = $null
   if ($null -ne $manager) {
     try {
@@ -120,10 +152,47 @@ while ($true) {
     gpu      = $gpu
     gpuMem   = $gpuMem
     gpuTotal = $gpuTotal
+    gpuProcs = $gpuProcs
+    swapUsedMb = $swapUsedMb
+    swapTotalMb = $swapTotalMb
     procs    = $procs
     media    = $media
   } | ConvertTo-Json -Compress -Depth 4
 
   [Console]::Out.Flush()
+  # GPU process counters are expensive (~2-3s); sample every 15s and cache.
+  if (($now - $gpuProcAt).TotalSeconds -ge 15) {
+    $gpuProcAt = $now
+    $byPid = @{}
+    $samples = @((Get-Counter '\GPU Engine(*)\Utilization Percentage' -ErrorAction SilentlyContinue).CounterSamples)
+    foreach ($sample in $samples) {
+      if ($sample.CookedValue -le 0) { continue }
+      if ($sample.InstanceName -match '^pid_(\d+)_') {
+        $procId = [int]$Matches[1]
+        $byPid[$procId] = [double]$byPid[$procId] + [double]$sample.CookedValue
+      }
+    }
+
+    $resolved = @()
+    foreach ($key in $byPid.Keys) {
+      $process = Get-Process -Id $key -ErrorAction SilentlyContinue
+      if ($null -ne $process) {
+        $resolved += [pscustomobject]@{ name = $process.ProcessName; pct = [double]$byPid[$key] }
+      }
+    }
+
+    $list = @()
+    foreach ($group in @($resolved | Group-Object name)) {
+      $sum = [double]($group.Group | Measure-Object pct -Sum).Sum
+      $list += [pscustomobject]@{ name = $group.Name; pct = [int][math]::Min(100, [math]::Round($sum)) }
+    }
+    $gpuProcs = @($list | Sort-Object pct -Descending | Select-Object -First 3)
+  }
+
   Start-Sleep -Milliseconds $IntervalMs
 }
+
+
+
+
+

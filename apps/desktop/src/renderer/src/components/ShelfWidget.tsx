@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type DragEvent } from 'react'
 import type { ShelfShortcut } from '../../../shared/shelf'
 import { t, type Language } from '../../../shared/i18n'
 
@@ -6,10 +6,11 @@ interface Props {
   language: Language
 }
 
-/** 快捷方式收纳盒：只做添加 / 打开 / 删除，不做文件管理。 */
+/** 快捷方式收纳盒：添加 / 打开 / 删除，支持把文件或文件夹直接拖进来。 */
 export function ShelfWidget({ language }: Props): React.JSX.Element {
   const [items, setItems] = useState<ShelfShortcut[]>([])
   const [busy, setBusy] = useState(false)
+  const [dragging, setDragging] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -34,14 +35,51 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
     if (next) setItems(next)
   }
 
+  const drop = async (event: DragEvent<HTMLDivElement>): Promise<void> => {
+    event.preventDefault()
+    event.stopPropagation()
+    setDragging(false)
+    if (busy) return
+    const paths = Array.from(event.dataTransfer.files)
+      .map((file) => window.sill?.getPathForFile(file))
+      .filter((path): path is string => Boolean(path))
+    if (!paths.length) return
+    setBusy(true)
+    const next = await window.sill?.addShelfPaths(paths)
+    setBusy(false)
+    if (next) setItems(next)
+  }
+
   return (
-    <div className="shelf">
-      <div className="shelf__head">
-        <span className="cap">{t(language, 'shelf.title')}</span>
-        <button className="shelf__add" type="button" onClick={() => void add()} disabled={busy}>
-          {t(language, 'shelf.add')}
-        </button>
-      </div>
+    <div
+      className="shelf"
+      data-drag={dragging ? 'true' : undefined}
+      onDragEnter={(event) => {
+        if (!event.dataTransfer.types.includes('Files')) return
+        event.preventDefault()
+        setDragging(true)
+      }}
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes('Files')) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+      }}
+      onDragLeave={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+        setDragging(false)
+      }}
+      onDrop={(event) => void drop(event)}
+    >
+      <button
+        className="shelf__add shelf__add--corner"
+        type="button"
+        aria-label={t(language, 'shelf.add')}
+        title={t(language, 'shelf.add')}
+        onClick={() => void add()}
+        disabled={busy}
+      >
+        +
+      </button>
 
       {items.length ? (
         <div className="shelf__grid">
@@ -77,6 +115,12 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
           {t(language, 'shelf.empty')}
         </button>
       )}
+
+      {dragging ? (
+        <div className="shelf__drop" aria-hidden="true">
+          {t(language, 'shelf.drop')}
+        </div>
+      ) : null}
     </div>
   )
 }

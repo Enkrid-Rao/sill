@@ -119,8 +119,77 @@ interface LocationResult {
   auto: boolean
 }
 
+interface AutoFix {
+  lat: number
+  lon: number
+  cityName: string
+}
+
+/** IP 粗定位：按顺序尝试多个免费服务，谁先成功用谁；都不行才回退默认城市。 */
+async function fetchAutoFix(): Promise<AutoFix> {
+  const attempts: Array<() => Promise<AutoFix>> = [
+    async () => {
+      const raw = (await fetchJson('https://ipwho.is/')) as Record<string, unknown>
+      if (raw.success === false) throw new Error('ipwho.is rejected')
+      const lat = Number(raw.latitude)
+      const lon = Number(raw.longitude)
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error('ipwho.is no coords')
+      return {
+        lat,
+        lon,
+        cityName: String(raw.city || raw.region || raw.country || '').trim() || 'Unknown'
+      }
+    },
+    async () => {
+      const raw = (await fetchJson('https://ipapi.co/json/')) as Record<string, unknown>
+      const lat = Number(raw.latitude)
+      const lon = Number(raw.longitude)
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error('ipapi.co no coords')
+      return {
+        lat,
+        lon,
+        cityName: String(raw.city || raw.region || raw.country_name || '').trim() || 'Unknown'
+      }
+    },
+    async () => {
+      const raw = (await fetchJson('https://ipinfo.io/json')) as Record<string, unknown>
+      const loc = String(raw.loc ?? '').split(',')
+      const lat = Number(loc[0])
+      const lon = Number(loc[1])
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) throw new Error('ipinfo.io no coords')
+      return {
+        lat,
+        lon,
+        cityName: String(raw.city || raw.region || raw.country || '').trim() || 'Unknown'
+      }
+    }
+  ]
+
+  for (const attempt of attempts) {
+    try {
+      return await attempt()
+    } catch (error) {
+      console.warn('[sill] 定位服务失败：', error)
+    }
+  }
+  throw new Error('all ip location providers failed')
+}
+
 async function resolveLocation(): Promise<LocationResult> {
-  const setting = loadSettings().weatherLocation
+  const settings = loadSettings()
+  const custom = settings.weatherCustom
+
+  if (custom) {
+    return {
+      city: null,
+      cityName: custom.name,
+      lat: custom.lat,
+      lon: custom.lon,
+      auto: false
+    }
+  }
+
+  const setting = settings.weatherLocation
 
   if (setting !== 'auto') {
     const city = getWeatherCity(setting) ?? getWeatherCity(DEFAULT_WEATHER_CITY.id)
@@ -144,19 +213,13 @@ async function resolveLocation(): Promise<LocationResult> {
   }
 
   try {
-    const raw = (await fetchJson('https://ipwho.is/')) as Record<string, unknown>
-    const lat = Number(raw.latitude)
-    const lon = Number(raw.longitude)
-    if (raw.success === false || !Number.isFinite(lat) || !Number.isFinite(lon)) {
-      throw new Error('invalid ipwho response')
-    }
-    const cityName = String(raw.city || raw.region || raw.country || '').trim() || 'Unknown'
-    autoLocation = { at: Date.now(), lat, lon, cityName }
+    const fix = await fetchAutoFix()
+    autoLocation = { at: Date.now(), ...fix }
     return {
-      city: nearestWeatherCity(lat, lon),
-      cityName,
-      lat,
-      lon,
+      city: nearestWeatherCity(fix.lat, fix.lon),
+      cityName: fix.cityName,
+      lat: fix.lat,
+      lon: fix.lon,
       auto: true
     }
   } catch (error) {
@@ -243,6 +306,11 @@ async function refresh(): Promise<void> {
   }
 }
 
+/** 清掉自动定位缓存，下一次 refresh 会重新走 IP 定位。 */
+export function resetAutoLocation(): void {
+  autoLocation = null
+}
+
 export function refreshWeather(): Promise<void> {
   if (inflight) {
     // 刷新途中换了城市：等当前请求结束，再用新设置跑一次
@@ -280,3 +348,4 @@ export function stopWeather(): void {
 export function getWeather(): WeatherSnapshot | null {
   return current
 }
+

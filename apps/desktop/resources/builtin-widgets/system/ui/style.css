@@ -1,30 +1,18 @@
-:host { display: block; }
+:host { display: block; container-type: inline-size; }
 
 .sys {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: clamp(6px, 2cqw, 14px);
   color: var(--ink);
   font-family: var(--sans);
 }
 
-.sys__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 1px;
-}
-
-.sys__title {
-  color: var(--ink-faint);
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
 .sys__cores {
-  color: var(--ink-dim);
-  font-size: 10px;
+  margin-left: 5px;
+  color: var(--ink-faint);
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -37,18 +25,18 @@
 
 .sys__label {
   color: var(--ink-dim);
-  font-size: 11.5px;
+  font-size: clamp(10px, 3.2cqw, 18px);
 }
 
 .sys__value {
   color: var(--ink);
-  font-size: 12.5px;
+  font-size: clamp(10px, 3.4cqw, 19px);
   font-variant-numeric: tabular-nums;
 }
 
 .sys__bar {
   grid-column: 1 / -1;
-  height: 3px;
+  height: clamp(3px, 0.8cqw, 7px);
   margin-top: 2px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);
@@ -71,3 +59,9 @@
 @media (prefers-reduced-motion: reduce) {
   .sys__bar i { transition: none; }
 }
+
+
+
+
+
+

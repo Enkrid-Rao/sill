@@ -1,12 +1,14 @@
 {
   "name": "sill",
-  "version": "0.6.1",
+  "version": "0.7.0-dev.1",
   "private": true,
   "description": "Sill — a glass side rail for the Windows desktop",
   "packageManager": "pnpm@12.14.0",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "dev": "pnpm --filter @sill/desktop dev",
+    "dev": "node scripts/dev.mjs",
     "build": "pnpm --filter @sill/desktop build",
     "typecheck": "pnpm --filter @sill/desktop typecheck",
     "smoke": "pnpm --filter @sill/desktop smoke",
@@ -17,5 +19,3 @@
     "dist:portable": "pnpm --filter @sill/desktop dist:portable"
   }
 }
-
-
