@@ -13,6 +13,19 @@
 - 监控环改为官方组件 `sill.rings`：一张卡里的 CPU / GPU / RAM / SWAP 四个独立圆环，Apple 风格渐变、圆角、发光与呼吸动画。
 - 展示组件 `analog` / `halo` / `tasks` / `wave` 去掉组件名标题；`halo` 增加 SWAP 并统一 CPU/GPU/RAM 命名；`pnpm dev` 自动清理 `ELECTRON_RUN_AS_NODE`。
 
+### 组件与布局（0.7.0-dev.2）
+
+- 卡片改为容器查询单位：`.card` 自身是 `container-type: inline-size`，Hero 时钟用 `clamp(40px, 26cqw, 100px)`，自由布局拖窄不再裁字；free 卡最小宽度从 120 提到 150。
+- 自由布局拖拽改为本地草稿 + 松手提交：拖动 / 缩放不再每个 `pointermove` 都写 `layout.json`；把手改成可聚焦按钮，方向键移动（Shift 加速），`pointercancel` 与卸载时清理监听。
+- 移除 React 版 system / processes（`SystemWidget` / `ProcessesWidget` / `useSmoothNumber`）：两张卡只保留 `resources/builtin-widgets/` 里的模板实现，避免双份视觉与功能漂移。
+- `system` 模板：补 `SYSTEM` 眉标与核数、网络改为「下行 · 上行」读数（不再画会被误读成百分比的进度条）、三条进度条带 `role="progressbar"` / `aria-valuenow`、采集为空时显示「正在采样 / 没有采样数据」。
+- `processes` 模板：GPU 只出现一次（头部显存 + GPU 进程列表）、用 `data-sill-repeat` 走宿主增量列表、最多三行、空态区分「正在采样」与「还没有进程数据」。
+- 模板宿主把 `lang` 写到 Shadow DOM host：`system` / `processes` 可以用 `:host([lang='zh'])` 接管中文最小字号（原先把 9.5–10px 中文留给系统字体）。
+- Hero：天气 `stale` 时降透明度并标「缓存」、长地名截断、加载中不再显示月亮、去掉 `<br>{NBSP}` 占位。
+- Media：音量 `-1`（未读上来）显示 `--` 并禁用滑杆、时长补小时位、播放键去掉重复的 `aria-pressed`、滑杆焦点环、暂停时封面不再扫光。
+- Todo：勾选 / 编辑 / 新增失败会回滚或还原输入、撤销条出现时自动聚焦、撤销条从 `position:fixed` 收进卡片、短定时器改用 `Set` 防增长、补 `maxLength` 与任务 `title`。
+- Shelf：补「快捷方式」标题与计数、删除键在 `:focus-within` 时显形、`busy` 用 `try/finally` 复位、初次加载不再闪空态、网格可滚动、中文名称字号单独放大。
+
 ## 0.6.1 — 2026-11-19
 
 - 更新提醒：发现新版本 / 下载完成时弹托盘气泡，点击直接打开设置；

@@ -1,18 +1,35 @@
-:host { display: block; container-type: inline-size; }
+:host {
+  display: block;
+  container-type: inline-size;
+}
 
 .sys {
   display: flex;
   flex-direction: column;
-  gap: clamp(6px, 2cqw, 14px);
+  gap: clamp(6px, 2cqw, 12px);
   color: var(--ink);
   font-family: var(--sans);
 }
 
+.sys__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.sys__title {
+  color: var(--ink-faint);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
 .sys__cores {
-  margin-left: 5px;
   color: var(--ink-faint);
   font-size: 9.5px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
 
@@ -24,44 +41,85 @@
 }
 
 .sys__label {
+  overflow: hidden;
   color: var(--ink-dim);
-  font-size: clamp(10px, 3.2cqw, 18px);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sys__value {
   color: var(--ink);
-  font-size: clamp(10px, 3.4cqw, 19px);
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .sys__bar {
   grid-column: 1 / -1;
-  height: clamp(3px, 0.8cqw, 7px);
-  margin-top: 2px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 3px;
+  margin-top: 3px;
   overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .sys__bar i {
   display: block;
-  height: 100%;
   width: calc(var(--sill-value, 0) * 1%);
+  height: 100%;
   border-radius: inherit;
   background: var(--accent);
   transition: width 420ms var(--ease-out);
 }
 
-.sys__row--gpu .sys__bar i {
+.sys__bar--warm i {
   background: var(--accent-2, var(--accent));
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .sys__bar i { transition: none; }
+/* 网络没有百分比 provider：只给读数，不再画一条会被误读成百分比的进度条 */
+.sys__row--plain {
+  grid-template-columns: 1fr auto;
+  padding-top: 2px;
 }
 
+.sys__row--plain .sys__value {
+  text-align: right;
+  white-space: normal;
+}
 
+.sys__hint {
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
 
+.sys__hint[hidden] {
+  display: none;
+}
 
+/* Shadow DOM 接不到 :root[lang='zh'] 的覆盖，语言挂在 host 上 */
+:host([lang='zh']) .sys__title {
+  letter-spacing: 0.12em;
+}
 
+:host([lang='zh']) .sys__cores,
+:host([lang='zh']) .sys__label,
+:host([lang='zh']) .sys__value {
+  font-size: 12px;
+}
 
+:host([lang='zh']) .sys__cores {
+  font-size: 10.5px;
+}
+
+:host([lang='zh']) .sys__hint {
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sys__bar i {
+    transition: none;
+  }
+}

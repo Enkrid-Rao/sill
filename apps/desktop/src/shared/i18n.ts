@@ -31,6 +31,7 @@ const en = {
   'weather.loading': 'Loading weather…',
   'weather.locating': 'Locating…',
   'weather.unavailable': 'Weather unavailable',
+  'weather.stale': 'Cached',
   'weather.group': 'Weather',
   'weather.location': 'Region',
   'weather.locationNote': 'Auto-locate or pick a city',
@@ -221,6 +222,8 @@ const en = {
   'layout.up': 'Move up',
   'layout.down': 'Move down',
   'layout.columns': 'Columns',
+  'layout.move': 'Move card',
+  'layout.resize': 'Resize card',
 
   'general.interface': 'Interface',
   'general.language': 'Language',
@@ -317,6 +320,7 @@ const zh: Record<Key, string> = {
   'weather.loading': '正在获取天气…',
   'weather.locating': '定位中…',
   'weather.unavailable': '天气暂不可用',
+  'weather.stale': '缓存',
   'weather.group': '天气',
   'weather.location': '地区',
   'weather.locationNote': '自动定位或手动选择城市',
@@ -506,6 +510,8 @@ const zh: Record<Key, string> = {
   'layout.up': '上移',
   'layout.down': '下移',
   'layout.columns': '跨列',
+  'layout.move': '移动卡片',
+  'layout.resize': '调整卡片大小',
 
   'general.interface': '界面',
   'general.language': '语言',

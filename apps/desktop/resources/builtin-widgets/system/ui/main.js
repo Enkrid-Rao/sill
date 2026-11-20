@@ -1,40 +1,78 @@
-// 内置「系统」卡：数据由 manifest 绑定，数字格式化与网络条在 JS 里做。
+// 内置「系统」卡：CPU / RAM / GPU 三条读数 + 网络吞吐。
+// 数字、单位、网络方向和 aria 都由这里格式化；绑定只负责弧长与静态文案。
 const el = (id) => root.getElementById(id)
 
-function bytes(bps) {
-  if (!Number.isFinite(bps)) return '—'
-  if (bps >= 1024 * 1024) return (bps / 1024 / 1024).toFixed(1) + ' MB/s'
-  if (bps >= 1024) return Math.round(bps / 1024) + ' KB/s'
-  return Math.round(bps) + ' B/s'
+const STALL_FRAMES = 6
+let emptyFrames = 0
+
+function formatRate(bytes) {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0) return '—'
+  if (bytes < 1024) return `${Math.round(bytes)} B/s`
+  if (bytes < 1024 ** 2) return `${Math.round(bytes / 1024)} KB/s`
+  return `${(bytes / 1024 ** 2).toFixed(1)} MB/s`
+}
+
+function finite(value) {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function setBar(id, value) {
+  const bar = el(id)
+  if (!bar) return
+  if (!finite(value)) {
+    bar.removeAttribute('aria-valuenow')
+    return
+  }
+  bar.setAttribute('aria-valuenow', String(Math.round(Math.max(0, Math.min(100, value)))))
 }
 
 sill.onData(({ data }) => {
-  const cpu = data.cpu
-  const mem = data.mem
-  const gpu = data.gpu
-  const net = data.net
+  const cpu = data.cpu ?? {}
+  const mem = data.mem ?? {}
+  const gpu = data.gpu ?? {}
+  const net = data.net ?? {}
+  const hasSamples = finite(cpu.usage) || finite(mem.percent)
 
   const cpuEl = el('cpu')
-  if (cpuEl) cpuEl.textContent = cpu?.usage == null ? '—' : Math.round(cpu.usage) + '%'
+  if (cpuEl) cpuEl.textContent = finite(cpu.usage) ? `${Math.round(cpu.usage)}%` : '—'
 
   const memEl = el('mem')
   if (memEl) {
-    memEl.textContent =
-      mem?.percent == null
-        ? '—'
-        : Math.round(mem.percent) + '% · ' + Number(mem.usedGb ?? 0).toFixed(1) + ' GB'
+    memEl.textContent = finite(mem.percent)
+      ? `${Math.round(mem.percent)}% · ${Number(mem.usedGb ?? 0).toFixed(1)} GB`
+      : '—'
   }
 
   const gpuEl = el('gpu')
-  if (gpuEl) gpuEl.textContent = gpu?.usage == null ? '—' : Math.round(gpu.usage) + '%'
+  if (gpuEl) gpuEl.textContent = finite(gpu.usage) ? `${Math.round(gpu.usage)}%` : '—'
 
   const netEl = el('net')
-  if (netEl) netEl.textContent = net?.downBps == null ? '—' : '↓ ' + bytes(net.downBps)
+  if (netEl) {
+    const down = formatRate(net.downBps)
+    const up = formatRate(net.upBps)
+    netEl.textContent =
+      down === '—' && up === '—' ? '—' : `↓ ${down} · ↑ ${up}`
+  }
 
-  // 网络没有百分比 provider：按 1 MB/s 满格，只做活动指示
-  const netBar = el('netbar')
-  if (netBar) {
-    const value = Math.min(100, Math.round((Number(net?.downBps ?? 0) / (1024 * 1024)) * 100))
-    netBar.style.setProperty('--sill-value', String(value))
+  setBar('cpuBar', cpu.usage)
+  setBar('memBar', mem.percent)
+  setBar('gpuBar', gpu.usage)
+
+  const hint = el('hint')
+  const sampling = el('hintSampling')
+  const stalled = el('hintStalled')
+  if (hint && sampling && stalled) {
+    if (hasSamples) {
+      emptyFrames = 0
+      hint.hidden = true
+      stalled.hidden = true
+      sampling.hidden = false
+    } else {
+      emptyFrames += 1
+      hint.hidden = false
+      const dead = emptyFrames >= STALL_FRAMES
+      stalled.hidden = !dead
+      sampling.hidden = dead
+    }
   }
 })

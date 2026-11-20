@@ -131,8 +131,7 @@ export function WidgetRegistryProvider({ children }: { children: ReactNode }): R
     }
 
     // 1. 随应用发布的内置模板（system / processes）
-    for (const payload of builtin) {
-      const nameKey = BUILTIN_NAME_KEYS[payload.id]
+    for (const payload of builtin) {      const nameKey = BUILTIN_NAME_KEYS[payload.id]
       push({
         id: payload.id,
         ...(nameKey ? { nameKey } : { label: payload.name }),

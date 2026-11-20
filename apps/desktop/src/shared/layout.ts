@@ -89,7 +89,7 @@ function normalizeBox(value: unknown): WidgetBox | null {
   return {
     x: Math.max(0, Math.min(10000, Math.round(x))),
     y: Math.max(0, Math.min(10000, Math.round(y))),
-    w: Math.max(120, Math.min(4000, Math.round(w))),
+    w: Math.max(150, Math.min(4000, Math.round(w))),
     h: Math.max(48, Math.min(4000, Math.round(h)))
   }
 }

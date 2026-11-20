@@ -4,8 +4,12 @@ import { t, type Language } from '../../../../shared/i18n'
 
 function formatClock(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return '0:00'
-  const minutes = Math.floor(seconds / 60)
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
   const rest = Math.floor(seconds % 60)
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`
+  }
   return `${minutes}:${String(rest).padStart(2, '0')}`
 }
 
@@ -148,6 +152,8 @@ export function MediaWidget({
 
   const status = override ?? media?.status ?? ''
   const playing = status === 'Playing'
+  // volume = -1：系统音量还没读上来，不能当成「用户把音量调到 0」
+  const volumeReady = volumeProp >= 0
 
   const send = async (action: 'playpause' | 'next' | 'prev' | 'mute'): Promise<void> => {
     if (action === 'playpause') setOverride(playing ? 'Paused' : 'Playing')
@@ -241,7 +247,6 @@ export function MediaWidget({
               className="media__btn media__btn--play"
               aria-label={playing ? t(language, 'media.pause') : t(language, 'media.play')}
               title={playing ? t(language, 'media.pause') : t(language, 'media.play')}
-              aria-pressed={playing}
               onClick={() => void send('playpause')}
             >
               {playing ? <PauseIcon /> : <PlayIcon />}
@@ -257,7 +262,7 @@ export function MediaWidget({
             </button>
           </div>
 
-          <div className={`media__volume${volumeHud ? ' is-dragging' : ''}`}>
+          <div className={`media__volume${volumeHud ? ' is-dragging' : ''}${volumeReady ? '' : ' is-pending'}`}>
             <button
               type="button"
               className="media__btn media__btn--small"
@@ -275,8 +280,9 @@ export function MediaWidget({
               max={100}
               step={1}
               value={volume}
+              disabled={!volumeReady}
               aria-label={t(language, 'media.volume')}
-              aria-valuetext={`${volume}%`}
+              aria-valuetext={volumeReady ? `${volume}%` : '—'}
               title={t(language, 'media.volume')}
               style={{ '--range-progress': `${volume}%` } as React.CSSProperties}
               onPointerDown={() => {
@@ -293,7 +299,7 @@ export function MediaWidget({
               onBlur={() => setVolumeHud(false)}
             />
             <output className="media__volpct" aria-hidden={!volumeHud}>
-              {muted ? '—' : `${volume}%`}
+              {!volumeReady ? '--' : muted ? '—' : `${volume}%`}
             </output>
           </div>
         </div>

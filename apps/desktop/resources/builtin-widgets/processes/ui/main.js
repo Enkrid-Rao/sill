@@ -1,68 +1,62 @@
-// 内置「进程」卡：TOP 内存 + 显存占用。
-const gb = (mb) => {
-  if (mb == null || !Number.isFinite(Number(mb))) return '—'
-  const value = Number(mb)
-  return value >= 1024 ? (value / 1024).toFixed(1) + ' GB' : Math.round(value) + ' MB'
+// 内置「进程」卡：TOP RAM + GPU 进程 + 显存总量。
+// 行结构交给 data-sill-repeat（宿主按 key 复用），这里只格式化数字并处理空态。
+const el = (id) => root.getElementById(id)
+
+const STALL_FRAMES = 8
+let emptyFrames = 0
+
+function gb(mb) {
+  if (typeof mb !== 'number' || !Number.isFinite(mb)) return '—'
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`
+}
+
+function fillRows(selector, items, valueOf) {
+  const rows = [...root.querySelectorAll(selector)]
+  rows.forEach((row, index) => {
+    const item = items[index]
+    const name = row.querySelector('.proc__name')
+    if (name) name.setAttribute('title', String(item?.name ?? ''))
+    const value = row.querySelector('.proc__mb, .proc__pct')
+    if (value) value.textContent = valueOf(item)
+  })
 }
 
 sill.onData(({ data }) => {
   const proc = data.proc ?? {}
-  const rows = root.getElementById('rows')
-  const placeholder = root.getElementById('placeholder')
-  const topRam = proc.topRam ?? []
-  if (placeholder) placeholder.hidden = topRam.length > 0
-  if (rows) {
-    const fragment = document.createDocumentFragment()
-    for (const item of topRam.slice(0, 3)) {
-      const row = document.createElement('div')
-      row.className = 'proc__row'
+  const topRam = Array.isArray(proc.topRam) ? proc.topRam : []
+  const topGpu = Array.isArray(proc.topGpu) ? proc.topGpu : []
 
-      const name = document.createElement('span')
-      name.className = 'proc__name'
-      name.textContent = String(item?.name ?? '')
+  fillRows('.proc__rows--ram .proc__row', topRam, (item) => gb(item?.mb))
+  fillRows('.proc__rows--gpu .proc__row', topGpu, (item) =>
+    typeof item?.pct === 'number' && Number.isFinite(item.pct) ? `${Math.round(item.pct)}%` : '—'
+  )
 
-      const value = document.createElement('span')
-      value.className = 'proc__mb'
-      value.textContent = gb(item?.mb)
-
-      row.append(name, value)
-      fragment.append(row)
-    }
-    rows.replaceChildren(fragment)
-  }
-
-  const gpu = root.getElementById('gpu')
-  if (gpu) {
+  const vram = el('vram')
+  if (vram) {
     const used = proc.gpuMemMb
     const total = proc.gpuTotalMb
-    gpu.textContent =
-      used == null || total == null
-        ? '—'
-        : (used / 1024).toFixed(1) + ' / ' + (total / 1024).toFixed(1) + ' GB'
+    vram.textContent =
+      typeof used === 'number' && typeof total === 'number' && total > 0
+        ? `${(used / 1024).toFixed(1)} / ${(total / 1024).toFixed(1)} GB`
+        : ''
   }
 
-  const gpuSection = root.getElementById('gpuSection')
-  const gpuRows = root.getElementById('gpuRows')
-  const topGpu = Array.isArray(proc.topGpu) ? proc.topGpu : []
-  if (gpuSection) gpuSection.hidden = topGpu.length === 0
-  if (gpuRows) {
-    const fragment = document.createDocumentFragment()
-    for (const item of topGpu.slice(0, 3)) {
-      const row = document.createElement('div')
-      row.className = 'proc__row'
-
-      const name = document.createElement('span')
-      name.className = 'proc__name'
-      name.textContent = String(item?.name ?? '')
-
-      const value = document.createElement('span')
-      value.className = 'proc__pct'
-      value.textContent = `${Math.round(Number(item?.pct) || 0)}%`
-
-      row.append(name, value)
-      fragment.append(row)
+  const placeholder = el('placeholder')
+  const sampling = el('sampling')
+  const empty = el('empty')
+  if (placeholder && sampling && empty) {
+    const hasRows = topRam.length > 0
+    placeholder.hidden = hasRows
+    if (hasRows) {
+      emptyFrames = 0
+      sampling.hidden = false
+      empty.hidden = true
+    } else {
+      emptyFrames += 1
+      const stalled = emptyFrames >= STALL_FRAMES
+      sampling.hidden = stalled
+      empty.hidden = !stalled
     }
-    gpuRows.replaceChildren(fragment)
   }
 })
 

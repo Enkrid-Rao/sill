@@ -1,17 +1,28 @@
-<div class="proc">
-  <div class="proc__subhead">RAM</div>
-  <div class="proc__placeholder" id="placeholder" data-sill-i18n="sampling">Sampling…</div>
-  <div class="proc__rows" id="rows"></div>
-
-  <div class="proc__section" id="gpuSection" hidden>
-    <div class="proc__subhead" data-sill-i18n="gpuTitle">GPU</div>
-    <div class="proc__rows" id="gpuRows"></div>
+<div class="proc" id="proc">
+  <div class="proc__head">
+    <span class="proc__title" data-sill-i18n="title">TOP RAM</span>
+    <span class="proc__vram" id="vram">—</span>
   </div>
 
-  <div class="proc__gpu">
-    <span class="proc__label" data-sill-i18n="gpu">GPU MEMORY</span>
-    <span class="proc__value" id="gpu">--</span>
+  <div class="proc__placeholder" id="placeholder">
+    <span id="sampling" data-sill-i18n="sampling">正在采样…</span>
+    <span id="empty" data-sill-i18n="empty" hidden></span>
+  </div>
+
+  <div class="proc__rows proc__rows--ram" id="ramRows">
+    <div class="proc__row" data-sill-repeat="proc.topRam">
+      <span class="proc__name" data-sill-text="item.name"></span>
+      <span class="proc__mb"></span>
+    </div>
+  </div>
+
+  <div class="proc__section" id="gpuSection" data-sill-if="proc.topGpu.length" hidden>
+    <span class="proc__subhead" data-sill-i18n="gpuTitle">GPU</span>
+    <div class="proc__rows proc__rows--gpu" id="gpuRows">
+      <div class="proc__row" data-sill-repeat="proc.topGpu">
+        <span class="proc__name" data-sill-text="item.name"></span>
+        <span class="proc__pct"></span>
+      </div>
+    </div>
   </div>
 </div>
-
-

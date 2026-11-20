@@ -2,16 +2,13 @@ import { ShelfWidget } from '../components/ShelfWidget'
 import { MediaWidget } from '../components/widgets/MediaWidget'
 import { TodoWidget } from '../components/widgets/TodoWidget'
 import { HeroWidget } from './HeroWidget'
-import { ProcessesWidget } from './ProcessesWidget'
-import { SystemWidget } from './SystemWidget'
 import type { WidgetDefinition } from './types'
 
 /**
- * 内置组件注册表。
+ * 内置 React 组件注册表：hero / media / shelf / todo。
  *
- * 面板不再知道「hero / system / ...」长什么样：它只按 layout.order 查这张表，
- * 把 context 交给 render()。新增内置组件 = 加一个 definition + 一个 i18n 名字 +
- * 在 shared/layout 的 CARD_IDS 里加 id；App.tsx 不需要改。
+ * system / processes 已经迁到 `resources/builtin-widgets/`，由
+ * WidgetRegistryProvider 从模板包注册，不再在这里留一份 React 兜底。
  */
 export const BUILTIN_WIDGETS: readonly WidgetDefinition[] = [
   {
@@ -25,22 +22,6 @@ export const BUILTIN_WIDGETS: readonly WidgetDefinition[] = [
         language={context.language}
         weather={context.snapshot?.weather ?? null}
       />
-    )
-  },
-  {
-    id: 'system',
-    nameKey: 'widget.system',
-    spanFor: () => 1,
-    render: (context) => (
-      <SystemWidget snapshot={context.snapshot} language={context.language} />
-    )
-  },
-  {
-    id: 'processes',
-    nameKey: 'widget.processes',
-    spanFor: () => 1,
-    render: (context) => (
-      <ProcessesWidget snapshot={context.snapshot} language={context.language} />
     )
   },
   {
@@ -84,9 +65,3 @@ export const BUILTIN_WIDGETS: readonly WidgetDefinition[] = [
     )
   }
 ]
-
-export const WIDGETS = BUILTIN_WIDGETS
-
-export const WIDGET_BY_ID: Record<string, WidgetDefinition> = Object.fromEntries(
-  WIDGETS.map((widget) => [widget.id, widget])
-)

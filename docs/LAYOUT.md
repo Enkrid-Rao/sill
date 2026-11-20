@@ -36,7 +36,7 @@ Layout mode. Existing v1 files migrate to flow; `version` becomes `2`.
 
 - `boxes` are px relative to the sheet; cards are absolutely positioned.
 - Any size, any position; cards may overlap.
-- `w`/`h` are clamped to 120×48 minimum.
+- `w`/`h` are clamped to 150×48 minimum.
 - The sheet height is `max(y + h) + 24`.
 
 ### Enabling

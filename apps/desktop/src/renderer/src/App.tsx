@@ -346,7 +346,7 @@ export default function App(): React.JSX.Element {
       boxes[id] = {
         x: Math.max(0, Math.round(rect.left - base.left)),
         y: Math.max(0, Math.round(rect.top - base.top)),
-        w: Math.max(120, Math.round(rect.width)),
+        w: Math.max(150, Math.round(rect.width)),
         h: Math.max(48, Math.round(rect.height))
       }
       changed = true

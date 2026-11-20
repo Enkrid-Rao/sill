@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "system",
   "name": "System",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "Sill",
   "type": "template",
   "span": { "default": 1 },
@@ -13,11 +13,24 @@
     { "id": "net", "source": "system.network" }
   ],
   "strings": {
-    "en": { "title": "SYSTEM", "cores": "cores", "mem": "RAM", "gpu": "GPU", "net": "NETWORK" },
-    "zh": { "title": "系统", "cores": "核", "mem": "RAM", "gpu": "GPU", "net": "网络" }
+    "en": {
+      "title": "SYSTEM",
+      "cores": "cores",
+      "mem": "RAM",
+      "gpu": "GPU",
+      "net": "NETWORK",
+      "sampling": "Waiting for samples…",
+      "stalled": "No samples yet. Check the monitor."
+    },
+    "zh": {
+      "title": "系统",
+      "cores": "核",
+      "mem": "RAM",
+      "gpu": "GPU",
+      "net": "网络",
+      "sampling": "正在采样…",
+      "stalled": "还没有采样数据，检查一下监测服务。"
+    }
   },
   "ui": "ui/index.html"
 }
-
-
-

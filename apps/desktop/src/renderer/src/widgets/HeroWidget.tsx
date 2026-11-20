@@ -74,6 +74,14 @@ function Rain({ snow = false }: { snow?: boolean }): React.JSX.Element {
 }
 
 function WeatherIcon({ code, night }: { code: number; night: boolean }): React.JSX.Element {
+  if (code === -2) {
+    return (
+      <svg className="weather__icon" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <Cloud />
+      </svg>
+    )
+  }
+
   if (code < 0) {
     return (
       <svg className="weather__icon" viewBox="0 0 40 40" fill="none" aria-hidden="true">
@@ -179,6 +187,7 @@ export function HeroWidget({ now, language, weather }: Props): React.JSX.Element
     ? weatherCityName(city, language)
     : weather?.cityName || t(language, 'weather.locating')
   const hasTemp = weather?.temp != null
+  const stale = Boolean(weather?.stale || weather?.error) && hasTemp
   const condition = !weather
     ? t(language, 'weather.loading')
     : weather.error || !hasTemp
@@ -190,32 +199,35 @@ export function HeroWidget({ now, language, weather }: Props): React.JSX.Element
     high != null && low != null
       ? `${t(language, 'weather.high')} ${Math.round(high)}° · ${t(language, 'weather.low')} ${Math.round(low)}°`
       : ''
+  const updatedTitle =
+    stale && weather?.updatedAt
+      ? new Date(weather.updatedAt).toLocaleTimeString(language === 'zh' ? 'zh-CN' : 'en-GB', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : undefined
 
   return (
     <>
-      <div className="cap">{dateLabel}</div>
+      <div className="cap card__date">{dateLabel}</div>
       <div className="num">{timeLabel}</div>
-      <div className="row card__weather">
+      <div className="row card__weather" data-stale={stale ? 'true' : undefined}>
         <div className="weather__now">
-          <WeatherIcon code={weather?.code ?? -1} night={now.getHours() < 6 || now.getHours() >= 18} />
+          <WeatherIcon
+            code={hasTemp ? (weather?.code ?? -1) : -2}
+            night={now.getHours() < 6 || now.getHours() >= 18}
+          />
           <div>
             <div className="weather__temp">{hasTemp ? `${Math.round(weather.temp as number)}°` : '--°'}</div>
-            <div className="sub weather__condition">{condition}</div>
+            <div className="sub weather__condition" title={updatedTitle}>
+              {condition}
+              {stale ? <span className="weather__stale">{t(language, 'weather.stale')}</span> : null}
+            </div>
           </div>
         </div>
-        <div className="cap weather__side">
-          {cityLabel}
-          {range ? (
-            <>
-              <br />
-              {range}
-            </>
-          ) : (
-            <>
-              <br />
-              {'\u00A0'}
-            </>
-          )}
+        <div className="cap weather__side" title={cityLabel}>
+          <span className="weather__city">{cityLabel}</span>
+          <span className="weather__range">{range || '\u00A0'}</span>
         </div>
       </div>
     </>
