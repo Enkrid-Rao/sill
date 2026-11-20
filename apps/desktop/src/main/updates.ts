@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import { autoUpdater, type ProgressInfo, type UpdateInfo } from 'electron-updater'
 import type { UpdateState } from '../shared/update'
+import { isPrereleaseVersion } from '../shared/update'
 import { broadcast } from './broadcast'
 import { IS_PORTABLE } from './paths'
 import { loadSettings } from './settings'
@@ -9,6 +10,12 @@ import { notifyUpdate } from './tray'
 export type { UpdateState, UpdateStatus } from '../shared/update'
 
 const RELEASE_URL = 'https://github.com/Enkrid-Rao/sill/releases/latest'
+
+function releaseUrl(version?: string): string {
+  return version
+    ? `https://github.com/Enkrid-Rao/sill/releases/tag/v${version}`
+    : RELEASE_URL
+}
 
 let state: UpdateState = { status: 'idle' }
 let initialized = false
@@ -59,7 +66,8 @@ function init(): void {
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
   autoUpdater.allowDowngrade = false
-  autoUpdater.allowPrerelease = false
+  // Beta/RC 自己可以继续收 Pre-release；稳定版保持只看 Latest。
+  autoUpdater.allowPrerelease = isPrereleaseVersion(app.getVersion())
 
   autoUpdater.on('checking-for-update', () => {
     publish({ status: 'checking' })
@@ -69,7 +77,7 @@ function init(): void {
     publish({
       status: 'available',
       version: info.version,
-      url: RELEASE_URL,
+      url: releaseUrl(info.version),
       checkedAt: Date.now()
     })
     // autoUpdate 的真义是“自动下载并安装”，不是只弹一个可用提示。
@@ -97,7 +105,7 @@ function init(): void {
       status: 'downloaded',
       version: info.version,
       progress: 100,
-      url: RELEASE_URL,
+      url: releaseUrl(info.version),
       checkedAt: Date.now()
     })
     notifyOnce('downloaded', info.version)

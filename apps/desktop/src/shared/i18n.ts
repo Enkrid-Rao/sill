@@ -126,6 +126,8 @@ const en = {
   'advanced.danger': 'Danger zone',
   'about.links': 'Links',
   'about.credits': 'Credits',
+  'about.privacy': 'Privacy',
+  'about.thirdParty': 'Third-party',
   'media.connecting': 'Connecting to media…',
 
   'appearance.presets': 'Presets',
@@ -441,6 +443,8 @@ const zh: Record<Key, string> = {
   'advanced.danger': '危险区',
   'about.links': '链接',
   'about.credits': '致谢',
+  'about.privacy': '隐私',
+  'about.thirdParty': '第三方',
   'media.connecting': '正在连接媒体…',
 
   'appearance.presets': '预设',

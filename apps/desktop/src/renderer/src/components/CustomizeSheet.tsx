@@ -1941,6 +1941,22 @@ export function CustomizeSheet({
               </a>
               <a
                 className="cz-link"
+                href="https://github.com/Enkrid-Rao/sill/blob/main/PRIVACY.md"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t(language, 'about.privacy')}
+              </a>
+              <a
+                className="cz-link"
+                href="https://github.com/Enkrid-Rao/sill/blob/main/THIRD-PARTY.md"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {t(language, 'about.thirdParty')}
+              </a>
+              <a
+                className="cz-link"
                 href="https://github.com/Enkrid-Rao/sill/blob/main/LICENSE"
                 target="_blank"
                 rel="noreferrer"

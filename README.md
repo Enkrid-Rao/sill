@@ -139,6 +139,8 @@ pnpm dist        # NSIS installer → apps/desktop/dist
 | [docs/DEVELOPER-QUICKSTART.md](docs/DEVELOPER-QUICKSTART.md) | install CLI, new, dev, pack | **first component** |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | setup, tests, commit and review rules | **sending a patch** |
 | [SECURITY.md](SECURITY.md) | threat model and disclosure | **reporting a vulnerability** |
+| [PRIVACY.md](PRIVACY.md) | local data, network requests and controls | **checking data use** |
+| [THIRD-PARTY.md](THIRD-PARTY.md) | runtime dependencies, services and licenses | **auditing third parties** |
 | [docs/mockups/panel-forms.html](docs/mockups/panel-forms.html) | four panel shapes at 1:1 scale | why the side rail |
 
 ## Component development

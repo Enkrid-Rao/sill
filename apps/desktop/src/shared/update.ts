@@ -19,3 +19,8 @@ export interface UpdateState {
   /** 失败/不可用原因 */
   reason?: 'private' | 'network' | 'signature' | 'portable' | 'dev'
 }
+
+/** Beta / RC / dev 构建允许检查 Pre-release；稳定版永远只走 Latest。 */
+export function isPrereleaseVersion(version: string): boolean {
+  return /-(?:alpha|beta|rc|dev)(?:[.-]|$)/i.test(version)
+}

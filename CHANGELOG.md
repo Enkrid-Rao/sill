@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0-beta.2 — 2026-11-20
+
+- Beta/RC 构建启用 pre-release 更新通道，稳定版仍只看 Latest；更新可用链接改为对应 tag。
+- 补 PRIVACY.md / THIRD-PARTY.md，设置关于页与 README 可达。
+- 补 M1 门禁记录；打包态 soak、设置窗口位置/DPI、稳定版更新隔离验证。
+
 ## 0.7.0-beta.1 — 2026-11-20
 
 ### 界面
