@@ -128,6 +128,9 @@ export function checkForUpdates(): Promise<UpdateState> {
   if (!app.isPackaged) {
     return Promise.resolve(publish({ status: 'unsupported', reason: 'dev' }))
   }
+  if (!loadSettings().networkConsent) {
+    return Promise.resolve(publish({ status: 'unsupported', reason: 'offline' }))
+  }
 
   init()
   if (checking) return checking
@@ -156,6 +159,9 @@ export function downloadUpdate(): Promise<UpdateState> {
   }
   if (!app.isPackaged) {
     return Promise.resolve(publish({ status: 'unsupported', reason: 'dev' }))
+  }
+  if (!loadSettings().networkConsent) {
+    return Promise.resolve(publish({ status: 'unsupported', reason: 'offline' }))
   }
   if (downloading) return downloading
   if (state.status === 'downloaded') return Promise.resolve(state)

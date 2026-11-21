@@ -17,7 +17,7 @@ export interface UpdateState {
   progress?: number
   checkedAt?: number
   /** 失败/不可用原因 */
-  reason?: 'private' | 'network' | 'signature' | 'portable' | 'dev'
+  reason?: 'private' | 'network' | 'signature' | 'portable' | 'dev' | 'offline'
 }
 
 /** Beta / RC / dev 构建允许检查 Pre-release；稳定版永远只走 Latest。 */

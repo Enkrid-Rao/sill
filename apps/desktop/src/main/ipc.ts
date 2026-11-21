@@ -67,6 +67,14 @@ export function registerIpc(deps: IpcDeps): void {
     deps.apply(next, patch ?? {})
     // 换城市 / 切回自动定位：不等 15 分钟，立刻重新取一次天气
     if ('weatherLocation' in (patch ?? {}) || 'weatherCustom' in (patch ?? {})) void refreshWeather()
+    // 隐私同意 / 天气联网开关：立刻生效（关闭时只停请求，不清缓存）
+    if (
+      'networkConsent' in (patch ?? {}) ||
+      'weatherNetwork' in (patch ?? {}) ||
+      'privacyAsked' in (patch ?? {})
+    ) {
+      void refreshWeather()
+    }
     // 监测间隔变了：当前可见的采样器立即换节拍
     if ('monitorIntervalMs' in (patch ?? {})) refreshDataCadence()
     // 设置窗口和面板共用一份状态：谁改的都广播出去
@@ -260,9 +268,17 @@ export function registerIpc(deps: IpcDeps): void {
   })
 
   ipcMain.handle('widgets:install-url', async (event, raw: unknown) => {
-    if (typeof raw !== 'string' || !raw.trim()) return { ok: false, error: '无效链接' }
+    const payload =
+      typeof raw === 'string'
+        ? { url: raw }
+        : raw && typeof raw === 'object'
+          ? (raw as { url?: unknown; sha256?: unknown })
+          : null
+    const url = typeof payload?.url === 'string' ? payload.url : ''
+    if (!url.trim()) return { ok: false, error: '无效链接' }
+    const sha256 = typeof payload?.sha256 === 'string' ? payload.sha256 : undefined
     const win = BrowserWindow.fromWebContents(event.sender)
-    const downloaded = await downloadPackage(raw)
+    const downloaded = await downloadPackage(url, sha256)
     if (!downloaded.ok || !downloaded.file) {
       return { ok: false, error: downloaded.error ?? '下载失败' }
     }

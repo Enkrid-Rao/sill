@@ -103,11 +103,52 @@ function LayoutIcon(): React.JSX.Element {
   )
 }
 
+function PrivacyGate({
+  language,
+  onAllow,
+  onOffline
+}: {
+  language: 'zh' | 'en'
+  onAllow: () => void
+  onOffline: () => void
+}): React.JSX.Element {
+  return (
+    <section className="privacy" role="dialog" aria-modal="true" aria-labelledby="privacy-title">
+      <div className="privacy__card">
+        <span className="cap privacy__eyebrow">SILL · PRIVACY</span>
+        <h2 className="privacy__title" id="privacy-title">
+          {t(language, 'privacy.title')}
+        </h2>
+        <p className="privacy__body">{t(language, 'privacy.body')}</p>
+        <p className="privacy__body">{t(language, 'privacy.network')}</p>
+        <p className="privacy__note">{t(language, 'privacy.offlineNote')}</p>
+        <a
+          className="privacy__link"
+          href="https://github.com/Enkrid-Rao/sill/blob/main/PRIVACY.md"
+          target="_blank"
+          rel="noreferrer"
+        >
+          {t(language, 'privacy.details')}
+        </a>
+        <div className="privacy__actions">
+          <button className="privacy__button privacy__button--quiet" type="button" onClick={onOffline}>
+            {t(language, 'privacy.offline')}
+          </button>
+          <button className="privacy__button privacy__button--primary" type="button" onClick={onAllow}>
+            {t(language, 'privacy.allow')}
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function App(): React.JSX.Element {
   const registry = useWidgetRegistry()
   const settings = useSillSettings()
   const [visible, setVisible] = useState(false)
   const now = useClock(visible)
+  const privacyOpen = visible && !settings.privacyAsked
   const [customizing, setCustomizing] = useState(false)
   const [columns, setColumns] = useState<1 | 2 | 3>(() => columnsForWidth(window.innerWidth))
   const [snapshot, setSnapshot] = useState<PanelSnapshot | null>(null)
@@ -311,8 +352,8 @@ export default function App(): React.JSX.Element {
 
   // 告诉主进程「有覆盖层」，Esc 的优先级据此切换
   useEffect(() => {
-    void window.sill?.setOverlayOpen(customizing || editing)
-  }, [customizing, editing])
+    void window.sill?.setOverlayOpen(customizing || editing || privacyOpen)
+  }, [customizing, editing, privacyOpen])
 
   const openSettings = useCallback(async (): Promise<void> => {
     // 设置窗口可能还开着但开关已经被关掉：这时仍然聚焦它，避免叠出两层设置 UI
@@ -491,6 +532,14 @@ export default function App(): React.JSX.Element {
       <span className="rail__halo" aria-hidden="true" />
       <span className="rail__sheen" aria-hidden="true" />
       <span className="rail__rim" aria-hidden="true" />
+
+      {privacyOpen ? (
+        <PrivacyGate
+          language={settings.language}
+          onAllow={() => settings.answerPrivacy(true)}
+          onOffline={() => settings.answerPrivacy(false)}
+        />
+      ) : null}
 
       {editing ? (
         <div className="layout-bar">
@@ -681,6 +730,10 @@ export default function App(): React.JSX.Element {
           weatherCustom={settings.weatherCustom}
           onWeatherLocationChange={settings.changeWeatherLocation}
           onWeatherCustomChange={settings.changeWeatherCustom}
+          networkConsent={settings.networkConsent}
+          weatherNetwork={settings.weatherNetwork}
+          onNetworkConsentChange={settings.changeNetworkConsent}
+          onWeatherNetworkChange={settings.changeWeatherNetwork}
           monitorIntervalMs={settings.monitorIntervalMs}
           onMonitorIntervalChange={settings.changeMonitorIntervalMs}
           startAtLogin={settings.startAtLogin}

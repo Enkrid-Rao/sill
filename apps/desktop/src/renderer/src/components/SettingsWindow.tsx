@@ -64,6 +64,10 @@ export function SettingsWindow(): React.JSX.Element {
         weatherCustom={settings.weatherCustom}
         onWeatherLocationChange={settings.changeWeatherLocation}
         onWeatherCustomChange={settings.changeWeatherCustom}
+        networkConsent={settings.networkConsent}
+        weatherNetwork={settings.weatherNetwork}
+        onNetworkConsentChange={settings.changeNetworkConsent}
+        onWeatherNetworkChange={settings.changeWeatherNetwork}
         monitorIntervalMs={settings.monitorIntervalMs}
         onMonitorIntervalChange={settings.changeMonitorIntervalMs}
         startAtLogin={settings.startAtLogin}

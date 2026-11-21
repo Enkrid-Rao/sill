@@ -63,11 +63,16 @@ export function createTray(actions: TrayActions): Tray {
 
 /** Windows 托盘气泡：面板收着、用户没开设置时也能看到更新提醒。 */
 export function notifyUpdate(title: string, content: string): void {
+  notifyInfo(title, content)
+}
+
+/** 通用托盘提示（热键冲突、首启提示等）。 */
+export function notifyInfo(title: string, content: string): void {
   if (!tray || tray.isDestroyed()) return
   try {
     tray.displayBalloon({ title, content, iconType: 'info', respectQuietTime: true })
   } catch (error) {
-    console.error('[sill] 无法显示更新提醒：', error)
+    console.error('[sill] 无法显示托盘提示：', error)
   }
 }
 

@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "system",
   "name": "System",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "author": "Sill",
   "type": "template",
   "span": { "default": 1 },
@@ -18,6 +18,7 @@
       "mem": "RAM",
       "gpu": "GPU",
       "net": "NETWORK",
+      "stale": "Data delayed",
       "sampling": "Waiting for samples…",
       "stalled": "No samples yet. Check the monitor."
     },
@@ -26,6 +27,7 @@
       "mem": "RAM",
       "gpu": "GPU",
       "net": "网络",
+      "stale": "数据延迟",
       "sampling": "正在采样…",
       "stalled": "还没有采样数据，检查一下监测服务。"
     }

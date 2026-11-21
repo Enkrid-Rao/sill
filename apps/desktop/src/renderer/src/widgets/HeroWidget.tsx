@@ -187,12 +187,15 @@ export function HeroWidget({ now, language, weather }: Props): React.JSX.Element
     ? weatherCityName(city, language)
     : weather?.cityName || t(language, 'weather.locating')
   const hasTemp = weather?.temp != null
+  const offline = weather?.disabled === true
   const stale = Boolean(weather?.stale || weather?.error) && hasTemp
   const condition = !weather
     ? t(language, 'weather.loading')
-    : weather.error || !hasTemp
-      ? t(language, 'weather.unavailable')
-      : t(language, weatherConditionKey(weather.code))
+    : offline
+      ? t(language, 'weather.offline')
+      : weather.error || !hasTemp
+        ? t(language, 'weather.unavailable')
+        : t(language, weatherConditionKey(weather.code))
   const high = weather?.high
   const low = weather?.low
   const range =

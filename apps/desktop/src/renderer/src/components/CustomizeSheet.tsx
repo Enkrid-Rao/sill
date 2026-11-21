@@ -146,6 +146,10 @@ interface Props {
   weatherCustom: WeatherCustomLocation | null
   onWeatherLocationChange: (value: string) => void
   onWeatherCustomChange: (value: WeatherCustomLocation | null) => void
+  networkConsent: boolean
+  weatherNetwork: boolean
+  onNetworkConsentChange: (value: boolean) => void
+  onWeatherNetworkChange: (value: boolean) => void
   monitorIntervalMs: number
   onMonitorIntervalChange: (value: number) => void
   startAtLogin: boolean
@@ -574,6 +578,10 @@ export function CustomizeSheet({
   weatherCustom,
   onWeatherLocationChange,
   onWeatherCustomChange,
+  networkConsent,
+  weatherNetwork,
+  onNetworkConsentChange,
+  onWeatherNetworkChange,
   monitorIntervalMs,
   onMonitorIntervalChange,
   startAtLogin,
@@ -741,12 +749,12 @@ export function CustomizeSheet({
     void window.sill?.revealComponentFolder?.(dir)
   }
 
-  const installFromUrl = async (url: string): Promise<void> => {
+  const installFromUrl = async (url: string, sha256?: string): Promise<void> => {
     const trimmed = url.trim()
     if (!trimmed) return
     setInstallError('')
     setUrlBusy(true)
-    const result = await window.sill?.installWidgetFromUrl?.(trimmed)
+    const result = await window.sill?.installWidgetFromUrl?.(trimmed, sha256)
     setUrlBusy(false)
     if (result && !result.ok && result.error !== '已取消') {
       setInstallError(result.error ?? t(language, 'widgets.installFailed'))
@@ -757,7 +765,7 @@ export function CustomizeSheet({
 
   const updateComponent = async (update: CatalogUpdate): Promise<void> => {
     setUpdating(update.id)
-    await installFromUrl(update.download)
+    await installFromUrl(update.download, update.sha256)
     setUpdating(null)
     void loadCatalog(true)
   }
@@ -835,6 +843,7 @@ export function CustomizeSheet({
       case 'error':
         if (update.reason === 'portable') return t(language, 'general.updatePortable')
         if (update.reason === 'dev') return t(language, 'general.updateDev')
+        if (update.reason === 'offline') return t(language, 'general.updateOffline')
         return update.reason === 'signature'
           ? t(language, 'general.updateSignature')
           : t(language, 'general.updateFailed')
@@ -1553,7 +1562,7 @@ export function CustomizeSheet({
                             className="cz-action"
                             type="button"
                             disabled={urlBusy}
-                            onClick={() => void installFromUrl(entry.download!)}
+                            onClick={() => void installFromUrl(entry.download!, entry.sha256)}
                           >
                             {urlBusy ? '…' : t(language, 'widgets.catalogInstall')}
                           </button>
@@ -1685,6 +1694,20 @@ export function CustomizeSheet({
             </div>
 
             <p className="cz-group">{t(language, 'weather.group')}</p>
+            <Switch
+              id="cz-network-consent"
+              label={t(language, 'privacy.networkToggle')}
+              note={t(language, 'privacy.networkToggleNote')}
+              checked={networkConsent}
+              onChange={onNetworkConsentChange}
+            />
+            <Switch
+              id="cz-weather-network"
+              label={t(language, 'weather.network')}
+              note={t(language, 'weather.networkNote')}
+              checked={networkConsent && weatherNetwork}
+              onChange={onWeatherNetworkChange}
+            />
             <div className="cz-field">
               <div className="cz-field__head">
                 <label className="cz-field__name" htmlFor="cz-weather-search">

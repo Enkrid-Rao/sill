@@ -32,6 +32,9 @@ export interface SillSettingsController {
   settingsInWindow: boolean
   weatherLocation: string
   weatherCustom: WeatherCustomLocation | null
+  privacyAsked: boolean
+  networkConsent: boolean
+  weatherNetwork: boolean
   monitorIntervalMs: number
   version: string
   update: UpdateState
@@ -57,6 +60,9 @@ export interface SillSettingsController {
   changeSettingsInWindow: (value: boolean) => void
   changeWeatherLocation: (value: string) => void
   changeWeatherCustom: (value: WeatherCustomLocation | null) => void
+  answerPrivacy: (allow: boolean) => void
+  changeNetworkConsent: (value: boolean) => void
+  changeWeatherNetwork: (value: boolean) => void
   changeMonitorIntervalMs: (value: number) => void
   checkUpdate: () => void
   downloadUpdate: () => void
@@ -87,6 +93,9 @@ export function useSillSettings(): SillSettingsController {
   const [settingsInWindow, setSettingsInWindow] = useState(false)
   const [weatherLocation, setWeatherLocation] = useState('auto')
   const [weatherCustom, setWeatherCustom] = useState<WeatherCustomLocation | null>(null)
+  const [privacyAsked, setPrivacyAsked] = useState(false)
+  const [networkConsent, setNetworkConsent] = useState(false)
+  const [weatherNetwork, setWeatherNetwork] = useState(true)
   const [monitorIntervalMs, setMonitorIntervalMs] = useState(2000)
   const [version, setVersion] = useState('')
   const [update, setUpdate] = useState<UpdateState>(EMPTY_UPDATE)
@@ -109,6 +118,9 @@ export function useSillSettings(): SillSettingsController {
     setSettingsInWindow(next.settingsInWindow)
     setWeatherLocation(next.weatherLocation)
     setWeatherCustom(next.weatherCustom ?? null)
+    setPrivacyAsked(next.privacyAsked === true)
+    setNetworkConsent(next.networkConsent === true)
+    setWeatherNetwork(next.weatherNetwork !== false)
     setMonitorIntervalMs(next.monitorIntervalMs)
   }, [])
 
@@ -296,6 +308,31 @@ export function useSillSettings(): SillSettingsController {
     void window.sill?.updateSettings({ weatherCustom: value })
   }, [])
 
+  const answerPrivacy = useCallback((allow: boolean) => {
+    setPrivacyAsked(true)
+    setNetworkConsent(allow)
+    setWeatherNetwork(allow)
+    void window.sill?.updateSettings({
+      privacyAsked: true,
+      networkConsent: allow,
+      weatherNetwork: allow
+    })
+  }, [])
+
+  const changeWeatherNetwork = useCallback((value: boolean) => {
+    setWeatherNetwork(value)
+    void window.sill?.updateSettings(
+      value
+        ? { networkConsent: true, weatherNetwork: true }
+        : { weatherNetwork: false }
+    )
+  }, [])
+
+  const changeNetworkConsent = useCallback((value: boolean) => {
+    setNetworkConsent(value)
+    void window.sill?.updateSettings({ networkConsent: value })
+  }, [])
+
   const changeMonitorIntervalMs = useCallback((value: number) => {
     setMonitorIntervalMs(value)
     void window.sill?.updateSettings({ monitorIntervalMs: value })
@@ -380,6 +417,9 @@ export function useSillSettings(): SillSettingsController {
     settingsInWindow,
     weatherLocation,
     weatherCustom,
+    privacyAsked,
+    networkConsent,
+    weatherNetwork,
     monitorIntervalMs,
     version,
     update,
@@ -404,6 +444,9 @@ export function useSillSettings(): SillSettingsController {
     changeSettingsInWindow,
     changeWeatherLocation,
     changeWeatherCustom,
+    answerPrivacy,
+    changeNetworkConsent,
+    changeWeatherNetwork,
     changeMonitorIntervalMs,
     checkUpdate,
     downloadUpdate,

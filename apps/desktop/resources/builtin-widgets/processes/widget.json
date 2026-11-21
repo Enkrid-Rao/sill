@@ -2,7 +2,7 @@
   "schema": 1,
   "id": "processes",
   "name": "Processes",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "author": "Sill",
   "type": "template",
   "span": { "default": 1 },
@@ -12,12 +12,14 @@
       "title": "TOP RAM",
       "gpuTitle": "GPU",
       "sampling": "Sampling…",
+      "stale": "Data delayed",
       "empty": "No process data yet"
     },
     "zh": {
       "title": "内存占用",
       "gpuTitle": "GPU",
       "sampling": "正在采样…",
+      "stale": "数据延迟",
       "empty": "还没有进程数据"
     }
   },

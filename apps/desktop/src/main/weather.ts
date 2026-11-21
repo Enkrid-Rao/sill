@@ -278,6 +278,30 @@ async function fetchWeatherWithRetry(location: LocationResult): Promise<WeatherS
 }
 
 async function refresh(): Promise<void> {
+  const settings = loadSettings()
+  if (!settings.networkConsent || !settings.weatherNetwork) {
+    const custom = settings.weatherCustom
+    const city =
+      settings.weatherLocation === 'auto'
+        ? null
+        : (getWeatherCity(settings.weatherLocation) ?? getWeatherCity(DEFAULT_WEATHER_CITY.id))
+    current = {
+      ...(current ?? {}),
+      temp: current?.temp ?? null,
+      high: current?.high ?? null,
+      low: current?.low ?? null,
+      code: current?.code ?? -1,
+      cityId: custom ? null : (city?.id ?? current?.cityId ?? null),
+      cityName: custom?.name ?? city?.en ?? current?.cityName ?? DEFAULT_WEATHER_CITY.en,
+      auto: !custom && settings.weatherLocation === 'auto',
+      updatedAt: current?.updatedAt ?? 0,
+      stale: false,
+      error: false,
+      disabled: true
+    }
+    return
+  }
+
   const location = await resolveLocation()
   try {
     const next = await fetchWeatherWithRetry(location)

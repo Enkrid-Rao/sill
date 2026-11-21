@@ -26,6 +26,15 @@
   text-transform: uppercase;
 }
 
+.sys__stale {
+  margin-left: auto;
+  color: hsl(38 85% 72%);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 .sys__row {
   display: grid;
   grid-template-columns: 1fr auto;

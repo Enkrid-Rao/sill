@@ -17,7 +17,8 @@ const api = {
   getInstalledWidgets: () => ipcRenderer.invoke('widgets:list'),
   getInstalledWidget: (id: string) => ipcRenderer.invoke('widgets:load', id),
   installWidget: () => ipcRenderer.invoke('widgets:install'),
-  installWidgetFromUrl: (url: string) => ipcRenderer.invoke('widgets:install-url', url),
+  installWidgetFromUrl: (url: string, sha256?: string) =>
+    ipcRenderer.invoke('widgets:install-url', { url, sha256 }),
   getWidgetCatalog: (force?: boolean) => ipcRenderer.invoke('widgets:catalog', force === true),
   getWidgetUpdates: () => ipcRenderer.invoke('widgets:updates'),
   checkWidgetUpdates: () => ipcRenderer.invoke('widgets:check-updates'),

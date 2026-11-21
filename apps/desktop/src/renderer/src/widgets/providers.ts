@@ -121,7 +121,11 @@ function providerValue(source: string, context: ProviderContext): unknown {
         totalMb: snapshot?.gpuTotal ?? null
       }
     case 'system.network':
-      return { downBps: snapshot?.down ?? null, upBps: snapshot?.up ?? null }
+      return {
+        downBps: snapshot?.down ?? null,
+        upBps: snapshot?.up ?? null,
+        sampledAt: snapshot?.procsAt ?? null
+      }
     case 'system.processes':
       return {
         topRam: (snapshot?.procs ?? []).map((process) => ({
@@ -133,7 +137,9 @@ function providerValue(source: string, context: ProviderContext): unknown {
           pct: process.pct
         })),
         gpuMemMb: snapshot?.gpuMem ?? null,
-        gpuTotalMb: snapshot?.gpuTotal ?? null
+        gpuTotalMb: snapshot?.gpuTotal ?? null,
+        procsAt: snapshot?.procsAt ?? null,
+        gpuAt: snapshot?.gpuAt ?? null
       }
     case 'media.nowPlaying':
       return mediaValue(context)

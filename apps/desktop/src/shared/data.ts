@@ -66,6 +66,9 @@ export interface PanelSnapshot {
   gpuTotal: number | null
   gpuProcs: GpuProcessSample[]
   procs: ProcessSample[]
+  /** 进程 / GPU 样本最后一次到达的时间；0 = 还没拿到过 */
+  procsAt?: number
+  gpuAt?: number
   media: MediaSample | null
   /** 媒体样本最后一次到达的时间；0 / undefined = 还没拿到过（不是“没有播放”） */
   mediaAt?: number

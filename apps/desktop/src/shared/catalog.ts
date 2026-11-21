@@ -14,6 +14,8 @@ export interface CatalogEntry {
   /** 只有 catalog 明确标了 installable + https download 才是装的入口。 */
   installable: boolean
   download?: string
+  /** 官方目录提供的组件包 SHA-256（小写 hex）；有则安装前必须校验。 */
+  sha256?: string
 }
 
 export interface CatalogResult {
@@ -29,6 +31,7 @@ export interface CatalogUpdate {
   from: string
   to: string
   download: string
+  sha256?: string
 }
 
 export interface CatalogUpdatesState {
@@ -77,7 +80,8 @@ export function findUpdates(
       name: entry.name,
       from: current,
       to: entry.version,
-      download: entry.download
+      download: entry.download,
+      ...(entry.sha256 ? { sha256: entry.sha256 } : {})
     })
   }
   return updates
@@ -150,6 +154,10 @@ export function normalizeCatalog(raw: unknown): CatalogEntry[] {
       typeof record.download === 'string' && isAllowedDownloadUrl(record.download)
         ? record.download
         : undefined
+    const sha256 =
+      typeof record.sha256 === 'string' && /^[a-f0-9]{64}$/i.test(record.sha256)
+        ? record.sha256.toLowerCase()
+        : undefined
     entries.push({
       id,
       version,
@@ -159,7 +167,8 @@ export function normalizeCatalog(raw: unknown): CatalogEntry[] {
       type,
       status,
       installable: record.installable === true && Boolean(download),
-      ...(download ? { download } : {})
+      ...(download ? { download } : {}),
+      ...(sha256 ? { sha256 } : {})
     })
   }
   return entries

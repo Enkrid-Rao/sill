@@ -12,6 +12,7 @@ import { stopCollector } from './data/collector'
 import { startDevWidgetWatcher, stopDevWidgetWatcher } from './dev-widget'
 import { bindHotkey, disposeHotkeys } from './hotkey'
 import { registerIpc } from './ipc'
+import { installNetworkGate } from './privacy'
 import { COMPONENTS_DIR, getLayout, invalidateLayout } from './layout'
 import { ensureSkinsDir, SKINS_DIR, startSkinsWatcher, stopSkinsWatcher } from './skins'
 import { installWidgetFile } from './widget-install'
@@ -27,7 +28,7 @@ import {
 } from './panel'
 import { loadSettings, updateSettings, type Settings } from './settings'
 import { closeSettingsWindow, hasSettingsWindow, openSettingsWindow } from './settings-window'
-import { createTray, destroyTray, refreshTray } from './tray'
+import { createTray, destroyTray, notifyInfo, refreshTray } from './tray'
 import { checkForUpdates } from './updates'
 import type { UpdateState } from '../shared/update'
 
@@ -140,6 +141,7 @@ async function handleOpenFileArgs(argv: readonly string[]): Promise<void> {
 
 async function boot(): Promise<void> {
   const settings = loadSettings()
+  installNetworkGate()
 
   Menu.setApplicationMenu(null)
   registerIpc({ apply: applySideEffects, setHotkey: changeHotkey })
@@ -164,7 +166,7 @@ async function boot(): Promise<void> {
   warmCollector()
 
   if (!SMOKE) {
-    bindHotkey(settings.hotkey, onToggle)
+    const bound = bindHotkey(settings.hotkey, onToggle)
 
     createTray({
       toggle: onToggle,
@@ -189,6 +191,18 @@ async function boot(): Promise<void> {
       }
     })
 
+    if (!bound) {
+      notifyInfo(
+        settings.language === 'zh' ? '快捷键被占用' : 'Shortcut unavailable',
+        settings.language === 'zh'
+          ? `${settings.hotkey} 已被其他程序占用。请从托盘菜单打开 Sill，并在设置中更换快捷键。`
+          : `${settings.hotkey} is used by another app. Open Sill from the tray and change the shortcut in Settings.`
+      )
+    }
+
+    // 首次运行 / 尚未确认隐私说明：直接露出面板，避免“点了没反应”。
+    if (!settings.privacyAsked) showPanel()
+
     // 只在开启时重贴一次，顺手修复「项目被移动导致自启路径失效」
     if (settings.startAtLogin) applyAutostart(true)
 
@@ -201,6 +215,8 @@ async function boot(): Promise<void> {
 
 /** 自检：唤起面板 → 截图 → 退出，验证 M0 的窗口与渲染 */
 async function runSmoke(): Promise<void> {
+  // 自检不弹隐私门；允许网络以便截图里有真实天气。
+  updateSettings({ privacyAsked: true, networkConsent: true, weatherNetwork: true })
   showPanel()
   // collector / 媒体控制各自启动一个 PowerShell，等第一帧真实数据再截图
   await new Promise((resolve) => setTimeout(resolve, 6000))

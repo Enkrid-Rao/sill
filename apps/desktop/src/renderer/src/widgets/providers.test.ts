@@ -85,7 +85,7 @@ describe('buildProviderData', () => {
     expect(data.cpu).toEqual({ usage: 42, cores: 16, speedGhz: 3.6 })
     expect(data.memory).toEqual({ percent: 55, usedGb: 8.8, totalGb: 16 })
     expect(data.gpu).toEqual({ usage: 33, memMb: 2048, totalMb: 8192 })
-    expect(data.network).toEqual({ downBps: 1024, upBps: 512 })
+    expect(data.network).toEqual({ downBps: 1024, upBps: 512, sampledAt: null })
     expect(data.processes).toMatchObject({
       topRam: [{ name: 'chrome', mb: 1200 }],
       gpuMemMb: 2048

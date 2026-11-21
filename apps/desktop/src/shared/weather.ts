@@ -159,5 +159,7 @@ export interface WeatherSnapshot {
   updatedAt: number
   stale: boolean
   error: boolean
+  /** 用户关闭联网 / 尚未同意隐私说明 */
+  disabled?: boolean
 }
 

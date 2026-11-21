@@ -49,6 +49,12 @@ export interface Settings {
   weatherLocation: string
   /** 搜索得到的自定义地点；设置后优先于 weatherLocation */
   weatherCustom: WeatherCustomLocation | null
+  /** 是否已处理首启隐私说明 */
+  privacyAsked: boolean
+  /** 是否允许联网功能（天气 / 歌词 / 更新） */
+  networkConsent: boolean
+  /** 用户是否希望天气联网；还需 networkConsent 才真正请求 */
+  weatherNetwork: boolean
   /** 系统监测刷新间隔（毫秒） */
   monitorIntervalMs: MonitorInterval
   /** 玻璃主题：颜色、氛围、光晕、颗粒 */
@@ -68,6 +74,9 @@ export const DEFAULTS: Settings = {
   settingsInWindow: false,
   weatherLocation: 'auto',
   weatherCustom: null,
+  privacyAsked: false,
+  networkConsent: false,
+  weatherNetwork: true,
   monitorIntervalMs: DEFAULT_MONITOR_INTERVAL,
   theme: DEFAULT_THEME
 }
@@ -127,6 +136,9 @@ function coerce(raw: unknown): Settings {
     settingsInWindow: src.settingsInWindow === true,
     weatherLocation,
     weatherCustom,
+    privacyAsked: src.privacyAsked === true,
+    networkConsent: src.networkConsent === true,
+    weatherNetwork: src.weatherNetwork !== false,
     monitorIntervalMs,
     theme: normalizeTheme(src.theme)
   }

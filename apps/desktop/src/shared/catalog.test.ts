@@ -133,4 +133,31 @@ describe('findUpdates', () => {
       findUpdates([{ id: entry.id, version: '1.0.0' }], [{ ...entry, installable: false }])
     ).toEqual([])
   })
+
+  it('carries the catalog sha256 into updates', () => {
+    const sha256 = 'a'.repeat(64)
+    expect(
+      findUpdates([{ id: entry.id, version: '1.0.0' }], [{ ...entry, sha256 }])
+    ).toEqual([{ id: entry.id, name: entry.name, from: '1.0.0', to: '1.2.0', download: entry.download, sha256 }])
+  })
+})
+
+describe('catalog sha256', () => {
+  const sha256 = 'b'.repeat(64)
+
+  it('normalizes a valid hash and drops malformed ones', () => {
+    const base = {
+      id: 'com.example.clock',
+      version: '1.2.0',
+      name: { en: 'Clock' },
+      summary: {},
+      author: 'you',
+      type: 'template',
+      status: 'community',
+      installable: true,
+      download: 'https://example.com/clock.sill'
+    }
+    expect(normalizeCatalog({ widgets: [{ ...base, sha256 }] })[0].sha256).toBe(sha256)
+    expect(normalizeCatalog({ widgets: [{ ...base, sha256: 'nope' }] })[0].sha256).toBeUndefined()
+  })
 })

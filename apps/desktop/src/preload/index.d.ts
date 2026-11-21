@@ -29,6 +29,9 @@ export interface SillSettings {
   settingsInWindow: boolean
   weatherLocation: string
   weatherCustom: WeatherCustomLocation | null
+  privacyAsked: boolean
+  networkConsent: boolean
+  weatherNetwork: boolean
   monitorIntervalMs: number
   theme: Theme
 }
@@ -52,7 +55,7 @@ export interface SillApi {
   getInstalledWidgets: () => Promise<InstalledWidgetInfo[]>
   getInstalledWidget: (id: string) => Promise<DevWidgetPayload | null>
   installWidget: () => Promise<InstallOutcome>
-  installWidgetFromUrl: (url: string) => Promise<InstallOutcome>
+  installWidgetFromUrl: (url: string, sha256?: string) => Promise<InstallOutcome>
   getWidgetCatalog: (force?: boolean) => Promise<CatalogResult>
   getWidgetUpdates: () => Promise<CatalogUpdatesState>
   checkWidgetUpdates: () => Promise<CatalogUpdatesState>

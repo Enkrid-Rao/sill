@@ -1,6 +1,7 @@
 import { net } from 'electron'
 import type { MediaSample } from '../../shared/data'
 import { lineIndexAt, parseLrc, pickSynced, type LyricLine, type SyncedCandidate } from '../../shared/lyrics'
+import { loadSettings } from '../settings'
 
 const API = 'https://lrclib.net/api/search'
 const GET_API = 'https://lrclib.net/api/get'
@@ -92,6 +93,7 @@ export function getMediaLyricLine(
   mediaAt: number
 ): string | null {
   if (!media?.title) return null
+  if (!loadSettings().networkConsent) return null
   const key = trackKey(media)
   const cached = cache.get(key)
 

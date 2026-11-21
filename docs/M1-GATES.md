@@ -1,6 +1,6 @@
-# M1 Beta 门禁记录（0.7.0-beta.1）
+# M1 Beta 门禁记录（0.7 Beta / RC）
 
-> 状态时间：2026-11-20。Beta.1 已发布为 Pre-release；本文件记录 M1 的验证证据与未完成项。
+> 状态时间：2026-11-21。Beta.2 → Beta.3 阶段；本文件记录 M1 的验证证据与未完成项。
 
 ## 门禁总览
 
@@ -16,11 +16,13 @@
 | 多显示器 | 阻塞 | 当前主机只有 1 块显示器；需真实双屏验证 |
 | DPI | 通过（强制） | 1.5x / 2x 下设置窗口均在 workArea 内可见 |
 | 设置窗口位置 | 通过 | 100,40 恢复；-9999,-9999 修正到 workArea 原点 |
-| Beta 更新链 | 已修复待发 | `allowPrerelease` 按版本判断；beta.1 用户需手动装 beta.2 |
-| 自动更新 e2e | 部分 | 稳定 0.6.1 在 beta.1 已发布时仍只看到 0.6.1；beta→rc 待 RC |
-| 隐私 / 第三方 | 部分 | `PRIVACY.md` / `THIRD-PARTY.md` 已补；首启同意仍未做 |
-| 组件签名 / hash | 未完成 | catalog 仍无 `sha256` / 签名；P0 for 1.0 |
-| 应用签名 | 未完成 | Beta 未签名，SmartScreen 提示 |
+| 首启 / 隐私 | 通过 | 首次启动露出面板 + 隐私门；离线阻断天气/歌词/更新 |
+| 组件 hash | 通过 | catalog sha256；错误 hash 实测拒绝 |
+| Beta 更新链 | 通过（代码） | Beta.3 起 pre-release 通道可用；beta.2 已带修复；beta→rc 待 RC |
+| 自动更新 e2e | 部分 | 稳定 0.6.1 只看到 0.6.1；beta.2 → beta.3 实测待发布后跑 |
+| 隐私 / 第三方 | 部分 | 首启隐私门、联网 consent、天气开关已做；隐私文档可达 |
+| 组件签名 / hash | 部分 | catalog + 安装校验 SHA-256 已完成；包签名仍未做 |
+| 应用签名 | 决策记录 | 0.7 Beta/RC unsigned；正式版前签 MSIX/OV 或明确接受 unsigned |
 
 ## 本轮 soak 结果
 

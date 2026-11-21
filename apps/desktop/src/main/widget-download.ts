@@ -1,4 +1,5 @@
 import { net } from 'electron'
+import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,12 +15,20 @@ export interface DownloadOutcome {
   error?: string
 }
 
-export async function downloadPackage(raw: string): Promise<DownloadOutcome> {
+export async function downloadPackage(
+  raw: string,
+  expectedSha256?: string
+): Promise<DownloadOutcome> {
   const url = raw.trim()
   if (!url) return { ok: false, error: '链接为空' }
   if (!isAllowedDownloadUrl(url)) {
     return { ok: false, error: '只支持 https 链接（本机 http 仅用于开发）' }
   }
+  const rawExpected = typeof expectedSha256 === 'string' ? expectedSha256.trim() : ''
+  if (rawExpected && !/^[a-f0-9]{64}$/i.test(rawExpected)) {
+    return { ok: false, error: '组件包校验值无效' }
+  }
+  const expected = rawExpected ? rawExpected.toLowerCase() : null
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
@@ -37,6 +46,16 @@ export async function downloadPackage(raw: string): Promise<DownloadOutcome> {
     // zip 的本地文件头：PK\x03\x04
     if (data.length < 4 || data[0] !== 0x50 || data[1] !== 0x4b) {
       return { ok: false, error: '下载到的不是 .sill（zip）文件' }
+    }
+
+    if (expected) {
+      const actual = createHash('sha256').update(data).digest('hex')
+      if (actual !== expected) {
+        return {
+          ok: false,
+          error: '组件包校验失败：SHA-256 与目录不一致，已拒绝安装'
+        }
+      }
     }
 
     const dir = join(tmpdir(), 'sill-downloads')

@@ -26,6 +26,15 @@ sill.onData(({ data }) => {
   const topRam = Array.isArray(proc.topRam) ? proc.topRam : []
   const topGpu = Array.isArray(proc.topGpu) ? proc.topGpu : []
 
+  const stale = el('stale')
+  if (stale) {
+    const at = Number(proc.procsAt)
+    const age = Number.isFinite(at) && at > 0 ? Math.max(0, (Date.now() - at) / 1000) : null
+    const isStale = age != null && age > 8
+    stale.hidden = !isStale
+    if (isStale) stale.textContent = `~${Math.round(age)}s`
+  }
+
   fillRows('.proc__rows--ram .proc__row', topRam, (item) => gb(item?.mb))
   fillRows('.proc__rows--gpu .proc__row', topGpu, (item) =>
     typeof item?.pct === 'number' && Number.isFinite(item.pct) ? `${Math.round(item.pct)}%` : '—'

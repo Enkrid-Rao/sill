@@ -33,6 +33,15 @@ sill.onData(({ data }) => {
   const net = data.net ?? {}
   const hasSamples = finite(cpu.usage) || finite(mem.percent)
 
+  const staleEl = el('stale')
+  if (staleEl) {
+    const at = Number(net.sampledAt)
+    const age = Number.isFinite(at) && at > 0 ? Math.max(0, (Date.now() - at) / 1000) : null
+    const isStale = age != null && age > 8
+    staleEl.hidden = !isStale
+    if (isStale) staleEl.textContent = `~${Math.round(age)}s`
+  }
+
   const cpuEl = el('cpu')
   if (cpuEl) cpuEl.textContent = finite(cpu.usage) ? `${Math.round(cpu.usage)}%` : '—'
 
