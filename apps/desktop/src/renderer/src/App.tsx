@@ -355,6 +355,19 @@ export default function App(): React.JSX.Element {
     void window.sill?.setOverlayOpen(customizing || editing || privacyOpen)
   }, [customizing, editing, privacyOpen])
 
+  useEffect(() => {
+    if (!editing && !customizing) return
+    const onKey = (event: KeyboardEvent): void => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return
+      if (event.key.toLowerCase() !== 'z' && event.key.toLowerCase() !== 'y') return
+      event.preventDefault()
+      if (event.key.toLowerCase() === 'y' || event.shiftKey) settings.redoLayout()
+      else settings.undoLayout()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [customizing, editing, settings])
+
   const openSettings = useCallback(async (): Promise<void> => {
     // 设置窗口可能还开着但开关已经被关掉：这时仍然聚焦它，避免叠出两层设置 UI
     const windowOpen = (await window.sill?.isSettingsWindowOpen()) === true
@@ -545,6 +558,20 @@ export default function App(): React.JSX.Element {
         <div className="layout-bar">
           <span className="layout-bar__label">{t(settings.language, 'layout.title')}</span>
           <span className="layout-bar__hint">{t(settings.language, 'layout.hint')}</span>
+          <button
+            type="button"
+            disabled={!settings.canUndoLayout}
+            onClick={settings.undoLayout}
+          >
+            {t(settings.language, 'layout.undo')}
+          </button>
+          <button
+            type="button"
+            disabled={!settings.canRedoLayout}
+            onClick={settings.redoLayout}
+          >
+            {t(settings.language, 'layout.redo')}
+          </button>
           <button type="button" onClick={() => void settings.resetLayout()}>
             {t(settings.language, 'layout.reset')}
           </button>

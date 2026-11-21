@@ -69,6 +69,10 @@ export interface SillSettingsController {
   installUpdate: () => void
   setLayout: (next: PanelLayout) => void
   resetLayout: () => Promise<void>
+  undoLayout: () => void
+  redoLayout: () => void
+  canUndoLayout: boolean
+  canRedoLayout: boolean
   toggleWidget: (id: string, shown: boolean) => void
 }
 
@@ -101,6 +105,10 @@ export function useSillSettings(): SillSettingsController {
   const [update, setUpdate] = useState<UpdateState>(EMPTY_UPDATE)
   const [layout, setLayoutState] = useState<PanelLayout>(DEFAULT_LAYOUT)
   const [layoutReady, setLayoutReady] = useState(false)
+  const layoutRef = useRef<PanelLayout>(DEFAULT_LAYOUT)
+  const layoutHistory = useRef<PanelLayout[]>([])
+  const layoutFuture = useRef<PanelLayout[]>([])
+  const [layoutHistoryTick, setLayoutHistoryTick] = useState(0)
   const themeRef = useRef<Theme>(DEFAULT_THEME)
   const saveTimer = useRef<number | null>(null)
   const pendingTheme = useRef<Theme | null>(null)
@@ -144,6 +152,10 @@ export function useSillSettings(): SillSettingsController {
         if (appVersion) setVersion(appVersion)
         if (initialLayout) {
           setLayoutState(normalizeLayout(initialLayout, registry.ids))
+          layoutRef.current = normalizeLayout(initialLayout, registry.ids)
+          layoutHistory.current = []
+          layoutFuture.current = []
+          setLayoutHistoryTick((tick) => tick + 1)
           loaded = true
         }
         if (updateState) setUpdate(updateState)
@@ -157,11 +169,13 @@ export function useSillSettings(): SillSettingsController {
     })()
 
     const offSettings = window.sill?.onSettingsChanged((next) => adopt(next))
-    const offLayout = window.sill?.onLayoutChanged((next) =>
+    const offLayout = window.sill?.onLayoutChanged((next) => {
       // 主进程已经按 knownIds 过滤过；这里合并 incoming order，避免 skins 刚加进来时
       // 组件列表还没刷新完、把新 id 又过滤掉。
-      setLayoutState(normalizeLayout(next, [...new Set([...registry.ids, ...next.order])]))
-    )
+      const normalized = normalizeLayout(next, [...new Set([...registry.ids, ...next.order])])
+      layoutRef.current = normalized
+      setLayoutState(normalized)
+    })
     const offUpdate = window.sill?.onUpdateState((next) => setUpdate(next))
     return () => {
       alive = false
@@ -173,7 +187,11 @@ export function useSillSettings(): SillSettingsController {
 
   // The dev widget arrives after the first render; keep its layout entry.
   useEffect(() => {
-    setLayoutState((current) => normalizeLayout(current, registry.ids))
+    setLayoutState((current) => {
+      const normalized = normalizeLayout(current, registry.ids)
+      layoutRef.current = normalized
+      return normalized
+    })
   }, [registry.ids])
 
   // 主题变化 → 写 CSS 变量（唯一的渲染入口）
@@ -359,6 +377,14 @@ export function useSillSettings(): SillSettingsController {
   const setLayout = useCallback(
     (next: PanelLayout) => {
       const normalized = normalizeLayout(next, [...new Set([...registry.ids, ...next.order])])
+      const previous = layoutRef.current
+      if (JSON.stringify(previous) !== JSON.stringify(normalized)) {
+        layoutHistory.current.push(previous)
+        if (layoutHistory.current.length > 30) layoutHistory.current.shift()
+        layoutFuture.current = []
+        setLayoutHistoryTick((tick) => tick + 1)
+      }
+      layoutRef.current = normalized
       setLayoutState(normalized)
       void window.sill?.setLayout(normalized)
     },
@@ -366,9 +392,42 @@ export function useSillSettings(): SillSettingsController {
   )
 
   const resetLayout = useCallback(async () => {
+    const before = layoutRef.current
     const saved = await window.sill?.resetLayout()
-    if (saved) setLayoutState(normalizeLayout(saved, registry.ids))
+    if (saved) {
+      const normalized = normalizeLayout(saved, registry.ids)
+      layoutHistory.current.push(before)
+      if (layoutHistory.current.length > 30) layoutHistory.current.shift()
+      layoutFuture.current = []
+      layoutRef.current = normalized
+      setLayoutState(normalized)
+      setLayoutHistoryTick((tick) => tick + 1)
+    }
   }, [registry.ids])
+
+  const applyLayoutHistory = useCallback(
+    (next: PanelLayout) => {
+      layoutRef.current = next
+      setLayoutState(next)
+      void window.sill?.setLayout(next)
+      setLayoutHistoryTick((tick) => tick + 1)
+    },
+    []
+  )
+
+  const undoLayout = useCallback(() => {
+    const previous = layoutHistory.current.pop()
+    if (!previous) return
+    layoutFuture.current.push(layoutRef.current)
+    applyLayoutHistory(previous)
+  }, [applyLayoutHistory])
+
+  const redoLayout = useCallback(() => {
+    const next = layoutFuture.current.pop()
+    if (!next) return
+    layoutHistory.current.push(layoutRef.current)
+    applyLayoutHistory(next)
+  }, [applyLayoutHistory])
 
   const toggleWidget = useCallback(
     (id: string, shown: boolean) => {
@@ -453,6 +512,10 @@ export function useSillSettings(): SillSettingsController {
     installUpdate,
     setLayout,
     resetLayout,
+    undoLayout,
+    redoLayout,
+    canUndoLayout: layoutHistoryTick >= 0 && layoutHistory.current.length > 0,
+    canRedoLayout: layoutHistoryTick >= 0 && layoutFuture.current.length > 0,
     toggleWidget
   }
 }

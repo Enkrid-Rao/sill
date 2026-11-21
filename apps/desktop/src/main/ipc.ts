@@ -1,9 +1,10 @@
-import { app, BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
 import { rmSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { broadcast } from './broadcast'
 import { listBuiltinWidgets } from './builtin-widgets'
 import { checkComponentUpdates, fetchCatalog, getComponentUpdates } from './catalog'
+import { diagnosticsText } from './diagnostics'
 import { downloadPackage } from './widget-download'
 import {
   isSillAssociation,
@@ -56,6 +57,11 @@ export interface IpcDeps {
 
 export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle('settings:get', () => loadSettings())
+  ipcMain.handle('app:diagnostics', () => {
+    const text = diagnosticsText()
+    clipboard.writeText(text)
+    return text
+  })
   ipcMain.handle('weather:refresh', async () => {
     resetAutoLocation()
     await refreshWeather()

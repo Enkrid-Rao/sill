@@ -49,6 +49,7 @@ export interface SillApi {
   refreshWeather: () => Promise<unknown>
   setHotkey: (accel: string) => Promise<{ ok: boolean; hotkey: string }>
   getVersion: () => Promise<string>
+  copyDiagnostics: () => Promise<string>
   getDevWidget: () => Promise<DevWidgetPayload | null>
   getBuiltinWidgets: () => Promise<DevWidgetPayload[]>
   getWidgetPreload: () => Promise<string>

@@ -610,6 +610,7 @@ export function CustomizeSheet({
   const [installing, setInstalling] = useState(false)
   const [uninstalling, setUninstalling] = useState<string | null>(null)
   const [installError, setInstallError] = useState('')
+  const [diagCopied, setDiagCopied] = useState(false)
   const [associated, setAssociated] = useState(false)
   const [assocBusy, setAssocBusy] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -747,6 +748,13 @@ export function CustomizeSheet({
 
   const revealComponent = (dir: string): void => {
     void window.sill?.revealComponentFolder?.(dir)
+  }
+
+  const copyDiagnostics = async (): Promise<void> => {
+    const text = await window.sill?.copyDiagnostics?.()
+    if (!text) return
+    setDiagCopied(true)
+    window.setTimeout(() => setDiagCopied(false), 1800)
   }
 
   const installFromUrl = async (url: string, sha256?: string): Promise<void> => {
@@ -1829,6 +1837,17 @@ export function CustomizeSheet({
 
             <p className="cz-group">{t(language, 'general.shortcutGroup')}</p>
             <HotkeyRow hotkey={hotkey} language={language} onChange={onHotkeyChange} />
+
+            <p className="cz-group">{t(language, 'general.diagnostics')}</p>
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'general.diagnostics')}</span>
+                <span className="cz-setrow__note">{t(language, 'general.diagnosticsNote')}</span>
+              </div>
+              <button className="cz-action" type="button" onClick={() => void copyDiagnostics()}>
+                {diagCopied ? t(language, 'general.copied') : t(language, 'general.copy')}
+              </button>
+            </div>
           </>
         ) : null}
 
