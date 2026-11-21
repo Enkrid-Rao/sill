@@ -539,10 +539,13 @@ export default function App(): React.JSX.Element {
     }
 
     const sheet = sheetRef.current
+    // sheet 有可能还没挂上（例如某次渲染提前返回）：直接 return，不要 observe(null)——
+    // 那会在 effect 里抛 TypeError，整个面板树被卸载成空白。
+    if (!sheet || typeof ResizeObserver !== 'function') return
     const observer = new ResizeObserver(schedule)
-    if (sheet) for (const element of sheet.querySelectorAll('.card')) observer.observe(element)
+    for (const element of sheet.querySelectorAll('.card')) observer.observe(element)
     // 卡片增删 / 换序也会改写内容高度，挂载变化一并触发
-    observer.observe(sheet as Element)
+    observer.observe(sheet)
     return () => {
       observer.disconnect()
       if (timer) window.clearTimeout(timer)
