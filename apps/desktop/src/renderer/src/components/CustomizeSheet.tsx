@@ -23,6 +23,7 @@ import {
   presetPatch,
   type Theme
 } from '../../../shared/theme'
+import type { GlassMode } from '../../../shared/glass'
 import { formatHotkey } from '../lib/hotkey'
 import { useWidgetRegistry } from '../widgets/WidgetRegistryProvider'
 import type { ComponentProblem } from '../../../shared/widgets'
@@ -72,6 +73,7 @@ const SEARCH_INDEX: readonly SearchEntry[] = [
   { section: 'appearance', labelKey: 'theme.opacity' },
   { section: 'appearance', labelKey: 'theme.halo' },
   { section: 'appearance', labelKey: 'theme.grain' },
+  { section: 'appearance', labelKey: 'glass.mode' },
   { section: 'panel', labelKey: 'behavior.shape' },
   { section: 'panel', labelKey: 'size.width' },
   { section: 'panel', labelKey: 'size.height' },
@@ -97,6 +99,40 @@ const SEARCH_INDEX: readonly SearchEntry[] = [
   { section: 'advanced', labelKey: 'general.uninstall' },
   { section: 'about', labelKey: 'general.version' }
 ]
+
+/** 玻璃档位：实时流 / 静态帧 / 原贴膜 */
+const GLASS_MODES: readonly GlassMode[] = ['live', 'frame', 'film']
+
+interface GlassStatus {
+  live: boolean
+  drawMs: number
+}
+
+/**
+ * 实时档到底跑起来没有 —— 只有面板页面里才有渲染器，所以从调试口读。
+ * 设置窗口（独立窗口）里读不到，就整条不显示。
+ */
+function useGlassStatus(enabled: boolean): GlassStatus | null {
+  const [status, setStatus] = useState<GlassStatus | null>(null)
+  useEffect(() => {
+    if (!enabled) {
+      setStatus(null)
+      return
+    }
+    const read = (): void => {
+      const host = window as Window & {
+        __sillGlass?: { debug?: () => { live?: boolean; drawMs?: number } | null }
+      }
+      const debug = host.__sillGlass?.debug?.()
+      if (!debug) return
+      setStatus({ live: debug.live === true, drawMs: Number(debug.drawMs) || 0 })
+    }
+    read()
+    const timer = window.setInterval(read, 1500)
+    return () => window.clearInterval(timer)
+  }, [enabled])
+  return status
+}
 
 /** Open-Meteo geocoding 返回的最小字段集。 */
 interface WeatherGeoResult {
@@ -238,16 +274,18 @@ function Switch({
   label,
   note,
   checked,
+  disabled,
   onChange
 }: {
   id: string
   label: string
   note: string
   checked: boolean
+  disabled?: boolean
   onChange: (value: boolean) => void
 }): React.JSX.Element {
   return (
-    <label className="cz-setrow" htmlFor={id}>
+    <label className="cz-setrow" htmlFor={id} data-disabled={disabled ? 'true' : undefined}>
       <span className="cz-setrow__copy">
         <span className="cz-setrow__name">{label}</span>
         <span className="cz-setrow__note">{note}</span>
@@ -258,6 +296,7 @@ function Switch({
           id={id}
           type="checkbox"
           checked={checked}
+          disabled={disabled}
           onChange={(event) => onChange(event.currentTarget.checked)}
         />
         <span className="cz-switch" aria-hidden="true" />
@@ -669,6 +708,8 @@ export function CustomizeSheet({
     }
   }, [])
   const activePreset = matchThemePreset(theme)
+  // 实时档是否真的在跑（只有面板页面读得到；设置窗口里为 null）
+  const glassStatus = useGlassStatus(theme.glassMode === 'live')
   const activeSize = matchPreset(panelWidth, panelHeight)
   const searching = query.trim().length > 0
   const searchResults = searching
@@ -1179,6 +1220,93 @@ export function CustomizeSheet({
                 checked={theme.grain}
                 onChange={(value) => onChange({ grain: value })}
               />
+
+              {/* 液态玻璃：档位 + 4 个旋钮。film 就是 v0.7 的四层贴膜。 */}
+              <div className="cz-setrow">
+                <div className="cz-setrow__copy">
+                  <span className="cz-setrow__name">{t(language, 'glass.mode')}</span>
+                  <span className="cz-setrow__note">{t(language, 'glass.modeNote')}</span>
+                </div>
+              </div>
+              <div className="cz-chips" role="group" aria-label={t(language, 'glass.mode')}>
+                {GLASS_MODES.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className="cz-chip"
+                    aria-pressed={theme.glassMode === mode}
+                    onClick={() => onChange({ glassMode: mode })}
+                  >
+                    {t(language, `glass.mode.${mode}`)}
+                  </button>
+                ))}
+              </div>
+              <Slider
+                id="cz-glass-blur"
+                label={t(language, 'glass.blur')}
+                value={theme.glassBlur}
+                min={0}
+                max={30}
+                suffix="px"
+                disabled={theme.glassMode === 'film'}
+                onChange={(value) => onChange({ glassBlur: value })}
+              />
+              <Slider
+                id="cz-glass-refraction"
+                label={t(language, 'glass.refraction')}
+                value={theme.glassRefraction}
+                min={0}
+                max={200}
+                suffix="%"
+                disabled={theme.glassMode === 'film'}
+                onChange={(value) => onChange({ glassRefraction: value })}
+              />
+              <Slider
+                id="cz-glass-dispersion"
+                label={t(language, 'glass.dispersion')}
+                value={theme.glassDispersion}
+                min={0}
+                max={100}
+                suffix="%"
+                disabled={theme.glassMode === 'film'}
+                onChange={(value) => onChange({ glassDispersion: value })}
+              />
+              <Slider
+                id="cz-glass-motion"
+                label={t(language, 'glass.motion')}
+                value={theme.glassMotion}
+                min={0}
+                max={200}
+                suffix="%"
+                disabled={theme.glassMode === 'film'}
+                onChange={(value) => onChange({ glassMotion: value })}
+              />
+              {/* 呼吸是静止时的慢漂移，震荡是滑入那一下的抖 —— 两件事分开开关 */}
+              <Switch
+                id="cz-glass-wobble"
+                label={t(language, 'glass.wobble')}
+                note={t(language, 'glass.wobbleNote')}
+                checked={theme.glassWobble}
+                disabled={theme.glassMode === 'film'}
+                onChange={(value) => onChange({ glassWobble: value })}
+              />
+              <Switch
+                id="cz-glass-scroll-flow"
+                label={t(language, 'glass.scrollFlow')}
+                note={t(language, 'glass.scrollFlowNote')}
+                checked={theme.glassScrollFlow}
+                disabled={theme.glassMode === 'film'}
+                onChange={(value) => onChange({ glassScrollFlow: value })}
+              />
+              {glassStatus ? (
+                <p className="cz-note" data-live={glassStatus.live ? 'true' : 'false'}>
+                  {theme.glassMode === 'live'
+                    ? glassStatus.live
+                      ? t(language, 'glass.liveOn')
+                      : t(language, 'glass.liveOff')
+                    : t(language, 'glass.liveIdle')}
+                </p>
+              ) : null}
 
             <p className="cz-note">{t(language, 'appearance.note')}</p>
 

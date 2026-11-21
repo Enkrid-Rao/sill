@@ -5,9 +5,13 @@
  *  - 主进程用它把 settings.json 里的 theme 收敛成合法值；
  *  - 渲染进程用它把 theme 翻译成 CSS 变量（见 renderer/src/lib/theme.ts）。
  *
- * 原则（DEVPLAN §5.4）：玻璃只有一种材质、全部静态、没有 backdrop-filter。
- * 主题只改颜色、光照几何和透明度，不引入新的渲染手段。
+ * 原则（DEVPLAN §5.4，v0.8 修订）：面板只有一种玻璃材质，组件仍然拿不到桌面像素；
+ * 液态档（glassMode: 'live' / 'frame'）用「桌面像素 + WebGL 折射」实现：
+ * 没有 backdrop-filter；live 档每帧采样的是屏幕流（WGC），frame 档每帧采样零次。
+ * 主题只改颜色、光照几何和透明度。
  */
+
+import type { GlassMode } from './glass'
 
 export const ATMO_STYLES = [
   'lagoon',
@@ -43,6 +47,25 @@ export interface Theme {
   haloStrength: number
   /** 去色水光纹理开关 */
   grain: boolean
+
+  /* ---------- 液态玻璃（实验档） ---------- */
+  /** 'film' = 原来的四层静态贴膜；'liquid' = 抓帧 + WebGL 折射 */
+  glassMode: GlassMode
+  /** 背景模糊 σ（CSS px）0–40 */
+  glassBlur: number
+  /** 边缘折射强度 0–200（100 = 默认 2.2 倍位移） */
+  glassRefraction: number
+  /** 色散 0–100（40 = 默认 0.2） */
+  glassDispersion: number
+  /** 呼吸 / 震荡幅度 0–200（100 = 默认，0 = 完全静止） */
+  glassMotion: number
+  /** 滑入震荡：边缘鼓起 + 高光鼓起 + 采样空间挤压。关掉只剩呼吸 */
+  glassWobble: boolean
+  /**
+   * 滚动视差：面板内部滚动时让背景跟着「流」一下。
+   * 默认**关** —— 背景应该只跟窗口位置和桌面像素有关，跟随滚动是刻意的额外效果。
+   */
+  glassScrollFlow: boolean
 }
 
 export const DEFAULT_THEME: Theme = {
@@ -55,7 +78,16 @@ export const DEFAULT_THEME: Theme = {
   glassOpacity: 52,
   halo: true,
   haloStrength: 55,
-  grain: true
+  grain: true,
+
+  glassMode: 'live',
+  glassBlur: 8,
+  glassRefraction: 130,
+  glassDispersion: 60,
+  glassMotion: 100,
+  // 默认关：滑入那一下的鼓胀在真玻璃上读起来更像「UI 在抖」而不是材质在动
+  glassWobble: false,
+  glassScrollFlow: false
 }
 
 export interface Preset {
@@ -155,7 +187,23 @@ export function normalizeTheme(raw: unknown): Theme {
     glassOpacity: clampInt(src.glassOpacity, DEFAULT_THEME.glassOpacity, 30, 100),
     halo: src.halo !== false,
     haloStrength: clampInt(src.haloStrength, DEFAULT_THEME.haloStrength, 0, 100),
-    grain: src.grain !== false
+    grain: src.grain !== false,
+
+    // 什么都没存 → 用默认（live）。
+    // 老版本存过 'liquid'：那一档的本意就是「真玻璃」，现在真玻璃 = 实时档，
+    // 所以升级过来应该落在 live 上，而不是悄悄退成静态帧。
+    glassMode:
+      src.glassMode === undefined || String(src.glassMode) === 'liquid'
+        ? DEFAULT_THEME.glassMode
+        : src.glassMode === 'film' || src.glassMode === 'live'
+          ? src.glassMode
+          : 'frame',
+    glassBlur: clampInt(src.glassBlur, DEFAULT_THEME.glassBlur, 0, 40),
+    glassRefraction: clampInt(src.glassRefraction, DEFAULT_THEME.glassRefraction, 0, 200),
+    glassDispersion: clampInt(src.glassDispersion, DEFAULT_THEME.glassDispersion, 0, 100),
+    glassMotion: clampInt(src.glassMotion, DEFAULT_THEME.glassMotion, 0, 200),
+    glassWobble: src.glassWobble === true,
+    glassScrollFlow: src.glassScrollFlow === true
   }
 }
 

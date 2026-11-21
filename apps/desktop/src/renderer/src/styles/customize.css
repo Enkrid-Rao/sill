@@ -710,6 +710,20 @@
   line-height: 1.55;
 }
 
+/* 液态玻璃的实时状态：跑起来是强调色，没跑起来是警示色 */
+.cz-note[data-live='true'] {
+  color: hsl(var(--accent-h) 70% 70% / 0.72);
+}
+
+.cz-note[data-live='false'] {
+  color: hsl(38 90% 68% / 0.72);
+}
+
+/* 禁用态的开关行：整行降透明度，指针也不该给「能点」的暗示 */
+.cz-setrow[data-disabled='true'] {
+  opacity: 0.45;
+}
+
 /* ---------- 页脚 ---------- */
 
 .cz-foot {
@@ -1477,7 +1491,9 @@
 }
 
 
-/* 可折叠分组：组件页变长后按组收起 */
+/* 可折叠分组：组件页变长后按组收起。
+   注意：折叠头是 <button> + 内联 SVG 箭头（见 CustomizeSheet 的 Fold），
+   不要再给 .cz-fold__head 加 ::after / ::marker 之类的第二个箭头。 */
 .cz-fold {
   margin: 2px 0;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -1490,19 +1506,8 @@
   gap: 10px;
   padding: 10px 2px 6px;
   cursor: pointer;
-  list-style: none;
   color: var(--ink-soft);
   font-size: 12px;
-}
-
-.cz-fold__head::-webkit-details-marker {
-  display: none;
-}
-
-.cz-fold__hint {
-  color: var(--ink-faint);
-  font-size: 10.5px;
-  text-align: right;
 }
 
 .cz-fold__body {
@@ -1589,17 +1594,4 @@
   border-color: hsl(var(--accent-h) 80% 76% / 0.4);
   background: var(--accent-soft);
   color: var(--accent);
-}
-
-
-.cz-fold__head::after {
-  content: '›';
-  color: var(--ink-faint);
-  font-size: 14px;
-  line-height: 1;
-  transition: transform 0.18s ease;
-}
-
-.cz-fold[open] .cz-fold__head::after {
-  transform: rotate(90deg);
 }

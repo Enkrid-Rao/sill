@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>desktop mock</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 1707px;
+        height: 1067px;
+        overflow: hidden;
+        font-family: 'Segoe UI', 'Microsoft YaHei UI', system-ui, sans-serif;
+      }
+      /* 壁纸：冷暖对冲的渐变 + 两团光斑，用来检验模糊后的色块层次 */
+      .wall {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(52% 46% at 18% 24%, #6b4fd0 0%, transparent 62%),
+          radial-gradient(46% 44% at 78% 18%, #c04b8a 0%, transparent 64%),
+          radial-gradient(60% 52% at 70% 88%, #0f6b64 0%, transparent 66%),
+          linear-gradient(136deg, #1a1030 0%, #0d1626 52%, #07131a 100%);
+      }
+      .wall::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(rgba(255, 255, 255, 0.5) 0.5px, transparent 0.5px);
+        background-size: 3px 3px;
+        opacity: 0.06;
+      }
+      /* 一个「代码编辑器」：高频细节，最能看出模糊与折射。
+         故意压在屏幕右侧 —— 面板就停在那，玻璃底下必须有点东西可折。 */
+      .code {
+        position: absolute;
+        left: 1130px;
+        top: 545px;
+        width: 560px;
+        height: 480px;
+        border-radius: 10px;
+        background: #12161f;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.8);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .code__bar {
+        height: 34px;
+        background: #191e29;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 0 12px;
+        color: #7d879b;
+        font-size: 12px;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .code__body {
+        flex: 1;
+        padding: 14px 18px;
+        font: 12.5px/1.62 'Consolas', 'Cascadia Mono', monospace;
+        color: #c8d3e6;
+        white-space: pre;
+      }
+      .k {
+        color: #c792ea;
+      }
+      .s {
+        color: #a5e075;
+      }
+      .n {
+        color: #f78c6c;
+      }
+      .c {
+        color: #5f6b7f;
+        font-style: italic;
+      }
+      /* 左侧一列「文件资源管理器」式条目：给面板左半边也留点结构 */
+      .files {
+        position: absolute;
+        left: 120px;
+        top: 140px;
+        width: 330px;
+        border-radius: 8px;
+        background: rgba(20, 24, 33, 0.92);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        padding: 10px 0;
+        font-size: 13px;
+        color: #b8c3d6;
+      }
+      .files div {
+        padding: 5px 16px;
+        display: flex;
+        justify-content: space-between;
+      }
+      .files div span {
+        color: #6c7789;
+      }
+      /* 一块「浅色窗口」压在面板上半部的正下方：亮底是最难的一档，
+         验证 legibility（亮背景自动加色膜）和白色高光是否成立 */
+      .light {
+        position: absolute;
+        left: 1190px;
+        top: 30px;
+        width: 500px;
+        height: 490px;
+        border-radius: 10px;
+        background: #ecebe7;
+        border: 1px solid rgba(0, 0, 0, 0.16);
+        box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.7);
+        overflow: hidden;
+        color: #23262b;
+        font-size: 13px;
+      }
+      .light__bar {
+        height: 30px;
+        background: #dcdad4;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        gap: 6px;
+        font-size: 11.5px;
+        color: #55585e;
+      }
+      .light__body {
+        padding: 12px 14px;
+        line-height: 1.7;
+      }
+      .light h3 {
+        margin: 0 0 6px;
+        font-size: 15px;
+      }
+      .light p {
+        margin: 0 0 8px;
+      }
+      .light .rule {
+        height: 1px;
+        background: #cfccc5;
+        margin: 10px 0;
+      }
+      .taskbar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 46px;
+        background: rgba(8, 12, 18, 0.82);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
+      .taskbar i {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        background: linear-gradient(150deg, #4a5c78, #232c3b);
+        display: block;
+      }
+      .clock {
+        position: absolute;
+        right: 22px;
+        bottom: 12px;
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wall"></div>
+    <div class="code">
+      <div class="code__bar">
+        <i class="dot" style="background: #ff5f57"></i>
+        <i class="dot" style="background: #febc2e"></i>
+        <i class="dot" style="background: #28c840"></i>
+        <span style="margin-left: 10px">liquid-glass.ts — sill</span>
+      </div>
+      <div class="code__body"><span class="c">// 这一块高频文字就是检验「糊没糊」和「折没折」的尺子</span>
+<span class="k">export function</span> <span class="n">sampleBackdrop</span>(p: vec2) {
+  <span class="k">const</span> slope = <span class="n">2.0</span> * u2 * u / <span class="n">Math</span>.sqrt(<span class="n">1.0</span> - u2 * u2)
+  <span class="k">const</span> normal = <span class="n">normalize</span>(vec3(g * slope, <span class="n">1.0</span>))
+  <span class="k">const</span> ray = <span class="n">refract</span>(vec3(<span class="n">0</span>, <span class="n">0</span>, -<span class="n">1</span>), normal, <span class="n">1.0</span> / ior)
+  <span class="k">return</span> texture(uBackdrop, p + ray.xy / -ray.z * thick)
+}
+
+<span class="c">// 一段够长的行，用来观察色散边缘：The quick brown fox jumps over</span>
+<span class="c">// the lazy dog 0123456789 —— 中文也要有：液态玻璃的折射会把字拉歪</span>
+<span class="k">const</span> specular = <span class="n">pow</span>(<span class="n">max</span>(<span class="n">dot</span>(g, lightDir), <span class="n">0.0</span>), <span class="n">3.0</span>)
+glass += <span class="n">clamp</span>(specular * rim, <span class="n">0.0</span>, <span class="n">1.0</span>) * <span class="n">0.8</span>
+
+<span class="k">function</span> <span class="n">shade</span>(p, d, g) {
+  <span class="k">if</span> (d &gt; <span class="n">0.0</span>) <span class="k">return</span> vec4(<span class="n">0.0</span>)
+  <span class="k">const</span> inward = -d
+  <span class="k">const</span> band = <span class="n">clamp</span>(inward / bezel, <span class="n">0.0</span>, <span class="n">1.0</span>)
+  <span class="k">return</span> <span class="n">mix</span>(tint, glass, band)
+}
+
+<span class="c">// 行了，够糊了。下面全是用来制造亮度梯度的填充文字。</span>
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
+enim ad minim veniam, quis nostrud exercitation ullamco laboris.</div>
+    </div>
+    <div class="files">
+      <div>liquid-glass<span>12 KB</span></div>
+      <div>frost.frag<span>4 KB</span></div>
+      <div>motion.ts<span>9 KB</span></div>
+      <div>panel.css<span>62 KB</span></div>
+      <div>README.md<span>2 KB</span></div>
+      <div>wallpaper.png<span>1.2 MB</span></div>
+      <div>screenshot.png<span>890 KB</span></div>
+    </div>
+    <div class="light">
+      <div class="light__bar"><i class="dot" style="background: #ff5f57"></i><i class="dot" style="background: #febc2e"></i><i class="dot" style="background: #28c840"></i> 发布说明 — 文档</div>
+      <div class="light__body">
+        <h3>0.7.0 更新内容</h3>
+        <p>玻璃从「四层静态打光」换成「抓一帧桌面再折射」。桌面像素在窗口隐藏之后抓，所以图里永远不会拍到自己。</p>
+        <div class="rule"></div>
+        <p>折射沿着圆角矩形的距离场梯度走，斜面的高度剖面是 √(1−u⁴)，所以边缘的弯折在 6px 之内就衰减到看不见。</p>
+        <p>色散被限制在 20% 的位移量里，只在拐角处明显；直边上几乎没有彩边。</p>
+      </div>
+    </div>
+    <div class="taskbar">
+      <i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+    <div class="clock">14:24 · 2026/11/21</div>
+  </body>
+</html>

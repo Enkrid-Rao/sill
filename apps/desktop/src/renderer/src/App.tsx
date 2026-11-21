@@ -5,6 +5,7 @@ import { columnsForWidth, type WidgetBox } from '../../shared/layout'
 import { CustomizeSheet } from './components/CustomizeSheet'
 import { ResizeHandles } from './components/ResizeHandles'
 import { formatHotkey } from './lib/hotkey'
+import { useLiquidGlass } from './lib/glass/useLiquidGlass'
 import { useSillSettings } from './lib/useSillSettings'
 import { useWidgetRegistry } from './widgets/WidgetRegistryProvider'
 import type { WidgetContext } from './widgets/types'
@@ -148,6 +149,16 @@ export default function App(): React.JSX.Element {
   const settings = useSillSettings()
   const [visible, setVisible] = useState(false)
   const now = useClock(visible)
+  // 液态玻璃：拿到桌面帧就接管，拿不到就还是原来那层贴膜
+  const glass = useLiquidGlass({
+    theme: settings.theme,
+    visible,
+    radius: useMemo(() => {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--radius')
+      const parsed = Number.parseFloat(raw)
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : 34
+    }, [])
+  })
   const privacyOpen = visible && !settings.privacyAsked
   const [customizing, setCustomizing] = useState(false)
   const [columns, setColumns] = useState<1 | 2 | 3>(() => columnsForWidth(window.innerWidth))
@@ -539,7 +550,9 @@ export default function App(): React.JSX.Element {
       data-visible={visible}
       data-customizing={customizing}
       data-editing={editing}
+      data-glass={settings.theme.glassMode === 'film' ? 'film' : glass.status}
     >
+      <canvas className="rail__glass" ref={glass.canvasRef} aria-hidden="true" />
       <span className="rail__atmo" aria-hidden="true" />
       <span className="rail__grain" aria-hidden="true" />
       <span className="rail__halo" aria-hidden="true" />

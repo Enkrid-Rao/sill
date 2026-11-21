@@ -2,6 +2,8 @@ import { join } from 'node:path'
 import { BrowserWindow, screen, shell } from 'electron'
 import { bindEscape, unbindEscape } from './hotkey'
 import { startData, stopData } from './data'
+import { captureBackdrop, displayRectFor, installDisplayMediaHandler, setCaptureExcluded } from './glass'
+import type { BackdropPayload, PanelOrigin } from '../shared/glass'
 import { startMouseWatch, stopMouseWatch } from './mouse-watch'
 import { getTrayBounds } from './tray'
 import { loadSettings, updateSettings, type Settings } from './settings'
@@ -21,6 +23,11 @@ const TICK_MS = 10
 let panel: BrowserWindow | null = null
 let visible = false
 let ticker: NodeJS.Timeout | null = null
+/** 最近一帧桌面快照；渲染进程晚挂载时也能拿到 */
+let lastBackdrop: BackdropPayload | null = null
+let backdropBusy = false
+/** 渲染进程报告的实时流状态；false 时按静态帧的节奏补帧 */
+let liveActive = false
 /** 面板里是否盖着一层自绘表面（Customize / 布局编辑）；此时 Esc 先交给它关自己 */
 let overlayOpen = false
 /** 面板里有文本输入框聚焦：Esc 先交给输入框取消，不收起面板 */
@@ -101,6 +108,85 @@ function stopTicker(): void {
 }
 
 /**
+ * 抓一帧桌面给液态玻璃用。**窗口必须已经隐藏**：隐藏的窗口不参与 DWM 合成，
+ * 所以抓到的图里没有自己，不需要 WDA，面板照常能被截图 / 远控捕获。
+ *
+ * 抓帧是异步的、失败的、慢的（实测 ~1.2s）都无所谓：它只喂下一次唤出。
+ */
+function refreshBackdrop(force = false): void {
+  const win = panel
+  if (!win || win.isDestroyed() || visible || backdropBusy) return
+  // frame 档、或者 live 档但屏幕流没跑起来 → 都需要每次收起后刷新一帧；
+  // 只有 live 真的在跑时才不用抓（每帧都是新的）
+  const mode = loadSettings().theme.glassMode
+  const effective = mode === 'film' ? 'film' : mode === 'live' && liveActive ? 'live' : 'frame'
+  if (!force && effective !== 'frame') return
+  backdropBusy = true
+  void captureBackdrop(win)
+    .then((payload) => {
+      if (!payload) return
+      lastBackdrop = payload
+      if (panel && !panel.isDestroyed()) panel.webContents.send('panel:backdrop', payload)
+    })
+    .catch((error) => console.error('[sill] 玻璃背板抓帧失败：', error))
+    .finally(() => {
+      backdropBusy = false
+    })
+}
+
+/** 把窗口当前位置告诉渲染进程：滑入滑出时玻璃里的桌面要留在原地，不能跟着窗口跑。
+ *  连同一整块屏的 DIP 矩形一起发，渲染进程才能把「虚拟桌面坐标」换成「这块屏的归一化 uv」。 */
+function notifyOrigin(win: BrowserWindow): void {
+  if (win.isDestroyed()) return
+  const bounds = win.getContentBounds()
+  const display = displayRectFor(win)
+  const payload: PanelOrigin = {
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
+    displayX: display.x,
+    displayY: display.y,
+    displayWidth: display.width,
+    displayHeight: display.height
+  }
+  win.webContents.send('panel:origin', payload)
+}
+
+/** 渲染进程主动要一帧（首次挂载 / WebGL 上下文重建之后） */
+export function requestBackdrop(): BackdropPayload | null {
+  if (!visible) refreshBackdrop(lastBackdrop === null)
+  return lastBackdrop
+}
+
+/** 玻璃档位 → 窗口要不要从屏幕采集里隐身（live 档必须） */
+export function applyGlassMode(mode: 'film' | 'frame' | 'live', win = panel): void {
+  const excluded = mode === 'live'
+  if (win && !win.isDestroyed()) setCaptureExcluded(win, excluded)
+  if (excluded) installDisplayMediaHandler(() => panel)
+  // 从 live 切回 frame：手上那帧可能已经很旧，收起状态下补抓一张
+  if (mode === 'frame' && lastBackdrop) refreshBackdrop(true)
+}
+
+/** 渲染进程报告「实时流到底跑起来没有」；没跑起来就得按静态帧的节奏补帧 */
+export function setLiveActive(active: boolean): void {
+  liveActive = active === true
+  if (!liveActive) refreshBackdrop()
+}
+
+/** 取景前握手：WDA 必须**先于**屏幕流打开，否则流里会先拍到面板自己 */
+export function beginLive(): void {
+  const win = panel
+  if (!win || win.isDestroyed()) return
+  setCaptureExcluded(win, true)
+  installDisplayMediaHandler(() => panel)
+}
+
+export function isLiveActive(): boolean {
+  return liveActive
+}
+
+/**
  * 只移动窗口的 x，不改变尺寸 —— 内容不做位移，
  * 所以玻璃永远不会被窗口边界裁切；观感是「整块玻璃从屏幕外滑进来」。
  */
@@ -113,6 +199,7 @@ function slideTo(fromX: number, to: Rect, duration: number, done?: () => void): 
     const eased = 1 - Math.pow(1 - t, 3)
     const x = Math.round(fromX + (to.x - fromX) * eased)
     panel.setContentBounds({ x, y: to.y, width: to.width, height: to.height }, false)
+    notifyOrigin(panel)
     if (t < 1) {
       ticker = setTimeout(run, TICK_MS)
     } else {
@@ -218,6 +305,11 @@ export function createPanel(): BrowserWindow {
   screen.on('display-added', () => snapIfVisible())
   screen.on('display-removed', () => snapIfVisible())
 
+  // 面板此刻是隐藏的，先抓一帧：第一次 Alt+Q 就有真玻璃（live 档拿它当兜底）
+  refreshBackdrop(true)
+  // live 档要在第一次唤出之前就进 WDA，否则流里会拍到刚滑进来的自己
+  applyGlassMode(loadSettings().theme.glassMode, panel)
+
   return panel
 }
 
@@ -227,6 +319,7 @@ function snapIfVisible(): void {
   stopTicker()
   const target = targetBounds()
   panel.setContentBounds(target, false)
+  notifyOrigin(panel)
 }
 
 export function isPanelVisible(): boolean {
@@ -323,6 +416,8 @@ export function hidePanel(done?: () => void): void {
     if (win.isDestroyed()) return
     win.hide()
     stopData()
+    // 窗口已经不在合成里了：这时候抓到的桌面一定是干净的
+    refreshBackdrop()
     done?.()
   })
 }
@@ -337,6 +432,7 @@ export function reanchor(): void {
   if (!visible || !panel || panel.isDestroyed()) return
   stopTicker()
   panel.setContentBounds(targetBounds(), false)
+  notifyOrigin(panel)
 }
 
 /**
@@ -374,6 +470,7 @@ export function resizePanel(width: unknown, height: unknown): PanelSize | null {
 
   stopTicker()
   win.setContentBounds({ x, y, width: nextWidth, height: nextHeight }, false)
+  notifyOrigin(win)
   return { width: nextWidth, height: nextHeight, maxWidth: limits.maxWidth, maxHeight: limits.maxHeight }
 }
 

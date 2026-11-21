@@ -74,6 +74,39 @@
 | 组件仓库 | `python scripts/validate.py` 通过；CLI `validate` / `pack` 通过 |
 | 安装/坏包 | 额外文件、路径穿越、缺 `ui/index.html` 被拒；`ui/**` 任意文件可安装 |
 
+### 液态玻璃（v0.8 实验档，`docs/GLASS.md` §11）
+
+| 项 | 证据 |
+|---|---|
+| P2 隐藏后抓屏干净 | 探针在 `win.hide()` 后抓整屏，面板所在区域的「品红窗口」像素占比 0.03%（可见时 99.6%）；图见 [liquid-mock.png](media/glass/liquid-mock.png)（合成桌面 + 真抓屏两条链路都验过）与本机 `out/glass-probe/p2b-hidden-*.png` |
+| P2 抓屏耗时 | hide 后 4 次 `getSources` 均 ~1.15s（可见时 0.30–0.38s）；异步喂下一次唤出，不阻塞滑入 |
+| P2c WDA 可用 | `setContentProtection(true)` 时同一区域占比 0.04% → 窗口能被排除出采集（Phase 3 技术上可行，本轮不用） |
+| P3 WebGL2 | ANGLE D3D11 / RTX 4060；`MAX_TEXTURE_SIZE` 16384；854×534 BGRA 上传 2ms |
+| 采样坐标正确 | 假桌面四角放 90×90 纯色块，玻璃里分别落在面板四角（未翻转、未偏移）：[probe-coordinates.png](media/glass/probe-coordinates.png) |
+| 抓帧链路 | 真实抓屏时 `debug().frame.source === 'desktop'`、`panelX` 与窗口实际位置一致；面板里能看到桌面内容 |
+| 回退 | `theme.glassMode = 'film'` 面板回到 v0.7 四层贴膜，`data-glass="film"`：[film-fallback.png](media/glass/film-fallback.png) |
+| 动效数值 | 滑入 +140ms 时 `pulse≈1.04 / swell≈1.01 / stretch≈0.15`，+220ms 时 `stretch≈-0.078`（回摆反向），+420ms 收敛；同刻截图 [wobble-on-vs-off.png](media/glass/wobble-on-vs-off.png) |
+| 设置页 | 外观页新增「液态玻璃」开关 + 4 个滑杆，关掉即回贴膜 |
+| dev 服务器能载入 | installNetworkGate 原本把所有 http(s) 都 cancel，开发服务器的 http://localhost:5173 一起中招（ERR_BLOCKED_BY_CLIENT 白屏）；改为回环地址放行后 pnpm dev 正常起窗 |
+| 自检 | `pnpm typecheck` / `pnpm test`（58 个） / `pnpm build` / `pnpm smoke` 全绿，smoke 截图里玻璃是液态档 |
+
+### 实时背景（v0.8.1，`docs/GLASS.md` §12）
+
+| 项 | 证据 |
+|---|---|
+| 实时流可用 | `getDisplayMedia` 经 `setDisplayMediaRequestHandler` 拿到 2560×1600@≤30fps 的显示器流，`currentTime` 持续推进 |
+| 上传成本 | `texImage2D(video)` 中位 0.1ms（10 次采样）；逐帧合成 CPU 提交 0.35ms |
+| 背景真的在动 | 面板底下放 60fps 变色窗口，隔 700ms 两张截图：面板内部 80% 像素变化、最大差值 144；[live-motion.png](media/glass/live-motion.png) |
+| WDA 排除 | 探针：带标记的窗口在采集里占比 开 0 / 关 12.9% |
+| 组件拿不到屏幕 | handler 校验 `request.frame` 属于面板 webContents，否则 `callback({})` |
+| 三档可切 | `live` / `frame` / `film`，设置 → 外观 → 液态玻璃；切换会同步开关 WDA 与屏幕流 |
+| 自检不受 WDA 影响 | `webContents.capturePage()` 仍然可用，Playwright 截图/冒烟照常 |
+| 背景随桌面变化 | 面板底下放纯色窗口，按需改色：红 → 玻璃均值 (111,40,40)；绿 → (32,92,35)；**收起面板期间**改成蓝再唤出 → (37,54,114) |
+| 延迟 | 拆开实测（60Hz 屏，1 帧 = 16.7ms）：**capture 18ms ≈ 1 帧** + **ours 3–4ms**；关掉 WGC 反而 24ms，`AllowWgcZeroHz` 无差别 → 已在平台地板附近，见 [GLASS.md §12.5](GLASS.md) |
+| 滑入震荡 | `theme.glassWobble` 独立开关，**默认关**；只关 `uPulse` 一族，呼吸 / 折射鼓包 / 掠光不受影响 |
+| 滚动不再带动背景 | 「滚动视差」独立开关（`theme.glassScrollFlow`，**默认关**）。实测：滚动 300px 前后，卡片左侧 18px 纯玻璃带的像素 **0.00% 变化**（最大差 1）；打开开关后同一区域 **31% 变化**（最大差 42），内容滚动本身照常（整块画布 47% 变化） |
+| 静态帧不再插播 | 实时档在跑时收到的静态帧只入队不换纹理，流断了才顶上 —— 修掉「突然闪一下旧桌面」 |
+
 ## 未完成
 
 - 后台自动检查更新 / 目录托管与审核流水线；更新需要打开组件页手动点。升级是覆盖式。

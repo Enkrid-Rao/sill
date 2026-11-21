@@ -18,6 +18,7 @@ import { ensureSkinsDir, SKINS_DIR, startSkinsWatcher, stopSkinsWatcher } from '
 import { installWidgetFile } from './widget-install'
 import { findComponentDir } from './widgets/package'
 import {
+  applyGlassMode,
   createPanel,
   getPanelWindow,
   hidePanel,
@@ -33,6 +34,13 @@ import { checkForUpdates } from './updates'
 import type { UpdateState } from '../shared/update'
 
 const SMOKE = process.argv.includes('--smoke')
+
+// 调试用：从环境变量塞 Chromium 的 enable/disable-features，量采集链路延迟时要用
+// （例如 SILL_GLASS_FEATURES=AllowWgcZeroHz，或 SILL_GLASS_DISABLE=AllowWgcScreenCapturer）
+const extraFeatures = process.env.SILL_GLASS_FEATURES?.trim()
+const disabledFeatures = process.env.SILL_GLASS_DISABLE?.trim()
+if (extraFeatures) app.commandLine.appendSwitch('enable-features', extraFeatures)
+if (disabledFeatures) app.commandLine.appendSwitch('disable-features', disabledFeatures)
 
 app.setAppUserModelId('com.sill.app')
 
@@ -84,6 +92,10 @@ function changeHotkey(accel: string): { ok: boolean; hotkey: string } {
 /** 设置变更后贴到系统上的副作用（自启、尺寸、停靠边、托盘菜单） */
 function applySideEffects(settings: Settings, patch: Partial<Settings>): void {
   if ('startAtLogin' in patch) applyAutostart(settings.startAtLogin)
+  if (patch.theme && 'theme' in patch) {
+    // 换玻璃档位要同步 WDA：live 档必须把自己的窗口从采集里摘掉
+    applyGlassMode(settings.theme.glassMode)
+  }
   if (
     'side' in patch ||
     'panelWidth' in patch ||

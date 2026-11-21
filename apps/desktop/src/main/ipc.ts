@@ -36,7 +36,11 @@ import {
   getPanelSizeLimits,
   getPanelWindow,
   hidePanel,
+  beginLive,
+  isLiveActive,
   isPanelVisible,
+  requestBackdrop,
+  setLiveActive,
   resizePanel,
   setOverlayOpen,
   setTyping,
@@ -174,6 +178,18 @@ export function registerIpc(deps: IpcDeps): void {
     return next
   })
   ipcMain.handle('panel:limits', () => getPanelSizeLimits())
+
+  // 液态玻璃：渲染进程挂载时如果有缓存帧就直接拿，没有就顺手再抓一次
+  ipcMain.handle('glass:request', () => requestBackdrop())
+  // 实时档握手：先开 WDA 再开流
+  ipcMain.handle('glass:begin-live', () => {
+    beginLive()
+    return true
+  })
+  ipcMain.handle('glass:live-active', (_event, active: unknown) => {
+    setLiveActive(active === true)
+  })
+  ipcMain.handle('glass:live-status', () => isLiveActive())
 
   ipcMain.handle('media:command', (_event, action: unknown, value?: unknown) =>
     mediaCommand(action, value)

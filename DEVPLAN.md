@@ -335,6 +335,19 @@ interface Provider<T> {
 
 **硬约束**：token 里不提供 `backdrop-filter`。框架只给「预烘焙玻璃」这一种玻璃——让唯一可用的玻璃同时是最便宜的玻璃。想要更强折射感的组件作者，应该去做更好的贴图，而不是每帧采样桌面。
 
+> **v0.8 修订（2026-11-21）**：上面这条**禁令本身不变**（仍然不提供 `backdrop-filter`，
+> 组件仍然拿不到采样桌面的能力），但面板自己的玻璃不再只有「预烘焙」一档。
+> 新增 `theme.glassMode`，三档：
+>
+> - `live`（默认）：`getDisplayMedia` 拿一路持续的显示器流，每帧 `texImage2D(video)` 更新纹理，
+>   **背景是真的在动**。代价是必须 `setContentProtection(true)`（WDA_EXCLUDEFROMCAPTURE）
+>   把自己从采集里摘掉 —— **面板在此期间不会出现在截图 / 录屏 / 远控里**；
+> - `frame`：面板收起后抓一帧静态桌面，背景冻结，但面板照常能被截图；
+> - `film`：原来的四层静态玻璃。
+>
+> 桌面像素只进面板自己的着色器（SDF 折射 + 色散 + 内侧高光），仍然没有 `backdrop-filter`。
+> 设计、实测数据与取舍见 [docs/GLASS.md](docs/GLASS.md)。
+
 主题由面板内的 **Settings** 表面编辑（预设 / 强调色 / 细节 / 行为 / 语言），
 写入 `settings.theme`；预设 8 套：Clear、Lagoon、Aurora、Dusk、Ember、Frost、Iris、Moss。
 

@@ -105,6 +105,23 @@ const api = {
     return () => ipcRenderer.removeListener('update:state', listener)
   },
   hidePanel: () => ipcRenderer.invoke('panel:hide'),
+  requestBackdrop: () => ipcRenderer.invoke('glass:request'),
+  beginLive: () => ipcRenderer.invoke('glass:begin-live'),
+  setLiveActive: (active: boolean) => ipcRenderer.invoke('glass:live-active', active),
+  getLiveActive: () => ipcRenderer.invoke('glass:live-status'),
+  onBackdrop: (callback: (payload: unknown) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: unknown): void => callback(payload)
+    ipcRenderer.on('panel:backdrop', listener)
+    return () => ipcRenderer.removeListener('panel:backdrop', listener)
+  },
+  onPanelOrigin: (callback: (bounds: { x: number; y: number; width: number; height: number }) => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      bounds: { x: number; y: number; width: number; height: number }
+    ): void => callback(bounds)
+    ipcRenderer.on('panel:origin', listener)
+    return () => ipcRenderer.removeListener('panel:origin', listener)
+  },
   setTyping: (active: boolean) => ipcRenderer.invoke('panel:typing', active),
   onEscapeInput: (callback: () => void) => {
     const listener = (): void => callback()

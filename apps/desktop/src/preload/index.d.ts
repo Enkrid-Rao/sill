@@ -1,5 +1,6 @@
 import type { MediaControlState, PanelSnapshot, TodoItem } from '../shared/data'
 import type { DevWidgetPayload } from '../shared/dev-widget'
+import type { PanelOrigin } from '../shared/glass'
 import type { Language } from '../shared/i18n'
 import type { PanelLayout } from '../shared/layout'
 import type { ShelfShortcut } from '../shared/shelf'
@@ -108,6 +109,15 @@ export interface SillApi {
   onSettingsChanged: (callback: (settings: SillSettings) => void) => () => void
   onLayoutChanged: (callback: (layout: PanelLayout) => void) => () => void
   hidePanel: () => Promise<void>
+  /** 液态玻璃：要一帧桌面快照（有缓存就直接给） */
+  requestBackdrop: () => Promise<unknown>
+  /** 实时档握手：先让主进程打开 WDA，再开屏幕流 */
+  beginLive: () => Promise<boolean>
+  /** 告诉主进程实时流到底跑起来没有（没跑起来就按静态帧的节奏补帧） */
+  setLiveActive: (active: boolean) => Promise<void>
+  getLiveActive: () => Promise<boolean>
+  onBackdrop: (callback: (payload: unknown) => void) => () => void
+  onPanelOrigin: (callback: (bounds: PanelOrigin) => void) => () => void
   setTyping: (active: boolean) => Promise<void>
   onEscapeInput: (callback: () => void) => () => void
   togglePanel: () => Promise<void>
