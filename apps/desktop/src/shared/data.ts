@@ -72,6 +72,8 @@ export interface PanelSnapshot {
   media: MediaSample | null
   /** 媒体样本最后一次到达的时间；0 / undefined = 还没拿到过（不是“没有播放”） */
   mediaAt?: number
+  /** 全局歌词时间轴偏移（毫秒），供官方歌词组件与宿主媒体卡共用 */
+  lyricsOffsetMs?: number
   weather: WeatherSnapshot | null
   /** 系统主音量 0–100；-1 = 还没读上来 */
   volume: number

@@ -55,8 +55,17 @@ function tick(): void {
   const swapTotal = extra?.swapTotalMb == null ? null : extra.swapTotalMb / 1024
   const media = extra ? extra.media : snapshot.media
   const mediaAt = extra ? extra.sampledAt : (snapshot.mediaAt ?? 0)
-  const mediaWithLyric = media
-    ? { ...media, lyricLine: getMediaLyricLine(media, Date.now(), mediaAt) }
+  const sameTrack =
+    media &&
+    snapshot.media &&
+    media.title === snapshot.media.title &&
+    media.artist === snapshot.media.artist &&
+    media.album === snapshot.media.album
+  const mediaWithArtwork = media
+    ? { ...media, artwork: media.artwork ?? (sameTrack ? snapshot.media?.artwork ?? null : null) }
+    : null
+  const mediaWithLyric = mediaWithArtwork
+    ? { ...mediaWithArtwork, lyricLine: getMediaLyricLine(mediaWithArtwork, Date.now(), mediaAt) }
     : null
   const next: PanelSnapshot = {
     ...system,
@@ -77,6 +86,7 @@ function tick(): void {
     gpuAt: extra ? extra.sampledAt : (snapshot.gpuAt ?? 0),
     media: mediaWithLyric,
     mediaAt,
+    lyricsOffsetMs: loadSettings().lyricsOffsetMs,
     weather: getWeather(),
     volume: control.volume,
     muted: control.muted,

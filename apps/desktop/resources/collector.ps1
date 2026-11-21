@@ -11,6 +11,25 @@ $IntervalMs = [math]::Min(10000, [math]::Max(500, $IntervalMs))
 
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager, Windows.Media.Control, ContentType = WindowsRuntime]
+$null = [Windows.Storage.Streams.DataReader, Windows.Storage.Streams, ContentType = WindowsRuntime]
+
+function Get-Artwork($props) {
+  try {
+    $reference = $props.Thumbnail
+    if ($null -eq $reference) { return $null }
+    $stream = Await ($reference.OpenReadAsync()) ([Windows.Storage.Streams.IRandomAccessStreamWithContentType])
+    if ($null -eq $stream -or $stream.Size -le 0 -or $stream.Size -gt 1048576) { return $null }
+    $reader = [Windows.Storage.Streams.DataReader]::new($stream)
+    $loaded = Await ($reader.LoadAsync([uint32]$stream.Size)) ([uint32])
+    if ($loaded -le 0) { return $null }
+    $bytes = New-Object byte[] $loaded
+    $reader.ReadBytes($bytes)
+    $type = if ($stream.ContentType) { [string]$stream.ContentType } else { 'image/png' }
+    return "data:$type;base64," + [Convert]::ToBase64String($bytes)
+  } catch {
+    return $null
+  }
+}
 
 $asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
   $_.Name -eq 'AsTask' -and
@@ -40,6 +59,9 @@ $lastProcs = @()
 $procsAt = [datetime]::MinValue
 $lastMedia = $null
 $mediaAt = [datetime]::MinValue
+$lastArtworkKey = ''
+$lastArtwork = $null
+$artworkChanged = $false
 $swapUsedMb = $null
 $swapTotalMb = $null
 $swapAt = [datetime]::MinValue
@@ -143,6 +165,14 @@ while ($true) {
           $props = Await ($session.TryGetMediaPropertiesAsync()) ([Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties])
           $timeline = $session.GetTimelineProperties()
           $playback = $session.GetPlaybackInfo()
+          $artworkKey = "$($props.Title)|$($props.Artist)|$($props.AlbumTitle)"
+          if ($artworkKey -ne $lastArtworkKey) {
+            $lastArtworkKey = $artworkKey
+            $lastArtwork = Get-Artwork $props
+            $artworkChanged = $true
+          } else {
+            $artworkChanged = $false
+          }
           $media = [pscustomobject]@{
             title    = $props.Title
             artist   = $props.Artist
@@ -151,6 +181,7 @@ while ($true) {
             position = [math]::Round($timeline.Position.TotalSeconds, 1)
             duration = [math]::Round($timeline.EndTime.TotalSeconds, 1)
             app      = $session.SourceAppUserModelId
+            artwork  = if ($artworkChanged) { $lastArtwork } else { $null }
           }
         }
       } catch { }

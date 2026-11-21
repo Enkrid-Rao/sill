@@ -35,6 +35,8 @@ export interface SillSettingsController {
   privacyAsked: boolean
   networkConsent: boolean
   weatherNetwork: boolean
+  lyricsOffsetMs: number
+  catalogSources: string[]
   monitorIntervalMs: number
   version: string
   update: UpdateState
@@ -63,6 +65,8 @@ export interface SillSettingsController {
   answerPrivacy: (allow: boolean) => void
   changeNetworkConsent: (value: boolean) => void
   changeWeatherNetwork: (value: boolean) => void
+  changeLyricsOffset: (value: number) => void
+  changeCatalogSources: (value: string[]) => void
   changeMonitorIntervalMs: (value: number) => void
   checkUpdate: () => void
   downloadUpdate: () => void
@@ -100,6 +104,8 @@ export function useSillSettings(): SillSettingsController {
   const [privacyAsked, setPrivacyAsked] = useState(false)
   const [networkConsent, setNetworkConsent] = useState(false)
   const [weatherNetwork, setWeatherNetwork] = useState(true)
+  const [lyricsOffsetMs, setLyricsOffsetMs] = useState(0)
+  const [catalogSources, setCatalogSources] = useState<string[]>([])
   const [monitorIntervalMs, setMonitorIntervalMs] = useState(2000)
   const [version, setVersion] = useState('')
   const [update, setUpdate] = useState<UpdateState>(EMPTY_UPDATE)
@@ -129,6 +135,8 @@ export function useSillSettings(): SillSettingsController {
     setPrivacyAsked(next.privacyAsked === true)
     setNetworkConsent(next.networkConsent === true)
     setWeatherNetwork(next.weatherNetwork !== false)
+    setLyricsOffsetMs(Number(next.lyricsOffsetMs) || 0)
+    setCatalogSources(Array.isArray(next.catalogSources) ? next.catalogSources : [])
     setMonitorIntervalMs(next.monitorIntervalMs)
   }, [])
 
@@ -351,6 +359,17 @@ export function useSillSettings(): SillSettingsController {
     void window.sill?.updateSettings({ networkConsent: value })
   }, [])
 
+  const changeLyricsOffset = useCallback((value: number) => {
+    const next = Math.max(-5000, Math.min(5000, Math.round(value)))
+    setLyricsOffsetMs(next)
+    void window.sill?.updateSettings({ lyricsOffsetMs: next })
+  }, [])
+
+  const changeCatalogSources = useCallback((value: string[]) => {
+    setCatalogSources(value)
+    void window.sill?.updateSettings({ catalogSources: value })
+  }, [])
+
   const changeMonitorIntervalMs = useCallback((value: number) => {
     setMonitorIntervalMs(value)
     void window.sill?.updateSettings({ monitorIntervalMs: value })
@@ -479,6 +498,8 @@ export function useSillSettings(): SillSettingsController {
     privacyAsked,
     networkConsent,
     weatherNetwork,
+    lyricsOffsetMs,
+    catalogSources,
     monitorIntervalMs,
     version,
     update,
@@ -506,6 +527,8 @@ export function useSillSettings(): SillSettingsController {
     answerPrivacy,
     changeNetworkConsent,
     changeWeatherNetwork,
+    changeLyricsOffset,
+    changeCatalogSources,
     changeMonitorIntervalMs,
     checkUpdate,
     downloadUpdate,

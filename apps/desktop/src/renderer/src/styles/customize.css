@@ -1522,6 +1522,18 @@
   max-width: none;
 }
 
+.cz-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.cz-inline .cz-input {
+  flex: 1;
+  min-width: 0;
+}
+
 .cz-weather-results {
   display: flex;
   flex-direction: column;

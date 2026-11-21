@@ -150,6 +150,10 @@ interface Props {
   weatherNetwork: boolean
   onNetworkConsentChange: (value: boolean) => void
   onWeatherNetworkChange: (value: boolean) => void
+  lyricsOffsetMs: number
+  onLyricsOffsetChange: (value: number) => void
+  catalogSources: string[]
+  onCatalogSourcesChange: (value: string[]) => void
   monitorIntervalMs: number
   onMonitorIntervalChange: (value: number) => void
   startAtLogin: boolean
@@ -582,6 +586,10 @@ export function CustomizeSheet({
   weatherNetwork,
   onNetworkConsentChange,
   onWeatherNetworkChange,
+  lyricsOffsetMs,
+  onLyricsOffsetChange,
+  catalogSources,
+  onCatalogSourcesChange,
   monitorIntervalMs,
   onMonitorIntervalChange,
   startAtLogin,
@@ -611,6 +619,9 @@ export function CustomizeSheet({
   const [uninstalling, setUninstalling] = useState<string | null>(null)
   const [installError, setInstallError] = useState('')
   const [diagCopied, setDiagCopied] = useState(false)
+  const [sourceValue, setSourceValue] = useState('')
+  const [sourceError, setSourceError] = useState('')
+  const [resetNote, setResetNote] = useState('')
   const [associated, setAssociated] = useState(false)
   const [assocBusy, setAssocBusy] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -755,6 +766,32 @@ export function CustomizeSheet({
     if (!text) return
     setDiagCopied(true)
     window.setTimeout(() => setDiagCopied(false), 1800)
+  }
+
+  const addCatalogSource = (): void => {
+    const url = sourceValue.trim()
+    if (!url) return
+    if (!/^https:\/\//i.test(url) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//i.test(url)) {
+      setSourceError(t(language, 'widgets.repoUrlInvalid'))
+      return
+    }
+    if (catalogSources.includes(url)) {
+      setSourceError(t(language, 'widgets.repoDuplicate'))
+      return
+    }
+    setSourceError('')
+    setSourceValue('')
+    onCatalogSourcesChange([...catalogSources, url])
+  }
+
+  const removeCatalogSource = (url: string): void => {
+    onCatalogSourcesChange(catalogSources.filter((item) => item !== url))
+  }
+
+  const resetAllSettings = async (): Promise<void> => {
+    if (!window.confirm(t(language, 'general.resetConfirm'))) return
+    const result = await window.sill?.resetAllSettings?.()
+    if (result?.ok) setResetNote(`${t(language, 'general.resetDone')} ${result.backupDir}`)
   }
 
   const installFromUrl = async (url: string, sha256?: string): Promise<void> => {
@@ -1566,14 +1603,20 @@ export function CustomizeSheet({
                             {t(language, 'widgets.installedBadge')}
                           </span>
                         ) : entry.installable && entry.download ? (
-                          <button
-                            className="cz-action"
-                            type="button"
-                            disabled={urlBusy}
-                            onClick={() => void installFromUrl(entry.download!, entry.sha256)}
-                          >
-                            {urlBusy ? '…' : t(language, 'widgets.catalogInstall')}
-                          </button>
+                          entry.sha256 ? (
+                            <button
+                              className="cz-action"
+                              type="button"
+                              disabled={urlBusy}
+                              onClick={() => void installFromUrl(entry.download!, entry.sha256)}
+                            >
+                              {urlBusy ? '…' : t(language, 'widgets.catalogInstall')}
+                            </button>
+                          ) : (
+                            <span className="cz-installed" title={t(language, 'widgets.hashMissing')}>
+                              {t(language, 'widgets.hashMissing')}
+                            </span>
+                          )
                         ) : null}
                       </li>
                     )
@@ -1589,10 +1632,44 @@ export function CustomizeSheet({
                   <span className="cz-setrow__name">{t(language, 'widgets.repoAdd')}</span>
                   <span className="cz-setrow__note">{t(language, 'widgets.repoAddNote')}</span>
                 </div>
-                <button className="cz-action" type="button" disabled>
-                  {t(language, 'widgets.repoAdd')}
+                <span className="cz-installed">{t(language, 'widgets.repoOfficialBadge')}</span>
+              </div>
+              <div className="cz-inline">
+                <input
+                  className="cz-input"
+                  type="url"
+                  value={sourceValue}
+                  placeholder="https://example.com/catalog.json"
+                  aria-label={t(language, 'widgets.repoAdd')}
+                  onChange={(event) => setSourceValue(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') addCatalogSource()
+                  }}
+                />
+                <button className="cz-action" type="button" onClick={addCatalogSource}>
+                  {t(language, 'widgets.repoAddAction')}
                 </button>
               </div>
+              {sourceError ? <p className="cz-error">{sourceError}</p> : null}
+              {catalogSources.length ? (
+                <ul className="cz-catalog">
+                  {catalogSources.map((url) => (
+                    <li className="cz-setrow" key={url}>
+                      <div className="cz-setrow__copy">
+                        <span className="cz-setrow__name">{url}</span>
+                        <span className="cz-setrow__note">{t(language, 'widgets.repoHashNote')}</span>
+                      </div>
+                      <button
+                        className="cz-action"
+                        type="button"
+                        onClick={() => removeCatalogSource(url)}
+                      >
+                        {t(language, 'widgets.repoRemove')}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </Fold>
 
             <p className="cz-group">{t(language, 'widgets.get')}</p>
@@ -1701,6 +1778,18 @@ export function CustomizeSheet({
               <p className="cz-note">{t(language, 'general.refreshHint')}</p>
             </div>
 
+            <p className="cz-group">{t(language, 'media.group')}</p>
+            <Slider
+              id="cz-lyrics-offset"
+              label={t(language, 'lyrics.offset')}
+              value={lyricsOffsetMs}
+              min={-5000}
+              max={5000}
+              suffix=" ms"
+              onChange={onLyricsOffsetChange}
+            />
+            <p className="cz-note">{t(language, 'lyrics.offsetNote')}</p>
+
             <p className="cz-group">{t(language, 'weather.group')}</p>
             <Switch
               id="cz-network-consent"
@@ -1793,6 +1882,18 @@ export function CustomizeSheet({
               </p>
               <p className="cz-note">{t(language, 'weather.credit')}</p>
             </div>
+
+            <p className="cz-group">{t(language, 'general.recovery')}</p>
+            <div className="cz-setrow">
+              <div className="cz-setrow__copy">
+                <span className="cz-setrow__name">{t(language, 'general.resetAll')}</span>
+                <span className="cz-setrow__note">{t(language, 'general.resetAllNote')}</span>
+              </div>
+              <button className="cz-action" type="button" onClick={() => void resetAllSettings()}>
+                {t(language, 'general.resetAllAction')}
+              </button>
+            </div>
+            {resetNote ? <p className="cz-note">{resetNote}</p> : null}
           </>
         ) : null}
 

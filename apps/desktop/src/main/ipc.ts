@@ -1,10 +1,11 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
-import { rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import { broadcast } from './broadcast'
 import { listBuiltinWidgets } from './builtin-widgets'
-import { checkComponentUpdates, fetchCatalog, getComponentUpdates } from './catalog'
+import { checkComponentUpdates, fetchCatalog, getComponentUpdates, invalidateCatalogCache } from './catalog'
 import { diagnosticsText } from './diagnostics'
+import { DEFAULTS } from './settings'
 import { downloadPackage } from './widget-download'
 import {
   isSillAssociation,
@@ -62,6 +63,34 @@ export function registerIpc(deps: IpcDeps): void {
     clipboard.writeText(text)
     return text
   })
+  ipcMain.handle('app:reset-all', () => {
+    const current = loadSettings()
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const backupDir = join(app.getPath('userData'), 'backups', `reset-${stamp}`)
+    try {
+      mkdirSync(backupDir, { recursive: true })
+      for (const name of ['settings.json', 'layout.json', 'settings-window.json']) {
+        const source = join(app.getPath('userData'), name)
+        if (existsSync(source)) copyFileSync(source, join(backupDir, name))
+      }
+    } catch (error) {
+      console.error('[sill] 重置前备份失败：', error)
+    }
+    rmSync(join(app.getPath('userData'), 'settings-window.json'), { force: true })
+    const next = updateSettings({
+      ...DEFAULTS,
+      language: current.language,
+      privacyAsked: current.privacyAsked,
+      networkConsent: current.networkConsent,
+      weatherNetwork: current.weatherNetwork
+    })
+    deps.apply(next, next)
+    const layout = resetLayout()
+    broadcast('layout:changed', layout)
+    invalidateCatalogCache()
+    broadcast('settings:changed', next)
+    return { ok: true, backupDir }
+  })
   ipcMain.handle('weather:refresh', async () => {
     resetAutoLocation()
     await refreshWeather()
@@ -83,6 +112,10 @@ export function registerIpc(deps: IpcDeps): void {
     }
     // 监测间隔变了：当前可见的采样器立即换节拍
     if ('monitorIntervalMs' in (patch ?? {})) refreshDataCadence()
+    if ('catalogSources' in (patch ?? {})) {
+      invalidateCatalogCache()
+      void checkComponentUpdates(true)
+    }
     // 设置窗口和面板共用一份状态：谁改的都广播出去
     broadcast('settings:changed', next)
     return next
@@ -282,6 +315,9 @@ export function registerIpc(deps: IpcDeps): void {
           : null
     const url = typeof payload?.url === 'string' ? payload.url : ''
     if (!url.trim()) return { ok: false, error: '无效链接' }
+    if (!loadSettings().networkConsent) {
+      return { ok: false, error: '联网功能已关闭；请先在设置中开启。' }
+    }
     const sha256 = typeof payload?.sha256 === 'string' ? payload.sha256 : undefined
     const win = BrowserWindow.fromWebContents(event.sender)
     const downloaded = await downloadPackage(url, sha256)

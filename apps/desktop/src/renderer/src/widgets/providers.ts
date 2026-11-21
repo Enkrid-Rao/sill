@@ -32,6 +32,7 @@ function mediaValue(context: ProviderContext): Record<string, unknown> {
     duration: media?.duration ?? 0,
     artwork: media?.artwork ?? null,
     lyricLine: media?.lyricLine ?? null,
+    lyricsOffsetMs: context.snapshot?.lyricsOffsetMs ?? 0,
     /** 媒体样本到达时间；歌词据此补偿采样/传输延迟 */
     sampledAt: context.snapshot?.mediaAt ?? context.snapshot?.at ?? 0,
     volume: context.snapshot?.volume ?? -1,

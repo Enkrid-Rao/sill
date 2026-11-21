@@ -32,6 +32,8 @@ export interface SillSettings {
   privacyAsked: boolean
   networkConsent: boolean
   weatherNetwork: boolean
+  lyricsOffsetMs: number
+  catalogSources: string[]
   monitorIntervalMs: number
   theme: Theme
 }
@@ -50,6 +52,7 @@ export interface SillApi {
   setHotkey: (accel: string) => Promise<{ ok: boolean; hotkey: string }>
   getVersion: () => Promise<string>
   copyDiagnostics: () => Promise<string>
+  resetAllSettings: () => Promise<{ ok: boolean; backupDir: string }>
   getDevWidget: () => Promise<DevWidgetPayload | null>
   getBuiltinWidgets: () => Promise<DevWidgetPayload[]>
   getWidgetPreload: () => Promise<string>

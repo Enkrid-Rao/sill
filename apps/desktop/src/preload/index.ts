@@ -12,6 +12,7 @@ const api = {
   setHotkey: (accel: string) => ipcRenderer.invoke('hotkey:set', accel),
   getVersion: () => ipcRenderer.invoke('app:version'),
   copyDiagnostics: () => ipcRenderer.invoke('app:diagnostics'),
+  resetAllSettings: () => ipcRenderer.invoke('app:reset-all'),
   getDevWidget: () => ipcRenderer.invoke('widgets:dev-get'),
   getBuiltinWidgets: () => ipcRenderer.invoke('widgets:builtins'),
   getWidgetPreload: () => ipcRenderer.invoke('widgets:preload'),

@@ -116,6 +116,7 @@ export function getMediaLyricLine(
   const playing = media.status === 'Playing'
   const lag =
     playing && mediaAt > 0 ? Math.min(5, Math.max(0, (now - mediaAt) / 1000)) : 0
-  const index = lineIndexAt(cached.lines, Number(media.position ?? 0) + lag)
+  const offset = (loadSettings().lyricsOffsetMs || 0) / 1000
+  const index = lineIndexAt(cached.lines, Number(media.position ?? 0) + lag + offset)
   return index >= 0 ? cached.lines[index].text : null
 }

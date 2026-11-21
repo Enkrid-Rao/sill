@@ -55,6 +55,10 @@ export interface Settings {
   networkConsent: boolean
   /** 用户是否希望天气联网；还需 networkConsent 才真正请求 */
   weatherNetwork: boolean
+  /** 歌词时间轴偏移（毫秒，正数 = 歌词提前） */
+  lyricsOffsetMs: number
+  /** 额外的组件目录 JSON（HTTPS；官方目录始终保留） */
+  catalogSources: string[]
   /** 系统监测刷新间隔（毫秒） */
   monitorIntervalMs: MonitorInterval
   /** 玻璃主题：颜色、氛围、光晕、颗粒 */
@@ -77,6 +81,8 @@ export const DEFAULTS: Settings = {
   privacyAsked: false,
   networkConsent: false,
   weatherNetwork: true,
+  lyricsOffsetMs: 0,
+  catalogSources: [],
   monitorIntervalMs: DEFAULT_MONITOR_INTERVAL,
   theme: DEFAULT_THEME
 }
@@ -139,6 +145,20 @@ function coerce(raw: unknown): Settings {
     privacyAsked: src.privacyAsked === true,
     networkConsent: src.networkConsent === true,
     weatherNetwork: src.weatherNetwork !== false,
+    lyricsOffsetMs: Number.isFinite(Number(src.lyricsOffsetMs))
+      ? clamp(Math.round(Number(src.lyricsOffsetMs)), -5000, 5000)
+      : 0,
+    catalogSources: Array.isArray(src.catalogSources)
+      ? [
+          ...new Set(
+            src.catalogSources
+              .filter((item): item is string => typeof item === 'string')
+              .map((item) => item.trim())
+              .filter((item) => /^https:\/\//i.test(item) || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//i.test(item))
+              .slice(0, 5)
+          )
+        ]
+      : [],
     monitorIntervalMs,
     theme: normalizeTheme(src.theme)
   }

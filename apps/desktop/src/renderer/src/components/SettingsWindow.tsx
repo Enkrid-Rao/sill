@@ -68,6 +68,10 @@ export function SettingsWindow(): React.JSX.Element {
         weatherNetwork={settings.weatherNetwork}
         onNetworkConsentChange={settings.changeNetworkConsent}
         onWeatherNetworkChange={settings.changeWeatherNetwork}
+        lyricsOffsetMs={settings.lyricsOffsetMs}
+        onLyricsOffsetChange={settings.changeLyricsOffset}
+        catalogSources={settings.catalogSources}
+        onCatalogSourcesChange={settings.changeCatalogSources}
         monitorIntervalMs={settings.monitorIntervalMs}
         onMonitorIntervalChange={settings.changeMonitorIntervalMs}
         startAtLogin={settings.startAtLogin}

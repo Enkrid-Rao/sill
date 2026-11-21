@@ -23,6 +23,7 @@ export interface CatalogResult {
   error?: string
   updated?: string
   entries: CatalogEntry[]
+  warnings?: string[]
 }
 
 export interface CatalogUpdate {
