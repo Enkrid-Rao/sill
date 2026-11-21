@@ -16,6 +16,8 @@ directories:
   buildResources: resources
 
 # 只打构建产物。React 已被 Vite 打进 renderer bundle，运行时没有额外 node_modules 依赖。
+# 注意：out/ 是构建目录，开发期截图 / 探针产物不要留在里面 —— 它们会被打进安装包。
+# 现有排除项是踩过的坑：顶层 png、shots*、以及探针用的 glass-probe/。
 files:
   - out/**/*
   - "!out/smoke.png"
@@ -26,6 +28,7 @@ files:
   - "!out/*.mjs"
   - "!out/*.log"
   - "!out/shots*/**"
+  - "!out/glass-probe/**"
   - package.json
 
 # 托盘图标放在 asar 外面：nativeImage 读 asar 内的文件不可靠。
