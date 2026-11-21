@@ -6,6 +6,12 @@ interface Props {
   language: Language
 }
 
+/** 没有可用图标时用首字母贴片：比一张「默认应用图」或白纸更像有意的设计 */
+function initial(name: string): string {
+  const first = Array.from(name.trim())[0] ?? '?'
+  return first.toUpperCase()
+}
+
 /** 快捷方式收纳盒：添加 / 打开 / 删除，支持把文件或文件夹直接拖进来。 */
 export function ShelfWidget({ language }: Props): React.JSX.Element {
   const [items, setItems] = useState<ShelfShortcut[]>([])
@@ -129,7 +135,9 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
                 {item.icon ? (
                   <img className="shelf__icon" src={item.icon} alt="" draggable={false} />
                 ) : (
-                  <span className="shelf__fallback">↗</span>
+                  <span className="shelf__fallback" aria-hidden="true">
+                    {initial(item.name)}
+                  </span>
                 )}
                 <span className="shelf__name">{item.name}</span>
               </button>
