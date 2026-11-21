@@ -438,7 +438,6 @@ export default function App(): React.JSX.Element {
   // 量尺寸同步做（useLayoutEffect 时卡片已经在 DOM 里），不排 rAF：依赖一变就会
   // cleanup，rAF 会被取消，之前正是这样漏掉的。
   const seededRef = useRef('')
-  const refineTimerRef = useRef<number | null>(null)
   useLayoutEffect(() => {
     // 磁盘布局还没回来之前不能写：否则补种会用默认布局覆盖用户的 hidden / boxes。
     if (!settings.layoutReady || !free || !snapshot) return
@@ -477,27 +476,50 @@ export default function App(): React.JSX.Element {
     }
     if (!changed) return
     setLayoutRef.current({ ...latest, boxes })
+  }, [free, snapshot, layout.order, layout.hidden, layout.boxes, settings.layoutReady])
 
-    // 媒体 / 进程这类卡的首帧是空的，数据晚到后才变高。对这次自动补出来的
-    // box 做一次「只增不减」的修正，避免内容被 overflow:hidden 裁掉。
-    const seededIds = stillMissing.slice()
-    if (refineTimerRef.current) window.clearTimeout(refineTimerRef.current)
-    refineTimerRef.current = window.setTimeout(() => {
-      refineTimerRef.current = null
-      const current = sheetRef.current
-      if (!current) return
-      const latestLayout = layoutRef.current
-      const grown = { ...latestLayout.boxes }
-      // 补种时的 y 是按「当时更矮的卡」算的；长高后要把下面的卡一起往下推，
-      // 否则会出现叠卡。
-      let grew = false
-      for (const element of current.querySelectorAll<HTMLElement>('.card')) {
+  /**
+   * free 布局下，卡片内容变高就把它的 box 长高（只增不减），并把下面的卡一起往下推。
+   *
+   * 以前这个修正只在「补种」之后跑一次（2.8s 定时器），于是：
+   * 收纳盒第一次补种时是空的 → box.h 按空状态定成 96px →
+   * 之后加进快捷方式，卡片永远不会长高，图标被裁掉一半、名字直接看不见。
+   *
+   * 现在的判据是「内容比上一次测量时更高」，而不是「内容比 box 高」——
+   * 用户手动把卡缩小时不会被强行弹回去，只有内容真的长大了才长。
+   */
+  const contentHeights = useRef(new Map<string, number>())
+  useEffect(() => {
+    if (!free || !settings.layoutReady) return
+    let timer: number | null = null
+
+    const check = (): void => {
+      timer = null
+      const sheet = sheetRef.current
+      if (!sheet) return
+      const latest = layoutRef.current
+      const grown = { ...latest.boxes }
+      let changed = false
+      for (const element of sheet.querySelectorAll<HTMLElement>('.card')) {
         const id = element.dataset.card
-        if (!id || !seededIds.includes(id)) continue
+        if (!id) continue
         const box = grown[id]
         if (!box) continue
-        const needed = Math.ceil(element.scrollHeight)
-        if (needed <= box.h + 1) continue
+        // 卡片自身的 scrollHeight 看不出「内部容器被挤扁」——嵌套盒的溢出不会
+        // 传进外层滚动区域。带 data-fit 的内部容器（如收纳盒）单独报自己的溢出。
+        let innerOverflow = 0
+        for (const inner of element.querySelectorAll<HTMLElement>('[data-fit]')) {
+          innerOverflow = Math.max(innerOverflow, inner.scrollHeight - inner.clientHeight)
+        }
+        const needed = element.clientHeight + Math.max(0, innerOverflow) + 1
+        const previous = contentHeights.current.get(id)
+        contentHeights.current.set(id, needed)
+        // 首次见到这张卡：内容已经超过 box 就补上（老布局里常见，比如收纳盒
+        // 在空状态下被定成 96px，后来塞进了东西）。之后只看「内容有没有变高」，
+        // 这样用户手动把卡缩小不会被弹回去。
+        const grew =
+          previous === undefined ? needed > box.h + 1 : needed > previous + 1 && needed > box.h + 1
+        if (!grew) continue
         const delta = needed - box.h
         const oldBottom = box.y + box.h
         grown[id] = { ...box, h: needed }
@@ -506,18 +528,27 @@ export default function App(): React.JSX.Element {
           const target = grown[other]
           if (target.y >= oldBottom) grown[other] = { ...target, y: target.y + delta }
         }
-        grew = true
+        changed = true
       }
-      if (grew) setLayoutRef.current({ ...latestLayout, boxes: grown })
-    }, 2800)
-  }, [free, snapshot, layout.order, layout.hidden, layout.boxes, settings.layoutReady])
+      if (changed) setLayoutRef.current({ ...latest, boxes: grown })
+    }
 
-  useEffect(
-    () => () => {
-      if (refineTimerRef.current) window.clearTimeout(refineTimerRef.current)
-    },
-    []
-  )
+    const schedule = (): void => {
+      if (timer) window.clearTimeout(timer)
+      timer = window.setTimeout(check, 400)
+    }
+
+    const sheet = sheetRef.current
+    const observer = new ResizeObserver(schedule)
+    if (sheet) for (const element of sheet.querySelectorAll('.card')) observer.observe(element)
+    // 卡片增删 / 换序也会改写内容高度，挂载变化一并触发
+    observer.observe(sheet as Element)
+    return () => {
+      observer.disconnect()
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [free, settings.layoutReady, layout.order, layout.hidden])
+
   const updateBox = useCallback(
     (id: string, box: WidgetBox) => {
       settings.setLayout({

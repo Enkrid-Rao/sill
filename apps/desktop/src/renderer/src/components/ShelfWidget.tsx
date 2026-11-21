@@ -73,6 +73,9 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
   return (
     <div
       className="shelf"
+      /* 告诉 App：这个卡片的可用高度要按内容撑开（条目行 + 标题）。
+         不加这个标记的话，卡片会把网格挤扁，图标被裁掉一半、名字也看不见。 */
+      data-fit="1"
       data-drag={dragging ? 'true' : undefined}
       onDragEnter={(event) => {
         if (!event.dataTransfer.types.includes('Files')) return
