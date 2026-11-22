@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { app, shell } from 'electron'
+import { app, BrowserWindow, dialog, Menu, nativeImage, shell } from 'electron'
 import type { ShelfShortcut } from '../../shared/shelf'
 import { USER_DATA_DIR } from '../paths'
 
@@ -33,7 +33,8 @@ function load(): ShelfShortcut[] {
         id: typeof item.id === 'string' ? item.id : randomUUID(),
         name: String(item.name ?? '').trim(),
         path: String(item.path ?? ''),
-        icon: typeof item.icon === 'string' ? item.icon : null
+        icon: typeof item.icon === 'string' ? item.icon : null,
+        iconCustom: item.iconCustom === true
       }))
       .filter((item) => item.name && item.path)
       .slice(0, MAX_ITEMS)
@@ -95,6 +96,7 @@ export async function listShelf(): Promise<ShelfShortcut[]> {
   const items = load()
   let changed = false
   for (const item of items) {
+    if (item.iconCustom) continue
     // 快捷方式/可执行文件的图标以前可能是通用图：每次启动重取一次，把旧数据自动修好
     if (isAppPath(item.path) && !refreshed.has(item.id)) {
       refreshed.add(item.id)
@@ -226,6 +228,94 @@ export function removeShelf(id: string): ShelfShortcut[] {
   cache = load().filter((item) => item.id !== id)
   persist(cache)
   return cache
+}
+
+/** 让用户给某一项挑一张图当图标（png / ico / jpg / webp），统一缩到 64×64 */
+export async function setShelfIcon(id: string): Promise<ShelfShortcut[]> {
+  const items = load()
+  const item = items.find((entry) => entry.id === id)
+  if (!item) return items
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  const picked = await dialog.showOpenDialog(win, {
+    title: '选择图标',
+    buttonLabel: '用它',
+    properties: ['openFile'],
+    filters: [
+      { name: '图片', extensions: ['png', 'ico', 'jpg', 'jpeg', 'webp'] },
+      { name: '所有文件', extensions: ['*'] }
+    ]
+  })
+  const file = picked.canceled ? '' : picked.filePaths[0]
+  if (!file) return items
+  const image = nativeImage.createFromPath(file)
+  if (image.isEmpty()) return items
+  // 先裁成正方形再缩，避免非方形图被拉伸
+  const { width, height } = image.getSize()
+  const side = Math.min(width, height)
+  const square =
+    width === height
+      ? image
+      : image.crop({
+          x: Math.round((width - side) / 2),
+          y: Math.round((height - side) / 2),
+          width: side,
+          height: side
+        })
+  item.icon = square.resize({ width: 64, height: 64, quality: 'best' }).toDataURL()
+  item.iconCustom = true
+  persist(items)
+  return items
+}
+
+/** 丢掉自定义图标，回到自动解析（并立刻重新取一次） */
+export async function clearShelfIcon(id: string): Promise<ShelfShortcut[]> {
+  const items = load()
+  const item = items.find((entry) => entry.id === id)
+  if (!item) return items
+  item.iconCustom = false
+  refreshed.delete(id)
+  const icon = existsSync(item.path) ? await readIcon(item.path) : null
+  item.icon = icon
+  persist(items)
+  return items
+}
+
+/**
+ * 收纳盒条目的右键菜单。放在主进程弹，渲染进程不用维护一套菜单状态。
+ */
+export function showShelfMenu(id: string): void {
+  const item = load().find((entry) => entry.id === id)
+  if (!item) return
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+  Menu.buildFromTemplate([
+    { label: '打开', click: () => void openShelf(item.id) },
+    { type: 'separator' },
+    {
+      label: '设置图标…',
+      click: () => {
+        void setShelfIcon(item.id).then((next) => {
+          if (win && !win.isDestroyed()) win.webContents.send('shelf:changed', next)
+        })
+      }
+    },
+    {
+      label: '恢复默认图标',
+      enabled: item.iconCustom === true,
+      click: () => {
+        void clearShelfIcon(item.id).then((next) => {
+          if (win && !win.isDestroyed()) win.webContents.send('shelf:changed', next)
+        })
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '从收纳盒移除',
+      click: () => {
+        const next = removeShelf(item.id)
+        if (win && !win.isDestroyed()) win.webContents.send('shelf:changed', next)
+      }
+    }
+  ]).popup({ window: win })
 }
 
 export async function openShelf(id: string): Promise<{ ok: boolean; error?: string }> {

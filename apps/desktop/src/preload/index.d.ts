@@ -92,6 +92,13 @@ export interface SillApi {
   getPathForFile: (file: File) => string
   removeShelf: (id: string) => Promise<ShelfShortcut[]>
   openShelf: (id: string) => Promise<{ ok: boolean; error?: string }>
+  /** 打开系统文件选择器，把选中的图设为这一项的图标（64×64 data URL） */
+  setShelfIcon: (id: string) => Promise<ShelfShortcut[]>
+  /** 丢掉自定义图标，回到自动解析 */
+  clearShelfIcon: (id: string) => Promise<ShelfShortcut[]>
+  /** 弹出收纳盒条目的右键菜单（打开 / 设置图标 / 恢复默认 / 移除） */
+  shelfMenu: (id: string) => Promise<void>
+  onShelfChanged: (listener: (items: ShelfShortcut[]) => void) => () => void
   listTodos: () => Promise<TodoItem[]>
   addTodo: (text: string) => Promise<TodoItem[]>
   toggleTodo: (id: string) => Promise<TodoItem[]>

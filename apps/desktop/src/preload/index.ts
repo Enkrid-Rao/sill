@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { TodoItem } from '../shared/data'
+import type { ShelfShortcut } from '../shared/shelf'
 
 /**
  * 渲染进程只能看到这一层 API。
@@ -75,6 +76,14 @@ const api = {
     webUtils.getPathForFile(file),
   removeShelf: (id: string) => ipcRenderer.invoke('shelf:remove', id),
   openShelf: (id: string) => ipcRenderer.invoke('shelf:open', id),
+  setShelfIcon: (id: string) => ipcRenderer.invoke('shelf:set-icon', id),
+  clearShelfIcon: (id: string) => ipcRenderer.invoke('shelf:clear-icon', id),
+  shelfMenu: (id: string) => ipcRenderer.invoke('shelf:menu', id),
+  onShelfChanged: (listener: (items: ShelfShortcut[]) => void) => {
+    const handler = (_event: unknown, items: ShelfShortcut[]): void => listener(items)
+    ipcRenderer.on('shelf:changed', handler)
+    return () => ipcRenderer.removeListener('shelf:changed', handler)
+  },
   listTodos: () => ipcRenderer.invoke('todo:list'),
   addTodo: (text: string) => ipcRenderer.invoke('todo:add', text),
   toggleTodo: (id: string) => ipcRenderer.invoke('todo:toggle', id),

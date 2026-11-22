@@ -33,8 +33,13 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
       .finally(() => {
         if (alive) setLoaded(true)
       })
+    // 右键菜单 / 选图对话框是在主进程里进行的，结果通过事件推回来
+    const off = window.sill?.onShelfChanged((next) => {
+      if (alive) setItems(next)
+    })
     return () => {
       alive = false
+      off?.()
     }
   }, [])
 
@@ -55,6 +60,17 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
       if (next) setItems(next)
     } catch {
       // 删除失败：保留当前图标，不把界面锁在 busy 上
+    }
+  }
+
+  const pickIcon = async (id: string): Promise<void> => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const next = await window.sill?.setShelfIcon(id)
+      if (next) setItems(next)
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -125,11 +141,18 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
       ) : items.length ? (
         <div className="shelf__grid">
           {items.map((item) => (
-            <div className="shelf__item" key={item.id}>
+            <div
+              className="shelf__item"
+              key={item.id}
+              onContextMenu={(event) => {
+                event.preventDefault()
+                void window.sill?.shelfMenu(item.id)
+              }}
+            >
               <button
                 className="shelf__open"
                 type="button"
-                title={item.path}
+                title={`${item.path}\n右键：设置图标`}
                 onClick={() => void window.sill?.openShelf(item.id)}
               >
                 {item.icon ? (
@@ -140,6 +163,23 @@ export function ShelfWidget({ language }: Props): React.JSX.Element {
                   </span>
                 )}
                 <span className="shelf__name">{item.name}</span>
+              </button>
+              <button
+                className="shelf__pick"
+                type="button"
+                aria-label={t(language, 'shelf.icon')}
+                title={t(language, 'shelf.icon')}
+                onClick={() => void pickIcon(item.id)}
+              >
+                <svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
+                  <path
+                    d="M2.5 3.5h11v9h-11zM2.5 10l3-3 2.5 2.5 2-2 3.5 3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
               <button
                 className="shelf__remove"

@@ -299,6 +299,7 @@ const en = {
   'shelf.empty': 'Add a shortcut',
   'shelf.drop': 'Drop files or folders here',
   'shelf.remove': 'Remove',
+  'shelf.icon': 'Set icon',
 
   'layout.title': 'Layout',
   'layout.hint': 'Drag cards, use the arrows, or set columns',
@@ -671,6 +672,7 @@ const zh: Record<Key, string> = {
   'shelf.empty': '添加快捷方式',
   'shelf.drop': '拖入文件或文件夹',
   'shelf.remove': '删除',
+  'shelf.icon': '设置图标',
 
   'layout.title': '布局',
   'layout.hint': '拖动卡片，或用箭头与跨列数',

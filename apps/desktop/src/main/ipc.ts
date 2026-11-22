@@ -14,7 +14,15 @@ import {
 } from './file-assoc'
 import { getSnapshot, refreshDataCadence } from './data'
 import { mediaCommand } from './data/media-control'
-import { addShelfPaths, listShelf, openShelf, removeShelf } from './data/shelf'
+import {
+  addShelfPaths,
+  clearShelfIcon,
+  listShelf,
+  openShelf,
+  removeShelf,
+  setShelfIcon,
+  showShelfMenu
+} from './data/shelf'
 import { addTodo, listTodos, removeTodo, restoreTodo, toggleTodo, updateTodo } from './data/todo'
 import { getDevWidget } from './dev-widget'
 import { COMPONENTS_DIR, getLayout, resetLayout, setLayout } from './layout'
@@ -399,6 +407,15 @@ export function registerIpc(deps: IpcDeps): void {
   ipcMain.handle('shelf:open', (_event, id: unknown) =>
     typeof id === 'string' ? openShelf(id) : { ok: false, error: '无效 id' }
   )
+  ipcMain.handle('shelf:set-icon', (_event, id: unknown) =>
+    typeof id === 'string' ? setShelfIcon(id) : listShelf()
+  )
+  ipcMain.handle('shelf:clear-icon', (_event, id: unknown) =>
+    typeof id === 'string' ? clearShelfIcon(id) : listShelf()
+  )
+  ipcMain.handle('shelf:menu', (_event, id: unknown) => {
+    if (typeof id === 'string') showShelfMenu(id)
+  })
 
   ipcMain.handle('todo:list', () => listTodos())
   ipcMain.handle('todo:add', (_event, text: unknown) =>

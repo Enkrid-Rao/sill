@@ -2636,8 +2636,33 @@ body {
 
 .shelf__item:hover .shelf__remove,
 .shelf__item:focus-within .shelf__remove,
-.shelf__remove:focus-visible {
+.shelf__remove:focus-visible,
+.shelf__item:hover .shelf__pick,
+.shelf__item:focus-within .shelf__pick,
+.shelf__pick:focus-visible {
   opacity: 1;
+}
+
+/* 「设置图标」：和删除按钮并排，平时隐藏，hover 才露出来 */
+.shelf__pick {
+  position: absolute;
+  top: -3px;
+  right: 15px;
+  display: grid;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(10, 20, 16, 0.75);
+  color: var(--ink-dim);
+  opacity: 0;
+  cursor: pointer;
+}
+
+.shelf__pick:hover {
+  color: var(--accent);
 }
 
 .shelf__empty {
