@@ -117,10 +117,12 @@ function refreshBackdrop(force = false): void {
   const win = panel
   if (!win || win.isDestroyed() || visible || backdropBusy) return
   // frame 档、或者 live 档但屏幕流没跑起来 → 都需要每次收起后刷新一帧；
-  // 只有 live 真的在跑时才不用抓（每帧都是新的）
+  // 只有 live 真的在跑时才不用抓（每帧都是新的）。
+  // 静态帧档在隐藏期间有一套「预滚」流（渲染进程会把它也算作 liveActive），
+  // 那种情况下也别抓：1.2s 的静态抓帧反而会把更新的纹理盖回旧画面。
   const mode = loadSettings().theme.glassMode
   const effective = mode === 'film' ? 'film' : mode === 'live' && liveActive ? 'live' : 'frame'
-  if (!force && effective !== 'frame') return
+  if (!force && (effective !== 'frame' || liveActive)) return
   backdropBusy = true
   void captureBackdrop(win)
     .then((payload) => {
@@ -163,7 +165,8 @@ export function requestBackdrop(): BackdropPayload | null {
 export function applyGlassMode(mode: 'film' | 'frame' | 'live', win = panel): void {
   const excluded = mode === 'live'
   if (win && !win.isDestroyed()) setCaptureExcluded(win, excluded)
-  if (excluded) installDisplayMediaHandler(() => panel)
+  // frame 档也要装：它隐藏期间用一套低帧率「预滚」流来保持画面是当前桌面
+  if (mode !== 'film') installDisplayMediaHandler(() => panel)
   // 从 live 切回 frame：手上那帧可能已经很旧，收起状态下补抓一张
   if (mode === 'frame' && lastBackdrop) refreshBackdrop(true)
 }

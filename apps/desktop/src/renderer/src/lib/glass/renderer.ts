@@ -404,6 +404,22 @@ export class GlassRenderer {
     this.liveDirty = true
   }
 
+  /**
+   * 预滚帧：面板**隐藏时**持续把最新的桌面帧塞进纹理并重跑模糊，但不做合成
+   * （窗口不可见，画了也没人看）。
+   *
+   * 这样「静态帧」档在唤出时手上已经是最新的桌面，而不是上一次收起时的旧画面；
+   * 唤出后不再喂帧，材质语义仍然是「冻结的一帧」。
+   */
+  ingestFrame(frame: VideoFrame, sigmaCss: number): void {
+    if (!this.available) {
+      frame.close()
+      return
+    }
+    this.pushVideoFrame(frame)
+    this.uploadLive(sigmaCss)
+  }
+
   get liveReady(): boolean {
     return this.liveAttached && this.liveHasFrame
   }

@@ -135,6 +135,12 @@ export function useLiquidGlass({ theme, visible, radius }: LiquidGlassOptions): 
   const lastMotionRef = useRef<MotionState | null>(null)
   /** 每帧合成耗时的滑动平均（ms） */
   const drawCostRef = useRef(0)
+  /** 静态帧档「预滚」流的状态，给 debug() 看 */
+  const preRollRef = useRef<{
+    phase: 'idle' | 'wait' | 'starting' | 'running' | 'failed'
+    frames: number
+    error: string | null
+  }>({ phase: 'idle', frames: 0, error: null })
 
   themeRef.current = theme
   radiusRef.current = radius
@@ -318,6 +324,98 @@ export function useLiquidGlass({ theme, visible, radius }: LiquidGlassOptions): 
     blurRef.current = blur
     startLoop()
   }, [theme.glassBlur, theme.glassMode, startLoop])
+
+  // ---- 静态帧档的「预滚」：隐藏时持续取最新一帧 --------------------------
+  //
+  // 抓帧原本发生在收起之后，于是「静态帧」永远是上一次收起那一刻的桌面 ——
+  // 收起期间换了窗口、翻了页，再唤出还是旧画面。
+  // 现在面板隐藏期间挂一路低帧率的屏幕流，把最新帧直接灌进纹理；
+  // 唤出瞬间手上就是当前桌面，唤出后停流派，语义仍是「冻结的一帧」。
+  //
+  // 只在不显示时跑，所以不需要 WDA：窗口此时不在任何画面里，流里不会有自己。
+  useEffect(() => {
+    if (theme.glassMode !== 'frame' || visible) return
+    let cancelled = false
+    let stream: MediaStream | null = null
+    let reader: ReadableStreamDefaultReader<VideoFrame> | null = null
+    let started = false
+
+    const stop = (): void => {
+      if (reader) {
+        void reader.cancel().catch(() => {})
+        reader = null
+      }
+      stream?.getTracks().forEach((track) => track.stop())
+      stream = null
+      if (started) {
+        started = false
+        void window.sill?.setLiveActive(false)
+      }
+    }
+
+    const start = async (): Promise<void> => {
+      preRollRef.current = { phase: 'wait', frames: 0, error: null }
+      // 收起动画 160ms：等面板真的滑出屏幕再开流，否则第一帧会拍到它自己
+      await new Promise((resolve) => window.setTimeout(resolve, 260))
+      if (cancelled || visibleRef.current) return
+      preRollRef.current = { phase: 'starting', frames: 0, error: null }
+      const Processor = (window as unknown as {
+        MediaStreamTrackProcessor?: new (init: { track: MediaStreamTrack }) => {
+          readable: ReadableStream<VideoFrame>
+        }
+      }).MediaStreamTrackProcessor
+      if (!Processor || !navigator.mediaDevices?.getDisplayMedia) return
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          // 隐藏期间不需要流畅，6fps 足够让「打开时是当前画面」，代价也可忽略
+          video: { frameRate: 6 },
+          audio: false
+        })
+      } catch (error) {
+        console.warn('[sill] 静态帧预滚拿不到屏幕流：', error)
+        preRollRef.current = { phase: 'failed', frames: 0, error: String(error) }
+        return
+      }
+      if (cancelled || visibleRef.current) {
+        stop()
+        return
+      }
+      started = true
+      preRollRef.current = { phase: 'running', frames: 0, error: null }
+      // 告诉主进程「有实时来源在跑」，别再走 1.2s 的静态抓帧
+      void window.sill?.setLiveActive(true)
+      let frames: { readable: ReadableStream<VideoFrame> } | null = null
+      try {
+        frames = new Processor({ track: stream.getVideoTracks()[0] })
+      } catch {
+        frames = null
+      }
+      if (!frames) return
+      reader = frames.readable.getReader()
+      for (;;) {
+        try {
+          const { value, done } = await reader.read()
+          if (done) break
+          if (!value) continue
+          if (visibleRef.current) {
+            value.close()
+            break
+          }
+          // 只上传 + 模糊，不合成：窗口此时不可见
+          rendererRef.current?.ingestFrame(value, lookRef.current.blur)
+          preRollRef.current = { ...preRollRef.current, frames: preRollRef.current.frames + 1 }
+        } catch {
+          break
+        }
+      }
+    }
+
+    void start()
+    return () => {
+      cancelled = true
+      stop()
+    }
+  }, [theme.glassMode, visible])
 
   // ---- 实时档：拿一路持续的屏幕流 ----------------------------------------
   useEffect(() => {
@@ -593,6 +691,8 @@ export function useLiquidGlass({ theme, visible, radius }: LiquidGlassOptions): 
       live: rendererRef.current?.liveReady ?? false,
       liveFrames: rendererRef.current?.liveFrames ?? 0,
       liveUploads: rendererRef.current?.liveUploads ?? 0,
+      preRoll: preRollRef.current,
+      visible: visibleRef.current,
       latency: rendererRef.current?.latency ?? null,
       videoState: videoStateRef.current,
       drawMs: Math.round(drawCostRef.current * 100) / 100,

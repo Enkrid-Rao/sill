@@ -656,6 +656,24 @@ renderer: navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 } })
 4. 用户从系统那边点「停止共享」→ track `ended` → 自动退回静态帧，不黑屏。
 5. 换到另一块屏（多显示器）需要重开面板才会重新取源。
 
+### 12.4.1 静态帧档的「预滚」（v0.8.2 修）
+
+原本静态帧是**收起之后**抓一张，于是它永远是「上一次收起那一刻的桌面」：
+收起期间换了窗口、翻了页，再唤出还是旧画面（用户报的「永远是上一个画面」）。
+
+现在 frame 档在**隐藏期间**挂一路 6fps 的屏幕流（`getDisplayMedia` → MSTP），
+每帧只做 `texImage2D` + 模糊、**不合成**（窗口不可见，画了也没人看）；唤出时手上
+已经是最新桌面，唤出后立刻停流，材质语义仍然是「冻结的一帧」。
+
+- 不需要 WDA：隐藏期间窗口不在任何画面里，流里不会拍到自己。WDA 只在 live 档打开。
+- 代价可以忽略：WGC 是**变化驱动**的，桌面静止时根本不出帧；动的时候才 6fps。
+- 主进程那边 `refreshBackdrop` 见到 `liveActive`（预滚也会上报）就跳过 1.2s 的静态抓帧，
+  否则那张更旧的帧会把新纹理盖回去。
+- 调试：`window.__sillGlass.debug().preRoll` → `{ phase: 'idle'|'wait'|'starting'|'running'|'failed', frames, error }`。
+
+实测（`apps/desktop/out/frame-fresh-check.mjs`，本地脚本）：显示中涂红 → 隐藏 → 涂绿 →
+唤出，玻璃带 RGB = (16,106,16) 绿；再隐藏涂蓝 → 唤出 = (24,48,144) 蓝。
+
 ### 12.5 延迟：拆开量，看还剩多少空间
 
 #### 量法
